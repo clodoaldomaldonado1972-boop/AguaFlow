@@ -1,0 +1,15 @@
+# Ambientes virtuais (os "motores" que não precisam ir pro GitHub)
+.venv/
+venv/
+env/
+        
+# Cache do Python (arquivos temporários)
+**/__pycache__/
+*.pyc
+
+# Arquivos gerados (PDFs e bancos de dados de teste)
+*.pdf
+*.db
+
+# Configurações do VS Code
+.vscode/
