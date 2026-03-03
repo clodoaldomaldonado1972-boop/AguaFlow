@@ -45,3 +45,11 @@ def limpar_banco():
     conn.commit()
     conn.close()
     print("🧹 Banco de dados limpo com sucesso!")
+    
+def buscar_ultima_leitura(unidade):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("SELECT leitura_agua FROM leituras WHERE unidade = ? ORDER BY data_hora DESC LIMIT 1", (unidade,))
+    resultado = cursor.fetchone()
+    conn.close()
+    return resultado[0] if resultado else 0
