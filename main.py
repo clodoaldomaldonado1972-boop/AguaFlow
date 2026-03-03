@@ -1,48 +1,51 @@
 import flet as ft
+# Importe o arquivo database no topo do main.py
+import database 
+
+# ... dentro da função btn_proximo_click:
+def btn_proximo_click(e):
+    # (Suas validações já existentes aqui)
+    
+    # COMANDO PARA SALVAR:
+    database.salvar_leitura(
+        unidade=unidades[indice[0]],
+        agua=input_agua.value,
+        gas=input_gas.value
+    )
+    
+    # (Restante da sua lógica de avançar unidade...)
 
 def main(page: ft.Page):
     page.title = "AguaFlow - Gestão Condominial"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 20
     
-    # --- ABA DE LEITURA ---
+    unidades = ["Hidrômetro Geral", "Área de Lazer", "Apto 166", "Apto 165", "Apto 164"]
+    indice = [0] 
+
+    txt_unidade_atual = ft.Text(f"Unidade Atual: {unidades[0]}", size=20, weight="bold", color="blue700")
+    
+    # Ícones corrigidos para compatibilidade
+    input_agua = ft.TextField(label="Hidrômetro de Água (m³)", icon=ft.icons.WATER, keyboard_type=ft.KeyboardType.NUMBER)
+    input_gas = ft.TextField(label="Medidor de Gás (m³)", icon=ft.icons.OPACITY, keyboard_type=ft.KeyboardType.NUMBER)
+
     def btn_proximo_click(e):
-        # Aqui entrará a lógica de pular do 16º para o 15º andar
-        print("Avançando unidade...")
+        if not input_agua.value:
+            input_agua.error_text = "Campo obrigatório"
+            page.update()
+            return
+        
+        # Lógica de avançar...
+        if indice[0] < len(unidades) - 1:
+            indice[0] += 1
+            txt_unidade_atual.value = f"Unidade Atual: {unidades[indice[0]]}"
+            input_agua.value = ""
+            input_gas.value = ""
+        page.update()
 
-    aba_leitura = ft.Column([
-        ft.Text("Medição de Água e Gás", size=25, weight="bold", color="blue900"),
-        ft.Divider(),
-        ft.Text("Unidade Atual: Apto 166", size=18),
-        ft.TextField(label="Hidrômetro de Água", icon=ft.icons.WATER_DROP),
-        ft.TextField(label="Medidor de Gás", icon=ft.icons.FIRE_EXTINGUISHER),
-        ft.ElevatedButton("Salvar Leitura", icon=ft.icons.SAVE, on_click=btn_proximo_click, bgcolor="blue900", color="white")
-    ])
+    btn_salvar = ft.ElevatedButton("Salvar e Próximo", on_click=btn_proximo_click, bgcolor="blue900", color="white")
+    
+    page.add(txt_unidade_atual, input_agua, input_gas, btn_salvar)
 
-    # --- ABA DE HISTÓRICO ---
-    aba_historico = ft.Column([
-        ft.Text("Histórico de Leituras", size=25, weight="bold"),
-        ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("Unidade")),
-                ft.DataColumn(ft.Text("Água")),
-                ft.DataColumn(ft.Text("Gás")),
-            ],
-            rows=[] # Aqui o banco de dados vai preencher as linhas
-        )
-    ])
-
-    # --- NAVEGAÇÃO POR ABAS ---
-    t = ft.Tabs(
-        selected_index=0,
-        animation_duration=300,
-        tabs=[
-            ft.Tab(text="Leitura", content=aba_leitura),
-            ft.Tab(text="Histórico", content=aba_historico),
-        ],
-        expand=1
-    )
-
-    page.add(t)
-
+# Use ft.app se estiver em versões antigas, ou apenas mude os ícones primeiro
 ft.app(target=main)
