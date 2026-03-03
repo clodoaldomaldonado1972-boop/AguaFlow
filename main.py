@@ -1,121 +1,181 @@
 import flet as ft
-import database  # Importa todas as funções que criamos acima
+import database  # Importa o arquivo de banco de dados do grupo
 
 
 def main(page: ft.Page):
-    # Configurações básicas da página
-    page.title = "AguaFlow - Gestão Condominial"
+    # --- CONFIGURAÇÕES INICIAIS DA PÁGINA ---
+    page.title = "AguaFlow - Sistema de Medição"
     page.theme_mode = ft.ThemeMode.LIGHT
+    page.window_width = 400
+    page.window_height = 700
     page.padding = 20
+    # Centraliza o conteúdo na tela de login
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
-    # Ordem das unidades para medição (Sequenciamento)
-    unidades = ["Hidrometro Geral", "Area de Lazer",
-                "Apto 166", "Apto 165", "Apto 164"]
-    # Usamos lista para poder alterar o valor dentro da função
-    indice_atual = [0]
+    # --- FUNÇÃO PRINCIPAL: CARREGA APÓS O LOGIN ---
+    def carregar_sistema_principal():
+        page.clean()  # Limpa a tela de login
+        page.vertical_alignment = ft.MainAxisAlignment.START  # Alinha conteúdo no topo
 
-    # Elementos Visuais
-    lbl_unidade = ft.Text(
-        f"Unidade Atual: {unidades[0]}", size=24, weight="bold", color="blue900")
+        # Lista de unidades para medição (sequenciamento)
+        unidades = ["Hidrômetro Geral", "Área de Lazer",
+                    "Apto 166", "Apto 165", "Apto 164"]
+        indice = [0]  # Uso de lista para manter a referência do contador
 
-    # --- CORREÇÃO AQUI: Mudamos WATER para WATER_DROP ---
-    txt_agua = ft.TextField(label="Leitura Agua (m³)",
-                            icon=ft.icons.WATER_DROP, keyboard_type=ft.KeyboardType.NUMBER)
+        # --- COMPONENTES DA ABA 1: MEDIÇÃO ---
+        lbl_unidade = ft.Text(
+            f"UNIDADE: {unidades[0]}", size=22, weight="bold", color="blue900")
 
-    # --- CORREÇÃO AQUI: Mudamos OPACITY para PROPANE_OUTLINE ou similar se der erro ---
-    txt_gas = ft.TextField(label="Leitura Gas (m³)",
-                           icon=ft.icons.OPACITY, keyboard_type=ft.KeyboardType.NUMBER)
-
-    # Tabela de Histórico (vazia inicialmente)
-    tabela_resumo = ft.DataTable(
-        columns=[
-            ft.DataColumn(ft.Text("Unidade")),
-            ft.DataColumn(ft.Text("Consumo (m³)")),
-            ft.DataColumn(ft.Text("Gas")),
-        ],
-        rows=[]
-    )
-
-    # FUNÇÃO: Salvar e Calcular
-    def salvar_clique(e):
-        if not txt_agua.value:
-            txt_agua.error_text = "Por favor, insira a leitura da água"
-            page.update()
-            return
-
-        # 1. Lógica de Consumo: Atual - Anterior
-        valor_anterior = database.buscar_ultima_leitura(
-            unidades[indice_atual[0]])
-        valor_atual = float(txt_agua.value)
-        consumo = valor_atual - valor_anterior
-
-        # 2. Salva no Banco de Dados
-        database.salvar_leitura(
-            unidades[indice_atual[0]], valor_atual, txt_gas.value)
-
-        # 3. Atualiza a Tabela de Histórico na Aba 2
-        tabela_resumo.rows.append(
-            ft.DataRow(cells=[
-                ft.DataCell(ft.Text(unidades[indice_atual[0]])),
-                # Alerta: Se consumo for maior que 20, fica vermelho
-                ft.DataCell(
-                    ft.Text(f"{consumo:.2f}", color="red" if consumo > 20 else "blue")),
-                ft.DataCell(ft.Text(txt_gas.value)),
-            ])
+        # Campo de entrada para Água com ícone de gota
+        txt_agua = ft.TextField(
+            label="LEITURA ÁGUA (m³)",
+            icon=ft.icons.OPACITY,
+            border_color="blue900",
+            keyboard_type=ft.KeyboardType.NUMBER
         )
 
-        # 4. Avança para a próxima unidade da lista
-        if indice_atual[0] < len(unidades) - 1:
-            indice_atual[0] += 1
-            lbl_unidade.value = f"Unidade Atual: {unidades[indice_atual[0]]}"
-            txt_agua.value = ""
-            txt_gas.value = ""
+        # Campo de entrada para Gás com ícone de chama
+        txt_gas = ft.TextField(
+            label="LEITURA GÁS (m³)",
+            icon=ft.icons.WHATSHOT,
+            border_color="blue900",
+            keyboard_type=ft.KeyboardType.NUMBER
+        )
+
+        # Lógica para salvar e pular para a próxima unidade
+        def proxima_unidade(e):
+            if not txt_agua.value:  # Validação de campo vazio
+                txt_agua.error_text = "Campo obrigatório"
+                page.update()
+                return
+
+            # Envia os dados para a função de salvar no database.py
+            database.salvar_leitura(unidades[indice[0]], float(
+                txt_agua.value), txt_gas.value)
+
+            # Verifica se ainda há unidades na lista
+            if indice[0] < len(unidades) - 1:
+                indice[0] += 1  # Incrementa o índice
+                # Atualiza o texto da tela
+                lbl_unidade.value = f"UNIDADE: {unidades[indice[0]]}"
+                txt_agua.value = ""  # Limpa campos para a próxima leitura
+                txt_gas.value = ""
+            else:
+                lbl_unidade.value = "✅ Medições Concluídas!"
+                btn_proximo.disabled = True  # Desativa o botão ao finalizar
+            page.update()
+
+        btn_proximo = ft.ElevatedButton(
+            "SALVAR E PRÓXIMO",
+            bgcolor="blue900",
+            color="white",
+            on_click=proxima_unidade,
+            width=300
+        )
+
+        # Container que agrupa os elementos da Medição
+        container_medicao = ft.Column([
+            ft.Text("AGUAFLOW - MEDIÇÃO", size=14, color="grey"),
+            ft.Divider(),
+            lbl_unidade,
+            ft.Container(height=10),
+            txt_agua,
+            txt_gas,
+            ft.Container(height=10),
+            btn_proximo
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, visible=True)
+
+        # --- COMPONENTES DA ABA 2: RELATÓRIO PDF ---
+        def gerar_pdf_clique(e):
+            nome_arquivo = database.gerar_pdf_relatorio()  # Chama função do banco
+            # Exibe aviso de confirmação na parte inferior (SnackBar)
+            page.snack_bar = ft.SnackBar(
+                ft.Text(f"Relatório gerado: {nome_arquivo}"), bgcolor="green")
+            page.snack_bar.open = True
+            page.update()
+
+        # Container que agrupa os elementos do Relatório
+        container_relatorio = ft.Column([
+            ft.Text("RELATÓRIOS", size=22, weight="bold", color="blue900"),
+            ft.Divider(),
+            ft.Text(
+                "Clique abaixo para exportar os dados do mês em formato PDF.", text_align="center"),
+            ft.Container(height=20),
+            ft.ElevatedButton(
+                "GERAR PDF MENSAL",
+                icon=ft.icons.PICTURE_AS_PDF,
+                bgcolor="red700",
+                color="white",
+                width=300,
+                on_click=gerar_pdf_clique
+            )
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, visible=False)
+
+        # --- LÓGICA DA BARRA DE NAVEGAÇÃO (MENU INFERIOR) ---
+        def mudar_aba(e):
+            # Controla a visibilidade baseada no índice clicado (0 ou 1)
+            container_medicao.visible = (e.control.selected_index == 0)
+            container_relatorio.visible = (e.control.selected_index == 1)
+            page.update()
+
+        # Cria a barra de menu inferior
+        page.navigation_bar = ft.NavigationBar(
+            destinations=[
+                ft.NavigationDestination(icon=ft.icons.EDIT, label="Medição"),
+                ft.NavigationDestination(
+                    icon=ft.icons.ASSESSMENT, label="Relatório"),
+            ],
+            on_change=mudar_aba,
+            bgcolor="blue900",
+            selected_index=0,
+        )
+
+        page.add(container_medicao, container_relatorio)
+        page.update()
+
+    # --- TELA DE LOGIN (TELA QUE ABRE PRIMEIRO) ---
+    # Carrega a imagem do logo do condomínio
+    logo = ft.Image(src="logo.jpeg", width=220, height=220)
+
+    # Campos de Usuário e Senha
+    txt_user = ft.TextField(label="Usuário", width=300)
+    txt_pass = ft.TextField(label="Senha", width=300,
+                            password=True, can_reveal_password=True)
+
+    # Validação simples de acesso
+    def validar_login(e):
+        if txt_user.value == "admin" and txt_pass.value == "123":
+            carregar_sistema_principal()  # Libera o acesso ao sistema
         else:
-            lbl_unidade.value = "✅ Todas as unidades foram medidas!"
-            btn_salvar.disabled = True
+            # Mostra erro se a senha estiver errada
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Acesso Negado: Verifique usuário e senha"), bgcolor="red")
+            page.snack_bar.open = True
+            page.update()
 
-        page.update()
-
-    # FUNÇÃO: Gerar PDF
-    def gerar_pdf_clique(e):
-        nome_pdf = database.gerar_pdf_relatorio()
-        page.snack_bar = ft.SnackBar(
-            ft.Text(f"Arquivo {nome_pdf} criado!"), bgcolor="green")
-        page.snack_bar.open = True
-        page.update()
-
-    # MONTAGEM DAS ABAS
-    btn_salvar = ft.ElevatedButton(
-        "Salvar Leitura", on_click=salvar_clique, bgcolor="blue900", color="white")
-
-    aba_leitura = ft.Column([
-        ft.Text("Medicao em Tempo Real", size=20, weight="bold"),
-        ft.Divider(),
-        lbl_unidade,
-        txt_agua,
-        txt_gas,
-        btn_salvar
-    ])
-
-    aba_historico = ft.Column([
-        ft.Text("Resumo da Sessao", size=20, weight="bold"),
-        tabela_resumo,
-        ft.ElevatedButton("Exportar Relatorio PDF", icon=ft.icons.PICTURE_AS_PDF,
-                          on_click=gerar_pdf_clique, color="white", bgcolor="red700")
-    ])
-
-    # Barra de Navegação Superior
-    tabs = ft.Tabs(
-        selected_index=0,
-        tabs=[
-            ft.Tab(text="Leitura", content=aba_leitura),
-            ft.Tab(text="Historico", content=aba_historico),
-        ],
-        expand=1
+    btn_login = ft.ElevatedButton(
+        "ENTRAR NO SISTEMA",
+        on_click=validar_login,
+        bgcolor="blue900",
+        color="white",
+        width=300,
+        height=50
     )
 
-    page.add(tabs)
+    # Adiciona os elementos de login na página inicial
+    page.add(
+        logo,
+        ft.Text("CONDOMÍNIO EDIF.VIVERE PRUDENTE",
+                weight="bold", color="blue900"),
+        ft.Container(height=20),
+        txt_user,
+        txt_pass,
+        ft.Container(height=10),
+        btn_login
+    )
 
 
-# --- CORREÇÃO AQUI: Simplificamos o comando de inicialização ---
-ft.app(main)
+# Inicializa a aplicação
+if __name__ == "__main__":
+    ft.app(target=main)
