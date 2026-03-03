@@ -1,4 +1,5 @@
 import flet as ft
+import utils  # Isso permite que o main.py "enxergue" a função de gerar etiquetas
 import database  # Importa o arquivo de banco de dados do grupo
 
 
