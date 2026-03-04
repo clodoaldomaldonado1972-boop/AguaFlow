@@ -20,14 +20,13 @@ def criar_banco():
 
 
 def checar_leitura_existente(unidade):
-    """Verifica se a unidade já foi lida no dia de hoje."""
-    criar_banco()  # Garante que a tabela existe
+    """Verifica se a unidade já foi lida no dia de hoje para evitar duplicados."""
     hoje = datetime.now().strftime("%Y-%m-%d")
     conn = sqlite3.connect("medicoes.db")
     cursor = conn.cursor()
     cursor.execute(
         "SELECT id FROM leituras WHERE unidade = ? AND data = ?", (
-            unidade, hoje)
+            unidade, hoy)
     )
     resultado = cursor.fetchone()
     conn.close()
@@ -36,45 +35,49 @@ def checar_leitura_existente(unidade):
 
 def salvar_leitura(unidade, agua, gas):
     """Grava a leitura no banco de dados."""
-    criar_banco()
     hoje = datetime.now().strftime("%Y-%m-%d")
     conn = sqlite3.connect("medicoes.db")
     cursor = conn.cursor()
+
+    # Tratamento: se o gás vier vazio do app, vira "0"
+    valor_gas = str(gas) if gas else "0"
+
     cursor.execute(
         "INSERT INTO leituras (unidade, leitura_agua, leitura_gas, data) VALUES (?, ?, ?, ?)",
-        (unidade, agua, gas, hoje)
+        (unidade, agua, valor_gas, hoje)
     )
+
     conn.commit()
     conn.close()
-    print(f"Dados salvos: {unidade} - Água: {agua}")
+    print(
+        f"✅ Banco de Dados -> Unidade: {unidade} | Água: {agua} | Gás: {valor_gas}")
 
 
 def listar_todas_leituras():
-    """Retorna tudo o que foi lido para mostrar na tela de relatório."""
+    """Retorna todos os registros ordenados do mais recente para o mais antigo."""
     conn = sqlite3.connect("medicoes.db")
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT unidade, leitura_agua, leitura_gas, data FROM leituras ORDER BY id DESC")
+        "SELECT unidade, leitura_agua, leitura_gas, data FROM leituras ORDER BY id DESC"
+    )
     dados = cursor.fetchall()
     conn.close()
     return dados
 
 
 def zerar_historico():
+    """Apaga todos os dados da tabela (Cuidado!)."""
     conn = sqlite3.connect("medicoes.db")
     cursor = conn.cursor()
-    # Este comando apaga todos os registros da tabela, mas mantém a estrutura
     cursor.execute("DELETE FROM leituras")
     conn.commit()
     conn.close()
-    print("Banco de dados resetado!")
+    print("⚠️ Histórico do banco de dados foi resetado!")
 
 
+# Bloco de teste: roda apenas se você executar este arquivo diretamente
 if __name__ == "__main__":
-    # Isso só roda se você executar o database.py diretamente
-    print("Testando conexão...")
+    print("--- Testando conexão com o Banco de Dados ---")
     criar_banco()
     leituras = listar_todas_leituras()
-    print(f"Total de registros encontrados: {len(leituras)}")
-    for l in leituras:
-        print(l)
+    print(f"Total de registros: {len(leituras)}")

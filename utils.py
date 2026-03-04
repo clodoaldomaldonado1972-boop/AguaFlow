@@ -1,12 +1,14 @@
-from reportlab.lib.pagesizes import A4, letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
 import os
 import smtplib
+from datetime import datetime
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+
+from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.units import cm
+from reportlab.pdfgen import canvas
 
 # --- 1. FUNÇÃO DE ETIQUETAS QR ---
 
@@ -56,45 +58,57 @@ def gerar_relatorio_leituras_pdf(dados):
     nome_arquivo = "relatorio_mensal.pdf"
     c = canvas.Canvas(nome_arquivo, pagesize=letter)
 
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(100, 750, "Relatório de Leituras - Vivere Prudente")
+    def desenhar_cabecalho(canvas_obj, y_pos):
+        canvas_obj.setFont("Helvetica-Bold", 16)
+        canvas_obj.drawString(
+            100, y_pos, "Relatório de Leituras - Vivere Prudente")
+        canvas_obj.setFont("Helvetica-Bold", 10)
+        canvas_obj.drawString(
+            100, y_pos - 30, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        return y_pos - 60
 
-    y = 700
+    y = desenhar_cabecalho(c, 750)
     c.setFont("Helvetica", 10)
+
     for r in dados:
-        texto = f"Unidade: {r[0]:<15} | Água: {r[1]:>6} m3 | Gás: {r[2]:>6} | Data: {r[3]}"
+        # r[0]=unidade, r[1]=agua, r[2]=gas, r[3]=data
+        texto = f"Unid: {str(r[0]):<15} | Água: {str(r[1]):>6} m3 | Gás: {str(r[2]):>6} | Data: {str(r[3])}"
         c.drawString(100, y, texto)
         y -= 20
+
         if y < 50:
             c.showPage()
-            y = 750
+            y = desenhar_cabecalho(c, 750)
             c.setFont("Helvetica", 10)
 
-    c.save()  # ESSENCIAL: Salva o arquivo antes de tentar enviar
+    c.save()
     return nome_arquivo
 
 # --- 3. FUNÇÃO DE ENVIO DE E-MAIL ---
 
 
 def enviar_email_com_pdf(destinatario, caminho_pdf):
-    # Lembre-se de usar a "Senha de App" do Google
-    meu_email = "seu_email@gmail.com"
-    minha_senha = "sua_senha_de_app"
+    meu_email = "clodoaldomaldonado112@gmail.com"
+    # COLE AQUI AS 16 LETRAS QUE O GOOGLE GEROU
+    minha_senha = "abcd efgh ijkl mnop"
 
     msg = MIMEMultipart()
     msg['From'] = meu_email
     msg['To'] = destinatario
     msg['Subject'] = "Relatório de Leituras - Vivere Prudente"
-
     msg.attach(MIMEText("Olá, segue o relatório em anexo.", 'plain'))
 
     try:
+        if not os.path.exists(caminho_pdf):
+            print(f"Erro: O arquivo {caminho_pdf} não foi encontrado.")
+            return False
+
         with open(caminho_pdf, "rb") as anexo:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(anexo.read())
             encoders.encode_base64(part)
             part.add_header(
-                'Content-Disposition', f"attachment; filename= {os.path.basename(caminho_pdf)}")
+                'Content-Disposition', f"attachment; filename={os.path.basename(caminho_pdf)}")
             msg.attach(part)
 
         server = smtplib.SMTP('smtp.gmail.com', 587)
