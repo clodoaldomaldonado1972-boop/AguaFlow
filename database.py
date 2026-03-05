@@ -51,13 +51,7 @@ def pular_apartamento(id_apto):
         "UPDATE leituras SET status = 'Pulado' WHERE id = ?", (id_apto,))
     conn.commit()
     conn.close()
-    def buscar_todos():
-    conn = sqlite3.connect("aguaflow.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, numero, bloco, valor, status FROM leituras")
-    res = cursor.fetchall()
-    conn.close()
-    return res
+    
 def buscar_todos():
     conn = sqlite3.connect("aguaflow.db")
     cursor = conn.cursor()
@@ -65,3 +59,4 @@ def buscar_todos():
     res = cursor.fetchall()
     conn.close()
     return res
+
