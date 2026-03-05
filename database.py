@@ -1,79 +1,70 @@
 import sqlite3
+from datetime import datetime
+
+DB_NAME = "aguaflow.db"
 
 def get_connection():
-    # Padronizado para 'aguaflow.db' para todas as funções
-    return sqlite3.connect("aguaflow.db", timeout=10)
+    return sqlite3.connect(DB_NAME)
 
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
-    # Criando a tabela com as colunas necessárias para o novo relatório
+    # Criando a tabela do zero com a sintaxe exata
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS leituras (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        numero TEXT,
-        bloco TEXT,
-        leitura_atual REAL DEFAULT 0,
-        leitura_anterior REAL DEFAULT 0,
-        status TEXT DEFAULT 'Pendente'
-    )
+        CREATE TABLE IF NOT EXISTS leituras (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unidade TEXT NOT NULL,
+            bloco TEXT,
+            leitura_valor REAL,
+            data_leitura TEXT,
+            status TEXT DEFAULT 'pendente'
+        )
     """)
     
-    # Inserindo dados iniciais se o banco estiver vazio
+    # Conferindo se o banco está vazio para colocar os apartamentos de teste
     cursor.execute("SELECT COUNT(*) FROM leituras")
     if cursor.fetchone()[0] == 0:
-        dados = [('101', 'A'), ('102', 'A'), ('201', 'B')]
-        cursor.executemany(
-            "INSERT INTO leituras (numero, bloco) VALUES (?, ?)", dados)
-        print("✅ Unidades de teste inseridas!")
+        apartamentos = [
+            ('101', 'A'), ('102', 'A'), ('201', 'A'),
+            ('101', 'B'), ('102', 'B'), ('201', 'B')
+        ]
+        for apto, bloco in apartamentos:
+            cursor.execute(
+                "INSERT INTO leituras (unidade, bloco, status) VALUES (?, ?, 'pendente')",
+                (apto, bloco)
+            )
     
     conn.commit()
     conn.close()
 
-# --- ATENÇÃO: Esta função deve ficar fora da init_db (sem espaços extras) ---
 def buscar_proximo_pendente():
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, numero, bloco FROM leituras WHERE status = 'Pendente' ORDER BY id LIMIT 1")
-    res = cursor.fetchone()
+        "SELECT id, unidade, bloco FROM leituras WHERE status = 'pendente' ORDER BY id LIMIT 1"
+    )
+    resultado = cursor.fetchone()
     conn.close()
-    return res
+    return resultado
 
-def salvar_leitura(id_apto, valor_novo):
+def salvar_leitura(id_registro, valor):
+    data_hoje = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # Busca o valor que era 'atual' para ele virar 'anterior'
-    cursor.execute("SELECT leitura_atual FROM leituras WHERE id = ?", (id_apto,))
-    resultado = cursor.fetchone()
-    leitura_antiga = resultado[0] if resultado else 0
-    
     cursor.execute("""
         UPDATE leituras 
-        SET leitura_anterior = ?, leitura_atual = ?, status = 'Lido' 
+        SET leitura_valor = ?, data_leitura = ?, status = 'concluido'
         WHERE id = ?
-    """, (leitura_antiga, valor_novo, id_apto))
-    
+    """, (valor, data_hoje, id_registro))
     conn.commit()
     conn.close()
 
-def pular_apartamento(id_apto):
+def resetar_todas_leituras():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE leituras SET status = 'Pulado' WHERE id = ?", (id_apto,))
+    # Limpa os valores e volta o status para pendente
+    cursor.execute("UPDATE leituras SET leitura_valor = NULL, data_leitura = NULL, status = 'pendente'")
     conn.commit()
     conn.close()
-
-def buscar_todos():
-    conn = get_connection()
-    cursor = conn.cursor()
-    # Ordem exigida pelo reports.py: id, numero, bloco, atual, anterior, status
-    cursor.execute("""
-        SELECT id, numero, bloco, leitura_atual, leitura_anterior, status 
-        FROM leituras
-    """)
-    dados = cursor.fetchall()
-    conn.close()
-    return dados
+    print("🔄 Banco de dados resetado para novas leituras!")
+        
