@@ -8,6 +8,7 @@ def main(page: ft.Page):
     page.title = "AguaFlow"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
 
     # --- FUNÇÃO DE RELATÓRIO ---
     def enviar_relatorio_clicado(e):
@@ -21,7 +22,7 @@ def main(page: ft.Page):
         sucesso = reports.enviar_email_com_pdf(
             "clodoaldomaldonado112@gmail.com", pdf)
 
-        aviso = "✅ Relatório Enviado!" if sucesso else "❌ Erro no envio."
+        aviso = "✅ Relatório Enviado!" if sucesso else "❌ Erro no envio (Verifique a Senha de App)."
         page.add(ft.Text(aviso, color="green" if sucesso else "red"))
         page.update()
 
@@ -33,31 +34,35 @@ def main(page: ft.Page):
             page.add(
                 ft.Text(
                     f"Unidade Atual: {unidade[1]}", size=25, weight="bold"),
-                ft.ElevatedButton(
-                    "ESCANEAR AGORA", on_click=lambda _: escanear(unidade[1]), width=300),
+                # Substituído ElevatedButton por FilledButton conforme recomendado
+                ft.FilledButton("ESCANEAR AGORA", on_click=lambda _: escanear(
+                    unidade[1]), width=300),
                 ft.TextButton("Voltar ao Início",
                               on_click=lambda _: mostrar_inicio())
             )
         else:
-            page.add(ft.Text("🎉 Todas as leituras concluídas!"), ft.ElevatedButton(
-                "Voltar", on_click=lambda _: mostrar_inicio()))
+            page.add(
+                ft.Text("🎉 Todas as leituras concluídas!"),
+                ft.FilledButton("Voltar", on_click=lambda _: mostrar_inicio())
+            )
         page.update()
 
     def escanear(numero):
-        vision.escanear_qr()  # Abre a câmera
+        vision.escanear_qr()  # Abre a câmera (Simulador ou Real)
         page.add(ft.Text(f"✅ Leitura finalizada para {numero}"))
         page.update()
 
-    # --- TELA INICIAL (Igual à da sua foto) ---
+    # --- TELA INICIAL ---
     def mostrar_inicio():
         page.clean()
         page.add(
             ft.Text("SISTEMA AGUAFLOW", size=35, weight="bold"),
             ft.Divider(),
-            ft.ElevatedButton("INICIAR LEITURAS",
-                              on_click=iniciar_leitura_real, width=300),
-            ft.ElevatedButton("ENVIAR RELATÓRIO",
-                              on_click=enviar_relatorio_clicado, width=300),
+            # Substituídos por FilledButton para evitar avisos no terminal
+            ft.FilledButton("INICIAR LEITURAS",
+                            on_click=iniciar_leitura_real, width=300),
+            ft.FilledButton("ENVIAR RELATÓRIO",
+                            on_click=enviar_relatorio_clicado, width=300),
             ft.Text("Ambiente Python 3.14 - Operacional",
                     color="blue", size=12)
         )
@@ -68,5 +73,5 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     db.init_db()
-    # Mudamos app() para run() para o aviso sumir
+    # Usando ft.run() para eliminar o aviso de depreciação do ft.app()
     ft.run(main, view=ft.AppView.WEB_BROWSER)
