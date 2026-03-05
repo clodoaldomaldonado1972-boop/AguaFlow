@@ -1,70 +1,64 @@
 import sqlite3
-from datetime import datetime
-
-DB_NAME = "aguaflow.db"
 
 def get_connection():
-    return sqlite3.connect(DB_NAME)
+    """Estabelece a conexão com o banco de dados SQLite."""
+    return sqlite3.connect("aguaflow.db", check_same_thread=False)
 
 def init_db():
+    """
+    Inicializa o banco de dados, cria as tabelas e popula com as 
+    unidades do Vivere Prudente na ordem logística (166 a 11).
+    """
     conn = get_connection()
     cursor = conn.cursor()
-    # Criando a tabela do zero com a sintaxe exata
+    
+    # Criação da tabela principal com suporte a Água e Gás
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             unidade TEXT NOT NULL,
-            bloco TEXT,
-            leitura_valor REAL,
-            data_leitura TEXT,
+            agua_anterior REAL DEFAULT 0.0,
+            agua_atual REAL DEFAULT 0.0,
+            gas_anterior REAL DEFAULT 0.0,
+            gas_atual REAL DEFAULT 0.0,
             status TEXT DEFAULT 'pendente'
         )
     """)
     
-    # Conferindo se o banco está vazio para colocar os apartamentos de teste
+    # Verifica se o banco já contém dados para evitar duplicidade
     cursor.execute("SELECT COUNT(*) FROM leituras")
     if cursor.fetchone()[0] == 0:
-        apartamentos = [
-            ('101', 'A'), ('102', 'A'), ('201', 'A'),
-            ('101', 'B'), ('102', 'B'), ('201', 'B')
-        ]
-        for apto, bloco in apartamentos:
-            cursor.execute(
-                "INSERT INTO leituras (unidade, bloco, status) VALUES (?, ?, 'pendente')",
-                (apto, bloco)
-            )
-    
-    conn.commit()
+        unidades = []
+        
+        # LOGÍSTICA VIVERE: Do andar 16 ao 1, do final 6 ao 1 (Ex: 166, 165... 11)
+        for andar in range(16, 0, -1):
+            for final in range(6, 0, -1):
+                numero_unidade = f"{andar}{final}"
+                unidades.append((numero_unidade,))
+        
+        # Inserção das unidades especiais
+        unidades.append(('LAZER',))
+        unidades.append(('GERAL',))
+        
+        cursor.executemany("INSERT INTO leituras (unidade) VALUES (?)", unidades)
+        conn.commit()
     conn.close()
 
 def buscar_proximo_pendente():
+    """Busca no banco a próxima unidade que ainda não foi lida."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, unidade, bloco FROM leituras WHERE status = 'pendente' ORDER BY id LIMIT 1"
-    )
+    cursor.execute("SELECT * FROM leituras WHERE status = 'pendente' ORDER BY id ASC LIMIT 1")
     resultado = cursor.fetchone()
     conn.close()
     return resultado
 
-def salvar_leitura(id_registro, valor):
-    data_hoje = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+def registrar_leitura(id_unidade, valor, tipo="agua", status="concluido"):
+    """Registra o valor lido no banco de dados para a unidade específica."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE leituras 
-        SET leitura_valor = ?, data_leitura = ?, status = 'concluido'
-        WHERE id = ?
-    """, (valor, data_hoje, id_registro))
+    coluna = "agua_atual" if tipo == "agua" else "gas_atual"
+    cursor.execute(f"UPDATE leituras SET {coluna} = ?, status = ? WHERE id = ?", (valor, status, id_unidade))
     conn.commit()
     conn.close()
-
-def resetar_todas_leituras():
-    conn = get_connection()
-    cursor = conn.cursor()
-    # Limpa os valores e volta o status para pendente
-    cursor.execute("UPDATE leituras SET leitura_valor = NULL, data_leitura = NULL, status = 'pendente'")
-    conn.commit()
-    conn.close()
-    print("🔄 Banco de dados resetado para novas leituras!")
-        
+    
