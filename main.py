@@ -8,6 +8,9 @@ def main(page: ft.Page):
     # --- FUNÇÃO DO MENU (DINÂMICO POR PERFIL) ---
     def navegar_menu(e=None):
         page.controls.clear()
+        
+        # CORREÇÃO: Lendo a sessão como dicionário
+        # .get() ainda funciona em dicionários Python para evitar erros se a chave não existir
         perfil = page.session.get("perfil")
         
         # Botões comuns
@@ -28,14 +31,19 @@ def main(page: ft.Page):
         unid_input = ft.TextField(label="Apto (vazio para todos)")
         def confirmar(e):
             u = unid_input.value.strip()
-            lista = [u] if u else [str(r[0]) for r in db.get_unidades()] # Busca no banco
+            # Ajuste aqui: Garante que pegamos a lista correta do banco
+            lista = [u] if u else [str(r[0]) for r in db.get_unidades()] 
             pdf = reports.gerar_pdf_etiquetas_qr(lista)
             page.dialog.open = False
             page.snack_bar = ft.SnackBar(ft.Text(f"Gerado: {pdf}"))
             page.snack_bar.open = True
             page.update()
 
-        page.dialog = ft.AlertDialog(title=ft.Text("Gerar QR"), content=unid_input, actions=[ft.TextButton("GERAR", on_click=confirmar)])
+        page.dialog = ft.AlertDialog(
+            title=ft.Text("Gerar QR"), 
+            content=unid_input, 
+            actions=[ft.TextButton("GERAR", on_click=confirmar)]
+        )
         page.dialog.open = True
         page.update()
 
@@ -45,7 +53,12 @@ def main(page: ft.Page):
         page.add(utils.montar_tela_ajuda(lambda _: navegar_menu()))
         page.update()
 
-    # INÍCIO DO APP: CHAMA O LOGIN MODULAR
+    # --- ESTE É O PONTO DE ENTRADA DO APP (DENTRO DO MAIN) ---
+    # Limpa a página e mostra o Login
+    page.controls.clear()
     page.add(auth.criar_tela_login(page, navegar_menu))
+    page.update()
 
-ft.app(target=main)
+# --- EXECUÇÃO FINAL (FORA DE TUDO) ---
+if __name__ == "__main__":
+    ft.app(target=main)
