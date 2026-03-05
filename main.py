@@ -31,7 +31,7 @@ def main(page: ft.Page):
                     
                     ft.ElevatedButton(
                         "INICIAR LEITURA", 
-                        icon=ft.icons.PLAY_ARROW,
+                        icon=ft.Icons.PLAY_ARROW,
                         on_click=navegar_para_medicao,
                         width=280, height=60,
                         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
@@ -39,19 +39,19 @@ def main(page: ft.Page):
                     
                     ft.OutlinedButton(
                         "GERAR ETIQUETAS QR", 
-                        icon=ft.icons.QR_CODE, 
+                        icon=ft.Icons.QR_CODE_2, 
                         width=280, height=50,
                         on_click=lambda _: print("Ainda vamos criar este bloco!")
                     ),
                     
                     ft.OutlinedButton(
                         "RELATÓRIOS (PDF)", 
-                        icon=ft.icons.PICTURE_AS_PDF, 
+                        icon=ft.Icons.PICTURE_AS_PDF, 
                         width=280, height=50,
                         on_click=lambda _: print("Ainda vamos criar este bloco!")
                     ),
 
-                    ft.TextButton("Sair do Sistema", icon=ft.icons.EXIT_TO_APP, on_click=lambda _: page.window_destroy())
+                    ft.TextButton("Sair do Sistema", icon=ft.Icons.EXIT_TO_APP, on_click=lambda _: page.window_destroy())
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             )
         )
