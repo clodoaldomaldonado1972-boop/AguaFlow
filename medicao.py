@@ -39,15 +39,16 @@ def montar_tela(page, voltar_menu):
         page.update()
 
     # --- INPUT COM LIMITE DE CARACTERES E FILTRO ---
+    # --- INPUT COM LIMITE DE CARACTERES E FILTRO ---
     input_valor = ft.TextField(
         label="Leitura Atual (m³)", 
         keyboard_type=ft.KeyboardType.NUMBER, 
         autofocus=True,
-        max_length=7,           # LIMITE DE CARACTERES
-        counter_text=" ",       # Esconde o contador visual para ficar limpo
-        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9,.]*$", replacement_string=""), # Apenas números e separadores
+        max_length=7,           # LIMITE DE CARACTERES (Ajuste conforme necessário)
+        # Removido counter_text para evitar o erro de __init__
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9,.]*$", replacement_string=""),
         on_change=calcular_ao_digitar,
-        on_submit=lambda _: salvar_leitura(None) # Salva ao apertar 'Enter' no teclado
+        on_submit=lambda _: salvar_leitura(None)
     )
 
     def salvar_leitura(e):
