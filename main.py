@@ -1,8 +1,8 @@
 import flet as ft
 import database as db
 import medicao
-import reports  # Importa o motor de PDFs e E-mail
-import utils    # Importa o gerador de QR Codes
+import reports  
+import utils    
 
 def main(page: ft.Page):
     page.title = "ÁguaFlow - Vivere Prudente"
@@ -10,10 +10,16 @@ def main(page: ft.Page):
     page.window_width = 400
     page.window_height = 750
     
-    # Garante que o banco de dados e as unidades existam ao abrir
     db.init_db()
 
-    # --- FUNÇÕES DE NAVEGAÇÃO E AÇÃO ---
+    # --- FUNÇÕES DE APOIO ---
+
+    def mostrar_aviso(mensagem):
+        page.snack_bar = ft.SnackBar(ft.Text(mensagem))
+        page.snack_bar.open = True
+        page.update()
+
+    # --- AÇÕES DO SISTEMA ---
 
     def navegar_para_medicao(e):
         page.controls.clear()
@@ -21,34 +27,40 @@ def main(page: ft.Page):
         page.update()
 
     def acao_gerar_etiquetas(e):
-        # 1. Busca todas as unidades do banco
         conn = db.get_connection()
         unidades_db = conn.cursor().execute("SELECT unidade FROM leituras").fetchall()
         lista_nomes = [u[0] for u in unidades_db]
-        
-        # 2. Gera as imagens dos QR Codes (pasta qrcodes/)
         for nome in lista_nomes:
             utils.gerar_qr_unidade(nome)
-            
-        # 3. Cria o PDF com as etiquetas organizadas
         pdf_path = reports.gerar_pdf_etiquetas_qr(lista_nomes)
-        
-        mostrar_aviso(f"Sucesso! {len(lista_nomes)} etiquetas geradas em PDF.")
+        mostrar_aviso(f"Sucesso! Etiquetas geradas em PDF.")
 
     def acao_gerar_relatorio(e):
-        # 1. Busca os dados de leitura
         conn = db.get_connection()
         dados = conn.cursor().execute("SELECT * FROM leituras").fetchall()
-        
-        # 2. Gera o relatório PDF
         pdf_nome = reports.gerar_relatorio_leituras_pdf(dados)
-        
-        mostrar_aviso(f"Relatório {pdf_nome} criado com sucesso!")
+        mostrar_aviso(f"Relatório {pdf_nome} criado!")
 
-    def mostrar_aviso(mensagem):
-        page.snack_bar = ft.SnackBar(ft.Text(mensagem))
-        page.snack_bar.open = True
+    def confirmar_reset(e):
+        def realizar_reset(e):
+            db.resetar_ciclo()
+            dlg.open = False
+            mostrar_aviso("Ciclo resetado! Tudo pronto para o novo mês.")
+            navegar_para_menu() # Recarrega o menu
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Zerar Tudo?"),
+            content=ft.Text("Isto apagará todas as leituras atuais. Confirma?"),
+            actions=[
+                ft.TextButton("Sim, Limpar", on_click=realizar_reset),
+                ft.TextButton("Cancelar", on_click=lambda _: setattr(dlg, "open", False))
+            ]
+        )
+        page.dialog = dlg
+        dlg.open = True
         page.update()
+
+    # --- INTERFACE DO MENU ---
 
     def navegar_para_menu(e=None):
         page.controls.clear()
@@ -59,7 +71,7 @@ def main(page: ft.Page):
                     ft.Image(src="https://cdn-icons-png.flaticon.com/512/3105/3105807.png", width=100),
                     ft.Text("VIVERE PRUDENTE", size=28, weight="bold", color="#002868"),
                     ft.Text("Gestão de Consumo", size=16, color="grey"),
-                    ft.Divider(height=40),
+                    ft.Divider(height=30),
                     
                     ft.ElevatedButton(
                         "INICIAR LEITURA", 
@@ -73,14 +85,23 @@ def main(page: ft.Page):
                         "GERAR ETIQUETAS QR", 
                         icon=ft.Icons.QR_CODE_2, 
                         width=280, height=50,
-                        on_click=acao_gerar_etiquetas  # AGORA FUNCIONA!
+                        on_click=acao_gerar_etiquetas
                     ),
                     
                     ft.OutlinedButton(
                         "RELATÓRIOS (PDF)", 
                         icon=ft.Icons.PICTURE_AS_PDF, 
                         width=280, height=50,
-                        on_click=acao_gerar_relatorio   # AGORA FUNCIONA!
+                        on_click=acao_gerar_relatorio
+                    ),
+
+                    ft.Divider(height=20),
+
+                    ft.TextButton(
+                        "RECOMECAR CICLO (NOVO MÊS)", 
+                        icon=ft.Icons.RESTART_ALT, 
+                        icon_color="red",
+                        on_click=confirmar_reset
                     ),
 
                     ft.TextButton("Sair do Sistema", icon=ft.Icons.EXIT_TO_APP, on_click=lambda _: page.window_destroy())
