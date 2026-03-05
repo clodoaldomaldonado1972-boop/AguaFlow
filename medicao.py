@@ -9,11 +9,11 @@ def montar_tela(page, voltar_menu):
     if not unidade:
         return ft.Container(
             content=ft.Column([
-                ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=60),
+                ft.Icon(ft.icons.CHECK_CIRCLE, color="green", size=60),
                 ft.Text("Medição Concluída!", size=20, weight="bold"),
                 ft.Text("Todas as unidades foram lidas.", color="grey"),
-                # AJUSTE 1: Limpar antes de voltar
-                ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: (page.controls.clear(), voltar_menu(), page.update()))
+                ft.FilledButton("Voltar ao Menu", 
+                    on_click=lambda _: (page.controls.clear(), voltar_menu(None), page.update()))
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             padding=50
         )
@@ -26,7 +26,9 @@ def montar_tela(page, voltar_menu):
     def calcular_ao_digitar(e):
         try:
             if input_valor.value:
-                atual = float(input_valor.value.replace(",", "."))
+                # Remove espaços e troca vírgula por ponto
+                val_limpo = input_valor.value.strip().replace(",", ".")
+                atual = float(val_limpo)
                 consumo = atual - leitura_anterior
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
                 texto_consumo.color = "red" if consumo > 20 else "blue"
@@ -36,11 +38,16 @@ def montar_tela(page, voltar_menu):
             texto_consumo.value = "Consumo: ---"
         page.update()
 
+    # --- INPUT COM LIMITE DE CARACTERES E FILTRO ---
     input_valor = ft.TextField(
         label="Leitura Atual (m³)", 
         keyboard_type=ft.KeyboardType.NUMBER, 
         autofocus=True,
-        on_change=calcular_ao_digitar
+        max_length=7,           # LIMITE DE CARACTERES
+        counter_text=" ",       # Esconde o contador visual para ficar limpo
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9,.]*$", replacement_string=""), # Apenas números e separadores
+        on_change=calcular_ao_digitar,
+        on_submit=lambda _: salvar_leitura(None) # Salva ao apertar 'Enter' no teclado
     )
 
     def salvar_leitura(e):
@@ -50,8 +57,9 @@ def montar_tela(page, voltar_menu):
             try:
                 valor = float(input_valor.value.replace(",", "."))
                 db.registrar_leitura(id_db, valor)
+                
+                # RESET DA TELA: Remove tudo e recarrega a função para a próxima unidade
                 page.controls.clear()
-                # AJUSTE 2: Recarregar a tela passando a função de volta original
                 page.add(montar_tela(page, voltar_menu))
                 page.update()
             except ValueError:
@@ -78,6 +86,7 @@ def montar_tela(page, voltar_menu):
         dlg.open = True
         page.update()
 
+    # Retorna o layout estruturado
     return ft.Container(
         padding=30,
         content=ft.Column([
@@ -87,10 +96,13 @@ def montar_tela(page, voltar_menu):
             input_valor,
             texto_consumo,
             ft.Row([
-                ft.ElevatedButton("SALVAR", on_click=salvar_leitura, bgcolor="green", color="white", expand=True),
-                ft.IconButton(ft.Icons.SKIP_NEXT, on_click=lambda _: abrir_alerta_pular(), icon_color="red"),
+                ft.FilledButton("SALVAR", 
+                    on_click=salvar_leitura, 
+                    style=ft.ButtonStyle(bgcolor="green", color="white"), 
+                    expand=True),
+                ft.IconButton(ft.icons.SKIP_NEXT, on_click=lambda _: abrir_alerta_pular(), icon_color="red"),
             ]),
-            # AJUSTE 3: Limpar antes de interromper
-            ft.TextButton("Interromper e Sair", on_click=lambda _: (page.controls.clear(), voltar_menu(), page.update()))
+            ft.TextButton("Interromper e Sair", 
+                on_click=lambda _: (page.controls.clear(), voltar_menu(None), page.update()))
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
