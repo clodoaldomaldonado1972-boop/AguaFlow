@@ -14,3 +14,15 @@ qrcodes/
 
 # Configurações do VS Code
 .vscode/
+# Imagens de referência e fotos
+*.jpeg
+*.jpg
+*.png
+
+# Arquivos de texto de rascunho
+AguaFlow Tarefas.txt
+
+# Scripts de instalação e temporários
+get-pip.py
+teste*.py
+diagnostico.py
