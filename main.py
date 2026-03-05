@@ -12,18 +12,35 @@ def main(page: ft.Page):
 
     # --- FUNÇÃO DE RELATÓRIO ---
     def enviar_relatorio_clicado(e):
+        # Mostra um aviso de processamento
+        progresso = ft.ProgressBar(width=400, color="blue")
+        page.add(ft.Text("Gerando e enviando relatório...", id="status_txt"), progresso)
+        page.update()
+
         dados = db.buscar_todos()
+        
         if not dados:
-            page.add(ft.Text("❌ Banco de dados vazio!", color="red"))
+            page.snack_bar = ft.SnackBar(ft.Text("❌ Banco de dados vazio!"))
+            page.snack_bar.open = True
             page.update()
             return
 
-        pdf = reports.gerar_relatorio_leituras_pdf(dados)
-        sucesso = reports.enviar_email_com_pdf(
-            "clodoaldomaldonado112@gmail.com", pdf)
+        try:
+            pdf = reports.gerar_relatorio_leituras_pdf(dados)
+            sucesso = reports.enviar_email_com_pdf("clodoaldomaldonado112@gmail.com", pdf)
 
-        aviso = "✅ Relatório Enviado!" if sucesso else "❌ Erro no envio (Verifique a Senha de App)."
-        page.add(ft.Text(aviso, color="green" if sucesso else "red"))
+            if sucesso:
+                page.snack_bar = ft.SnackBar(ft.Text("✅ Relatório enviado com sucesso!"), bgcolor="green")
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("❌ Erro no envio. Verifique a conexão."), bgcolor="red")
+        
+        except Exception as err:
+            page.snack_bar = ft.SnackBar(ft.Text(f"❌ Erro: {err}"), bgcolor="red")
+
+        # Limpa o progresso e mostra o resultado
+        page.clean()
+        mostrar_inicio() # Volta para a tela inicial limpa
+        page.snack_bar.open = True
         page.update()
 
     # --- FUNÇÃO DE LEITURA ---
