@@ -12,12 +12,13 @@ def montar_tela(page, voltar_menu):
                 ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=60),
                 ft.Text("Medição Concluída!", size=20, weight="bold"),
                 ft.Text("Todas as unidades foram lidas.", color="grey"),
-                ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: voltar_menu())
+                # AJUSTE 1: Limpar antes de voltar
+                ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: (page.controls.clear(), voltar_menu(), page.update()))
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             padding=50
         )
 
-    # Dados vindos do banco: (id, unidade, agua_anterior, ...)
+    # Dados vindos do banco
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
     
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18, color="blue", weight="bold")
@@ -49,8 +50,8 @@ def montar_tela(page, voltar_menu):
             try:
                 valor = float(input_valor.value.replace(",", "."))
                 db.registrar_leitura(id_db, valor)
-                # Recarrega a tela para buscar o próximo pendente
                 page.controls.clear()
+                # AJUSTE 2: Recarregar a tela passando a função de volta original
                 page.add(montar_tela(page, voltar_menu))
                 page.update()
             except ValueError:
@@ -70,7 +71,7 @@ def montar_tela(page, voltar_menu):
             content=ft.Text(f"Deseja pular o apto {nome_unidade}?"),
             actions=[
                 ft.TextButton("Sim, Pular", on_click=confirmar_pulo),
-                ft.TextButton("Cancelar", on_click=lambda _: setattr(dlg, "open", False))
+                ft.TextButton("Cancelar", on_click=lambda _: (setattr(dlg, "open", False), page.update()))
             ]
         )
         page.dialog = dlg
@@ -89,6 +90,7 @@ def montar_tela(page, voltar_menu):
                 ft.ElevatedButton("SALVAR", on_click=salvar_leitura, bgcolor="green", color="white", expand=True),
                 ft.IconButton(ft.Icons.SKIP_NEXT, on_click=lambda _: abrir_alerta_pular(), icon_color="red"),
             ]),
-            ft.TextButton("Interromper e Sair", on_click=lambda _: voltar_menu())
+            # AJUSTE 3: Limpar antes de interromper
+            ft.TextButton("Interromper e Sair", on_click=lambda _: (page.controls.clear(), voltar_menu(), page.update()))
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
