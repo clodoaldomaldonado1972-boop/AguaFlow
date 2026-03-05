@@ -12,9 +12,11 @@ def main(page: ft.Page):
 
     # --- FUNÇÃO DE RELATÓRIO ---
     def enviar_relatorio_clicado(e):
-        # Mostra um aviso de processamento
+        # Mostra um aviso de processamento (REMOVIDO O ARGUMENTO 'id')
         progresso = ft.ProgressBar(width=400, color="blue")
-        page.add(ft.Text("Gerando e enviando relatório...", id="status_txt"), progresso)
+        status_texto = ft.Text("Gerando e enviando relatório...")
+        
+        page.add(status_texto, progresso)
         page.update()
 
         dados = db.buscar_todos()
@@ -22,6 +24,10 @@ def main(page: ft.Page):
         if not dados:
             page.snack_bar = ft.SnackBar(ft.Text("❌ Banco de dados vazio!"))
             page.snack_bar.open = True
+            page.update()
+            # Remove o progresso se der erro
+            page.controls.remove(status_texto)
+            page.controls.remove(progresso)
             page.update()
             return
 
@@ -37,12 +43,12 @@ def main(page: ft.Page):
         except Exception as err:
             page.snack_bar = ft.SnackBar(ft.Text(f"❌ Erro: {err}"), bgcolor="red")
 
-        # Limpa o progresso e mostra o resultado
+        # Limpa a tela e volta para o início com o aviso do SnackBar
         page.clean()
-        mostrar_inicio() # Volta para a tela inicial limpa
+        mostrar_inicio() 
         page.snack_bar.open = True
         page.update()
-
+        
     # --- FUNÇÃO DE LEITURA ---
     def iniciar_leitura_real(e):
         unidade = db.buscar_proximo_pendente()
