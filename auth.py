@@ -12,14 +12,14 @@ def criar_tela_login(page, ao_logar_sucesso):
     def entrar_clique(e):
         perfil = validar_login(user_f.value, pass_f.value)
         if perfil:
-            # PADRÃO FLET 0.80+: Usa-se o método .set()
-            page.session.set("perfil", perfil) 
+            # Em vez de session, usamos o armazenamento do cliente
+            page.client_storage.set("perfil", perfil) 
             ao_logar_sucesso()
         else:
             page.snack_bar = ft.SnackBar(ft.Text("Acesso Negado!"))
             page.snack_bar.open = True
             page.update()
-            
+
     user_f = ft.TextField(label="Usuário", prefix_icon=ft.Icons.PERSON)
     pass_f = ft.TextField(label="Senha", password=True, can_reveal_password=True)
 

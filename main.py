@@ -9,11 +9,13 @@ def main(page: ft.Page):
     def navegar_menu(e=None):
         page.controls.clear()
         
-        # Lendo o perfil salvo na sessão
-        perfil = page.session.get("perfil")
-                               
-        # Botões comuns
+        # Lendo do armazenamento do cliente
+        perfil = page.client_storage.get("perfil")
+        
         coluna = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+                                     
+        # Botões comuns
+        
         coluna.controls.append(ft.FilledButton("INICIAR LEITURA", on_click=lambda _: page.add(medicao.montar_tela(page, navegar_menu)), width=280))
         
         # Botões exclusivos de ADMIN
@@ -58,6 +60,7 @@ def main(page: ft.Page):
     page.add(auth.criar_tela_login(page, navegar_menu))
     page.update()
 
-# --- EXECUÇÃO FINAL (FORA DE TUDO) ---
 if __name__ == "__main__":
-    ft.app(target=main)
+    # Seguindo a recomendação do Flet 0.80+: trocar app por run
+    ft.app(target=main) 
+    # Se ainda der erro, use apenas: ft.run(main)
