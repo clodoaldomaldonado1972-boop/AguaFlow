@@ -1,13 +1,13 @@
 import sqlite3
 
 def get_connection():
-    # Padronizado para 'aguaflow.db' (sem underline) para todas as funções
+    # Padronizado para 'aguaflow.db' para todas as funções
     return sqlite3.connect("aguaflow.db", timeout=10)
 
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
-    # AJUSTE: Tabela agora tem 'leitura_atual' e 'leitura_anterior'
+    # Criando a tabela com as colunas necessárias para o novo relatório
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS leituras (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,10 +19,10 @@ def init_db():
     )
     """)
     
+    # Inserindo dados iniciais se o banco estiver vazio
     cursor.execute("SELECT COUNT(*) FROM leituras")
     if cursor.fetchone()[0] == 0:
-        # Dados iniciais para teste
-        dados = [('101', 'A'), ('102', 'A'), ('201', 'B'), ('202', 'B')]
+        dados = [('101', 'A'), ('102', 'A'), ('201', 'B')]
         cursor.executemany(
             "INSERT INTO leituras (numero, bloco) VALUES (?, ?)", dados)
         print("✅ Unidades de teste inseridas!")
@@ -30,10 +30,10 @@ def init_db():
     conn.commit()
     conn.close()
 
+# --- ATENÇÃO: Esta função deve ficar fora da init_db (sem espaços extras) ---
 def buscar_proximo_pendente():
     conn = get_connection()
     cursor = conn.cursor()
-    # Busca o próximo que ainda não foi lido
     cursor.execute(
         "SELECT id, numero, bloco FROM leituras WHERE status = 'Pendente' ORDER BY id LIMIT 1")
     res = cursor.fetchone()
@@ -44,9 +44,10 @@ def salvar_leitura(id_apto, valor_novo):
     conn = get_connection()
     cursor = conn.cursor()
     
-    # LÓGICA DE OURO: Antes de salvar a nova, a atual vira 'anterior'
+    # Busca o valor que era 'atual' para ele virar 'anterior'
     cursor.execute("SELECT leitura_atual FROM leituras WHERE id = ?", (id_apto,))
-    leitura_antiga = cursor.fetchone()[0]
+    resultado = cursor.fetchone()
+    leitura_antiga = resultado[0] if resultado else 0
     
     cursor.execute("""
         UPDATE leituras 
@@ -66,10 +67,9 @@ def pular_apartamento(id_apto):
     conn.close()
 
 def buscar_todos():
-    conn = get_connection() # Usando a função padronizada
+    conn = get_connection()
     cursor = conn.cursor()
-    # A ordem que o reports.py espera: 
-    # id(0), numero(1), bloco(2), atual(3), anterior(4), status(5)
+    # Ordem exigida pelo reports.py: id, numero, bloco, atual, anterior, status
     cursor.execute("""
         SELECT id, numero, bloco, leitura_atual, leitura_anterior, status 
         FROM leituras
