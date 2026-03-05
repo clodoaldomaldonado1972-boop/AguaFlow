@@ -11,11 +11,9 @@ from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 
 # --- 1. FUNÇÃO DE ETIQUETAS QR ---
-
-
 def gerar_pdf_etiquetas_qr(lista_unidades):
     nome_pdf = "Etiquetas_QR_Vivere.pdf"
-    # Criar pasta se não existir para não dar erro de arquivo
+    # Criar pasta se não existir
     if not os.path.exists("qr_codes"):
         os.makedirs("qr_codes")
 
@@ -33,16 +31,15 @@ def gerar_pdf_etiquetas_qr(lista_unidades):
     cont_lin = 0
 
     for unidade in lista_unidades:
-        # unidade aqui é a tupla do banco (id, numero, bloco)
+        # unidade: (id, numero, bloco)
         numero_apto = str(unidade[1])
+        bloco = str(unidade[2])
         caminho_img = f"qr_codes/{numero_apto}.png"
 
         if os.path.exists(caminho_img):
-            c.drawImage(caminho_img, x_atual, y_atual,
-                        width=tamanho_qr, height=tamanho_qr)
+            c.drawImage(caminho_img, x_atual, y_atual, width=tamanho_qr, height=tamanho_qr)
             c.setFont("Helvetica-Bold", 10)
-            c.drawCentredString(x_atual + (tamanho_qr/2),
-                                y_atual - 15, f"Unid: {numero_apto}")
+            c.drawCentredString(x_atual + (tamanho_qr/2), y_atual - 15, f"Unid: {numero_apto}-{bloco}")
 
             cont_col += 1
             x_atual += espaco_x
@@ -59,27 +56,23 @@ def gerar_pdf_etiquetas_qr(lista_unidades):
     return nome_pdf
 
 # --- 2. FUNÇÃO DE RELATÓRIO DE LEITURAS ---
-
-
 def gerar_relatorio_leituras_pdf(dados):
     nome_arquivo = "relatorio_mensal.pdf"
     c = canvas.Canvas(nome_arquivo, pagesize=letter)
 
     def desenhar_cabecalho(canvas_obj, y_pos):
         canvas_obj.setFont("Helvetica-Bold", 16)
-        canvas_obj.drawString(
-            100, y_pos, "Relatório de Leituras - Vivere Prudente")
+        canvas_obj.drawString(100, y_pos, "Relatório de Leituras - Vivere Prudente")
         canvas_obj.setFont("Helvetica-Bold", 10)
-        canvas_obj.drawString(
-            100, y_pos - 30, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        canvas_obj.drawString(100, y_pos - 30, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
         return y_pos - 60
 
     y = desenhar_cabecalho(c, 750)
-    c.setFont("Courier", 10)  # Courier é melhor para tabelas alinhadas
+    c.setFont("Courier", 10) 
 
     for r in dados:
-        # Ajustado para os campos do seu banco: id, numero, bloco, valor, status
-        txt_unid = f"{r[1]}-{r[2]}"  # Ex: 101-A
+        # r: (id, numero, bloco, valor, status)
+        txt_unid = f"{r[1]}-{r[2]}" 
         txt_valor = f"{r[3] if r[3] else '---'}"
         txt_status = f"{r[4]}"
 
@@ -96,18 +89,34 @@ def gerar_relatorio_leituras_pdf(dados):
     return nome_arquivo
 
 # --- 3. FUNÇÃO DE ENVIO DE E-MAIL ---
-
-
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
-    # Lembre-se: Use a "Senha de App" de 16 dígitos do Google, não a senha normal
-    minha_senha = "jbtxbeqxfslfufgn"
+    # Lembre-se: Use a sua senha de 16 dígitos atualizada
+    minha_senha = "jbtxbeqxfslfufgn" 
+    
+    data_atual = datetime.now().strftime('%d/%m/%Y')
+    
     msg = MIMEMultipart()
-    msg['From'] = meu_email
+    # Ajuste: Nome do remetente amigável
+    msg['From'] = f"Sistema AguaFlow <{meu_email}>"
     msg['To'] = destinatario
-    msg['Subject'] = "Relatório AguaFlow - Vivere Prudente"
+    # Ajuste: Assunto com data automática
+    msg['Subject'] = f"💧 Relatório AguaFlow - Vivere Prudente - {data_atual}"
 
-    corpo = "Olá,\n\nSegue em anexo o relatório de leituras atualizado.\n\nAtenciosamente,\nEquipe AguaFlow."
+    # Ajuste: Corpo do e-mail mais profissional
+    corpo = f"""
+    Olá,
+    
+    Segue em anexo o relatório de leituras de água do condomínio Vivere Prudente.
+    
+    📅 Data de referência: {data_atual}
+    📄 Arquivo: {os.path.basename(caminho_pdf)}
+    
+    Este é um envio automático do sistema AguaFlow. Por favor, não responda a este e-mail.
+    
+    Atenciosamente,
+    Equipe Técnica AguaFlow.
+    """
     msg.attach(MIMEText(corpo, 'plain'))
 
     try:
@@ -124,7 +133,9 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
         server.login(meu_email, minha_senha)
         server.sendmail(meu_email, destinatario, msg.as_string())
         server.quit()
+        print("✅ E-mail enviado com sucesso!")
         return True
     except Exception as e:
-        print(f"Erro ao enviar e-mail: {e}")
+        print(f"❌ Erro ao enviar e-mail: {e}")
         return False
+    
