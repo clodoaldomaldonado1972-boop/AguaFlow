@@ -3,6 +3,7 @@ import database as db
 import medicao
 import reports  
 import utils    
+import time  # Necessário para o sleep
 
 def main(page: ft.Page):
     page.title = "ÁguaFlow - Vivere Prudente"
@@ -24,23 +25,52 @@ def main(page: ft.Page):
         page.add(medicao.montar_tela(page, navegar_para_menu))
         page.update()
 
+    # Linha 27: A definição da função
     def acao_gerar_etiquetas(e):
         try:
             conn = db.get_connection()
             unidades_db = conn.cursor().execute("SELECT unidade FROM leituras").fetchall()
+            conn.close()
+            
             lista_nomes = [str(u[0]) for u in unidades_db]
+            
+            if not lista_nomes:
+                mostrar_aviso("Nenhuma unidade encontrada no banco.")
+                return
+
+            # 1. Gera as imagens dos QRs
             for nome in lista_nomes:
-                utils.gerar_qr_unidade(nome)
-            reports.gerar_pdf_etiquetas_qr(lista_nomes)
-            mostrar_aviso("Sucesso! Etiquetas geradas em PDF.")
+                reports.gerar_qr_unidade(nome)
+            
+            # 2. Pequena pausa para o sistema operacional liberar os arquivos
+            time.sleep(1)
+            
+            # 3. Gera o PDF das etiquetas
+            pdf_nome = reports.gerar_pdf_etiquetas_qr(lista_nomes)
+            mostrar_aviso(f"Sucesso! Etiquetas geradas: {pdf_nome}")
+            
         except Exception as ex:
             mostrar_aviso(f"Erro ao gerar etiquetas: {ex}")
-
+            
     def acao_gerar_relatorio(e):
-        conn = db.get_connection()
-        dados = conn.cursor().execute("SELECT * FROM leituras").fetchall()
-        pdf_nome = reports.gerar_relatorio_leituras_pdf(dados)
-        mostrar_aviso(f"Relatório {pdf_nome} criado!")
+        try:
+            conn = db.get_connection()
+            # Certifique-se de que a query bate com as colunas do seu banco
+            dados = conn.cursor().execute("SELECT * FROM leituras").fetchall()
+            conn.close()
+            
+            pdf_nome = reports.gerar_relatorio_leituras_pdf(dados)
+            
+            # REMOVA O '#' DA LINHA ABAIXO E COLOQUE O E-MAIL
+            sucesso_email = reports.enviar_email_com_pdf("DESTINATARIO@gmail.com", pdf_nome)
+            
+            if sucesso_email:
+                mostrar_aviso(f"Relatório enviado para o e-mail!")
+            else:
+                mostrar_aviso(f"Relatório gerado: {pdf_nome}")
+
+        except Exception as ex:
+            mostrar_aviso(f"Erro: {ex}")
 
     def confirmar_reset(e):
         def realizar_reset(e):
@@ -60,6 +90,10 @@ def main(page: ft.Page):
         page.dialog = dlg
         dlg.open = True
         page.update()
+
+    # Função assíncrona para fechar a janela sem erros de Runtime
+    async def sair_do_sistema(e):
+        await page.window.destroy()
 
     # --- INTERFACE DO MENU ---
     def navegar_para_menu(e=None):
@@ -106,16 +140,17 @@ def main(page: ft.Page):
                     ft.TextButton(
                         "Sair do Sistema", 
                         icon=ft.Icons.EXIT_TO_APP, 
-                        on_click=lambda _: page.window.close() 
+                        on_click=sair_do_sistema 
                     )
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             )
         )
         page.update()
 
+    # Inicia o app mostrando o menu
     navegar_para_menu()
 
-# INICIALIZAÇÃO CORRETA
+# Execução do Flet
 if __name__ == "__main__":
+    db.init_db()  # <--- ADICIONE ESTA LINHA AQUI
     ft.run(main)
-    
