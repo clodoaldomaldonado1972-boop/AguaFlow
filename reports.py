@@ -26,7 +26,7 @@ def gerar_qr_unidade(unidade):
     return caminho
 
 # --- 2. FUNÇÃO DE ETIQUETAS PDF ---
-ddef gerar_pdf_etiquetas_qr(lista_unidades):
+def gerar_pdf_etiquetas_qr(lista_unidades):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
     from reportlab.pdfgen import canvas
