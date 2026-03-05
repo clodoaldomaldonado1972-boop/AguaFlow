@@ -11,8 +11,23 @@ from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 
-# --- 1. FUNÇÃO DE ETIQUETAS QR ---
+import flet as ft
 
+def montar_tela_ajuda(ao_voltar):
+    """Retorna o componente visual do Guia do Usuário"""
+    return ft.Container(
+        padding=20,
+        content=ft.Column([
+            ft.Text("❓ Guia de Operação", size=20, weight="bold"),
+            ft.Divider(),
+            ft.Text("1. Iniciar Leitura: Escaneie o QR da unidade e digite o valor.", size=16),
+            ft.Text("2. Etiquetas: Admin gera PDF para impressão A4.", size=16),
+            ft.Text("3. Fechar Mês: Move dados para histórico (SÓ ADMIN).", size=16),
+            ft.ElevatedButton("VOLTAR AO MENU", icon=ft.Icons.ARROW_BACK, on_click=ao_voltar)
+        ])
+    )
+
+# --- 1. FUNÇÃO DE ETIQUETAS QR ---
 
 def gerar_pdf_etiquetas_qr(lista_unidades):
     nome_pdf = "Etiquetas_QR_Vivere.pdf"
