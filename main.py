@@ -9,10 +9,9 @@ def main(page: ft.Page):
     def navegar_menu(e=None):
         page.controls.clear()
         
-        # CORREÇÃO: Lendo a sessão como dicionário
-        # .get() ainda funciona em dicionários Python para evitar erros se a chave não existir
+        # Lendo o perfil salvo na sessão
         perfil = page.session.get("perfil")
-        
+                               
         # Botões comuns
         coluna = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         coluna.controls.append(ft.FilledButton("INICIAR LEITURA", on_click=lambda _: page.add(medicao.montar_tela(page, navegar_menu)), width=280))
