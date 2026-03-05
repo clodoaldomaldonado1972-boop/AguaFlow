@@ -3,7 +3,6 @@ import flet as ft
 def validar_login(usuario, senha):
     u = usuario.strip().lower()
     s = senha.strip()
-    # Senhas configuradas
     if u == "admin" and s == "ADMIN123": return "admin"
     if u == "leitor" and s == "1234": return "leitor"
     return None
@@ -12,11 +11,9 @@ def criar_tela_login(page, ao_logar_sucesso):
     def entrar_clique(e):
         perfil = validar_login(user_f.value, pass_f.value)
         if perfil:
-            # Em vez de session, usamos o armazenamento do cliente
-            page.client_storage.set("perfil", perfil) 
-            ao_logar_sucesso()
+            ao_logar_sucesso(perfil)
         else:
-            page.snack_bar = ft.SnackBar(ft.Text("Acesso Negado!"))
+            page.snack_bar = ft.SnackBar(ft.Text("Usuário ou Senha Inválidos!"))
             page.snack_bar.open = True
             page.update()
 
@@ -24,9 +21,10 @@ def criar_tela_login(page, ao_logar_sucesso):
     pass_f = ft.TextField(label="Senha", password=True, can_reveal_password=True)
 
     return ft.Container(
-        padding=40, 
-        # CORREÇÃO DEFINITIVA: Usando string "center" para evitar erro de versão
-        alignment=ft.alignment.Alignment(0, 0), 
+        padding=40,
+        # SOLUÇÃO DEFINITIVA: Coordenadas (0,0) representam o centro. 
+        # Não depende de nomes como .center ou .CENTER que mudam entre versões.
+        alignment=ft.Alignment(0, 0), 
         content=ft.Column([
             ft.Icon(ft.Icons.WATER_DROP, size=50, color="blue"),
             ft.Text("Login ÁguaFlow", size=24, weight="bold"),

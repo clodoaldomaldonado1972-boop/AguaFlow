@@ -1,6 +1,31 @@
 import sqlite3
 from datetime import datetime
 
+def get_dados():
+    """Retorna as leituras calculando o consumo para o relatório"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Como 'consumo' e 'data' não são colunas reais na sua tabela 'leituras',
+    # nós calculamos o consumo (atual - anterior) e pegamos a data de hoje.
+    cursor.execute("""
+        SELECT 
+            id, 
+            unidade, 
+            leitura_anterior, 
+            leitura_atual, 
+            (IFNULL(leitura_atual, 0) - leitura_anterior) AS consumo,
+            date('now') AS data, 
+            status 
+        FROM leituras 
+        WHERE leitura_atual IS NOT NULL
+        ORDER BY unidade ASC
+    """)
+    
+    dados = cursor.fetchall()
+    conn.close()
+    return dados
+
 def get_connection():
     """Estabelece a conexão com o banco de dados SQLite."""
     return sqlite3.connect("aguaflow.db", check_same_thread=False)
