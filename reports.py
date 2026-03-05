@@ -101,8 +101,7 @@ def gerar_relatorio_leituras_pdf(dados):
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
     # Lembre-se: Use a "Senha de App" de 16 dígitos do Google, não a senha normal
-    minha_senha = "vfjy inxg gzuh ljhv"
-
+    minha_senha = "jbtxbeqxfslfufgn"
     msg = MIMEMultipart()
     msg['From'] = meu_email
     msg['To'] = destinatario
