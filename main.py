@@ -1,36 +1,27 @@
 import flet as ft
 import database as db
 import vision
-import reports  # Importando o novo arquivo que você criou
+import reports
 
 def main(page: ft.Page):
-    page.title = "AguaFlow - Gestão de Leituras"
+    page.title = "AguaFlow"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.window_width = 400
-    page.window_height = 600
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
 
     def enviar_relatorio_clicado(e):
-        # 1. Busca todos os dados (precisamos criar essa função no database.py)
-        dados = db.buscar_todos() 
+        dados = db.buscar_todos()
         if not dados:
-            page.snack_bar = ft.SnackBar(ft.Text("Nenhum dado para enviar!"))
+            page.snack_bar = ft.SnackBar(ft.Text("Nenhum dado encontrado."))
             page.snack_bar.open = True
             page.update()
             return
-
-        # 2. Gera o PDF
-        pdf_nome = reports.gerar_relatorio_leituras_pdf(dados)
         
-        # 3. Envia o e-mail
-        sucesso = reports.enviar_email_com_pdf("seu_email_destino@gmail.com", pdf_nome)
+        pdf = reports.gerar_relatorio_leituras_pdf(dados)
+        sucesso = reports.enviar_email_com_pdf("clodoaldomaldonado112@gmail.com", pdf)
         
-        if sucesso:
-            page.snack_bar = ft.SnackBar(ft.Text("✅ Relatório enviado com sucesso!"), bgcolor="green")
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("❌ Erro ao enviar e-mail. Verifique a senha."), bgcolor="red")
-        
+        texto = "✅ Enviado!" if sucesso else "❌ Erro no envio."
+        page.snack_bar = ft.SnackBar(ft.Text(texto))
         page.snack_bar.open = True
         page.update()
 
@@ -40,38 +31,30 @@ def main(page: ft.Page):
         if unidade:
             page.add(
                 ft.Text(f"Unidade: {unidade[1]}", size=30, weight="bold"),
-                ft.ElevatedButton("ESCANEAR QR", icon=ft.icons.QR_CODE_SCANNER, 
-                                 on_click=lambda _: escanear(unidade[1])),
+                ft.ElevatedButton("ESCANEAR", on_click=lambda _: escanear(unidade[1])),
                 ft.TextButton("Voltar", on_click=lambda _: mostrar_inicio())
             )
         else:
             page.add(
-                ft.Text("Todas as leituras concluídas! 🎉"),
+                ft.Text("Concluído!"),
                 ft.ElevatedButton("Voltar", on_click=lambda _: mostrar_inicio())
             )
         page.update()
 
     def escanear(numero):
         res = vision.escanear_qr()
-        # Aqui você salvaria o resultado no banco (db.salvar_leitura)
-        page.snack_bar = ft.SnackBar(ft.Text(f"Lido para {numero}: {res}"))
+        page.snack_bar = ft.SnackBar(ft.Text(f"Lido: {res}"))
         page.snack_bar.open = True
         page.update()
 
     def mostrar_inicio():
         page.clean()
+        # Aqui removemos todos os nomes de argumentos que causam erro
         page.add(
-            ft.Column(
-                [
-                    ft.Icon(name=ft.icons.WATER_DROP, size=100, color="blue"),
-                    ft.Text("AguaFlow", size=40, weight="bold"),
-                    ft.Divider(height=20, color="transparent"),
-                    ft.FilledButton("INICIAR LEITURAS", on_click=iniciar_leitura, width=250),
-                    ft.OutlinedButton("ENVIAR RELATÓRIO", icon=ft.icons.EMAIL, 
-                                     on_click=enviar_relatorio_clicado, width=250),
-                ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            )
+            ft.Icon(ft.icons.WATER_DROP, size=100, color="blue"),
+            ft.Text("AguaFlow", size=40, weight="bold"),
+            ft.FilledButton("INICIAR", on_click=iniciar_leitura, width=200),
+            ft.OutlinedButton("RELATÓRIO", on_click=enviar_relatorio_clicado, width=200)
         )
         page.update()
 
@@ -79,5 +62,6 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     db.init_db()
-    ft.app(target=main)
+    # Forçando o modo estável
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER)
     
