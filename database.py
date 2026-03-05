@@ -61,4 +61,15 @@ def registrar_leitura(id_unidade, valor, tipo="agua", status="concluido"):
     cursor.execute(f"UPDATE leituras SET {coluna} = ?, status = ? WHERE id = ?", (valor, status, id_unidade))
     conn.commit()
     conn.close()
-    
+
+def resetar_ciclo():
+    """Limpa as leituras e volta o status para pendente em todas as unidades."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE leituras 
+        SET agua_atual = 0.0, gas_atual = 0.0, status = 'pendente'
+    """)
+    conn.commit()
+    conn.close()
+        
