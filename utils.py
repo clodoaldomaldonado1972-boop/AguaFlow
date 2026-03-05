@@ -1,4 +1,5 @@
 import os
+import qrcode
 import smtplib
 from datetime import datetime
 from email import encoders
@@ -29,8 +30,10 @@ def gerar_pdf_etiquetas_qr(lista_unidades):
     cont_lin = 0
 
     for unidade in lista_unidades:
-        caminho_img = f"qr_codes/{unidade}.png"
+        caminho_img = f"qrcodes/{unidade}.png" 
         if os.path.exists(caminho_img):
+            c.drawImage(caminho_img, x_atual, y_atual, width=tamanho_qr, height=tamanho_qr)
+        
             c.drawImage(caminho_img, x_atual, y_atual,
                         width=tamanho_qr, height=tamanho_qr)
             c.setFont("Helvetica-Bold", 10)
@@ -90,8 +93,7 @@ def gerar_relatorio_leituras_pdf(dados):
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
     # COLE AQUI AS 16 LETRAS QUE O GOOGLE GEROU
-    minha_senha = "abcd efgh ijkl mnop"
-
+    minha_senha = "cuxiizdglmgilxgw"
     msg = MIMEMultipart()
     msg['From'] = meu_email
     msg['To'] = destinatario
@@ -120,3 +122,25 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
     except Exception as e:
         print(f"Erro no e-mail: {e}")
         return False
+
+def gerar_qr_unidade(unidade):
+    import qrcode
+    import os
+    
+    # 1. Cria a pasta se ela não existir
+    if not os.path.exists("qrcodes"):
+        os.makedirs("qrcodes")
+    
+    # 2. Limpa o nome da unidade para evitar erro de arquivo (remove / ou \)
+    nome_arquivo = str(unidade).replace("/", "-").replace("\\", "-")
+    caminho = f"qrcodes/{nome_arquivo}.png"
+    
+    # 3. Gera o QR Code
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(str(unidade))
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # 4. Salva a imagem
+    img.save(caminho)
+    return caminho

@@ -1,105 +1,91 @@
 import sqlite3
-from datetime import datetime # Import necessário para o fechar_mes
+from datetime import datetime
 
 def get_connection():
     """Estabelece a conexão com o banco de dados SQLite."""
     return sqlite3.connect("aguaflow.db", check_same_thread=False)
 
 def init_db():
-    """Inicializa as tabelas principal e de histórico."""
+    """Inicializa as tabelas com os nomes de colunas corretos."""
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Tabela Principal
+    # Criando a tabela principal com os nomes que o medicao.py espera
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             unidade TEXT NOT NULL,
-            agua_anterior REAL DEFAULT 0.0,
-            agua_atual REAL DEFAULT 0.0,
-            gas_anterior REAL DEFAULT 0.0,
-            gas_atual REAL DEFAULT 0.0,
+            leitura_anterior REAL DEFAULT 0.0,
+            leitura_atual REAL,
             status TEXT DEFAULT 'pendente'
         )
     """)
     
-    # NOVA: Tabela de Histórico
+    # Criando a tabela de histórico
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS historico_consumo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             unidade TEXT,
             mes_referencia TEXT,
-            tipo TEXT, -- 'agua' ou 'gas'
             consumo REAL,
             leitura_final REAL
         )
     """)
     
-    # Popula unidades se estiver vazio
+    # Se a tabela estiver vazia, popula com os apartamentos
     cursor.execute("SELECT COUNT(*) FROM leituras")
     if cursor.fetchone()[0] == 0:
         unidades = []
+        # Gera apartamentos do 16 ao 1 (finais 1 a 6)
         for andar in range(16, 0, -1):
             for final in range(6, 0, -1):
-                unidades.append((f"{andar}{final}",))
-        unidades.append(('LAZER',))
-        unidades.append(('GERAL',))
-        cursor.executemany("INSERT INTO leituras (unidade) VALUES (?)", unidades)
+                unidades.append((f"{andar}{final}", 0.0))
+        
+        unidades.append(('LAZER', 0.0))
+        unidades.append(('GERAL', 0.0))
+        
+        cursor.executemany("INSERT INTO leituras (unidade, leitura_anterior) VALUES (?, ?)", unidades)
         conn.commit()
+    
     conn.close()
 
 def buscar_proximo_pendente():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM leituras WHERE status = 'pendente' ORDER BY id ASC LIMIT 1")
-    resultado = cursor.fetchone()
+    # Busca a primeira unidade onde a leitura_atual ainda é NULA
+    cursor.execute("SELECT id, unidade, leitura_anterior FROM leituras WHERE leitura_atual IS NULL LIMIT 1")
+    res = cursor.fetchone()
     conn.close()
-    return resultado
+    return res
 
-def registrar_leitura(id_unidade, valor, tipo="agua", status="lido"):
+def registrar_leitura(id_unidade, valor, status="lido"):
     conn = get_connection()
     cursor = conn.cursor()
-    coluna = "agua_atual" if tipo == "agua" else "gas_atual"
-    cursor.execute(f"UPDATE leituras SET {coluna} = ?, status = ? WHERE id = ?", (valor, status, id_unidade))
+    cursor.execute("UPDATE leituras SET leitura_atual = ?, status = ? WHERE id = ?", (valor, status, id_unidade))
     conn.commit()
     conn.close()
 
 def fechar_mes_e_resetar():
-    """Migra dados para histórico e prepara o banco para o novo mês."""
+    """Migra para histórico e prepara o próximo mês."""
     conn = get_connection()
     cursor = conn.cursor()
     mes_ano = datetime.now().strftime("%m/%Y")
 
-    # 1. Salva Água no Histórico (Apenas se status for 'lido' e houve consumo)
+    # 1. Salva no Histórico
     cursor.execute("""
-        INSERT INTO historico_consumo (unidade, mes_referencia, tipo, consumo, leitura_final)
-        SELECT unidade, ?, 'agua', (agua_atual - agua_anterior), agua_atual 
+        INSERT INTO historico_consumo (unidade, mes_referencia, consumo, leitura_final)
+        SELECT unidade, ?, (leitura_atual - leitura_anterior), leitura_atual 
         FROM leituras 
-        WHERE status = 'lido' AND (agua_atual - agua_anterior) > 0
+        WHERE status = 'lido'
     """, (mes_ano,))
 
-    # 2. Prepara o próximo mês
-    # Se foi 'lido', a atual vira anterior. Se foi 'pulado', mantém a anterior antiga.
+    # 2. Faz o 'Rollover' (A atual vira anterior para o próximo mês)
     cursor.execute("""
         UPDATE leituras 
-        SET agua_anterior = CASE WHEN status = 'lido' THEN agua_atual ELSE agua_anterior END,
-            gas_anterior = CASE WHEN status = 'lido' THEN gas_atual ELSE gas_anterior END,
-            agua_atual = 0.0,
-            gas_atual = 0.0,
+        SET leitura_anterior = CASE WHEN status = 'lido' THEN leitura_atual ELSE leitura_anterior END,
+            leitura_atual = NULL,
             status = 'pendente'
     """)
     
     conn.commit()
     conn.close()
-
-def calcular_media_anual(unidade, tipo="agua"):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT AVG(consumo) FROM historico_consumo 
-        WHERE unidade = ? AND tipo = ? AND consumo > 0
-        ORDER BY id DESC LIMIT 12
-    """, (unidade, tipo))
-    media = cursor.fetchone()[0]
-    conn.close()
-    return media if media else 0.0
