@@ -8,7 +8,7 @@ def montar_tela(page, voltar_menu):
     if not unidade:
         return ft.Container(
             content=ft.Column([
-                ft.Icon(ft.icons.CHECK_CIRCLE, color="green", size=60),
+                ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=60),
                 ft.Text("Medição do Vivere Concluída!", size=20, weight="bold"),
                 ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: voltar_menu())
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -20,19 +20,22 @@ def montar_tela(page, voltar_menu):
 
     def salvar_leitura(e):
         if not input_valor.value:
-            # Se campo vazio, chama o alerta de "Pular"
             abrir_alerta_pular()
         else:
-            # Salva e recarrega a tela para a próxima unidade
-            valor = float(input_valor.value.replace(",", "."))
-            db.registrar_leitura(id_db, valor)
-            page.controls.clear()
-            page.add(montar_tela(page, voltar_menu))
-            page.update()
+            try:
+                # Substitui vírgula por ponto para o banco não dar erro
+                valor = float(input_valor.value.replace(",", "."))
+                db.registrar_leitura(id_db, valor)
+                page.controls.clear()
+                page.add(montar_tela(page, voltar_menu))
+                page.update()
+            except ValueError:
+                input_valor.error_text = "Digite um número válido"
+                page.update()
 
     def abrir_alerta_pular():
         def confirmar_pulo(e):
-            db.registrar_leitura(id_db, 0.0, status="pulado") # Salva com zero e marca como pulado
+            db.registrar_leitura(id_db, 0.0, status="pulado")
             dlg.open = False
             page.controls.clear()
             page.add(montar_tela(page, voltar_menu))
@@ -58,7 +61,8 @@ def montar_tela(page, voltar_menu):
             input_valor,
             ft.Row([
                 ft.ElevatedButton("SALVAR", on_click=salvar_leitura, bgcolor="green", color="white", expand=True),
-                ft.IconButton(ft.icons.SKIP_NEXT, on_click=lambda _: abrir_alerta_pular(), icon_color="red"),
+                # AJUSTADO: Icons com I maiúsculo para evitar erro de atributo
+                ft.IconButton(ft.Icons.SKIP_NEXT, on_click=lambda _: abrir_alerta_pular(), icon_color="red"),
             ]),
             ft.TextButton("Interromper e Sair", on_click=lambda _: voltar_menu())
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
