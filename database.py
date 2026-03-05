@@ -52,11 +52,16 @@ def pular_apartamento(id_apto):
     conn.commit()
     conn.close()
     
+# No arquivo database.py
 def buscar_todos():
-    conn = sqlite3.connect("aguaflow.db")
+    conn = sqlite3.connect("agua_flow.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id, numero, bloco, valor, status FROM leituras")
-    res = cursor.fetchall()
+    # A ORDEM PRECISA SER ESTA:
+    cursor.execute("""
+        SELECT id, numero, bloco, leitura_atual, leitura_anterior, status 
+        FROM leituras
+    """)
+    dados = cursor.fetchall()
     conn.close()
-    return res
+    return dados
 
