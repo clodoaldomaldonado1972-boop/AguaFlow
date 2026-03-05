@@ -1,8 +1,0 @@
-ID,Cenário de Teste,Ação do Testador,Resultado Esperado,Status (OK/Erro)
-01,Sequência de Andares,"Abrir o app e clicar em ""Próximo"".","O app deve começar no ""Hidrômetro Geral"", passar pela ""Área de Lazer"" e pular para o ""Apto 166"".",
-02,Campo de Gás,"Chegar em um ""Apartamento"".",O ícone de fogão (Gás) deve aparecer automaticamente.,
-03,Área Comum,"Estar no ""Hidrômetro Geral"".",O campo de Gás não deve aparecer (apenas Água).,
-04,Alerta de Pulo,Tentar salvar um apartamento com o campo Água vazio.,"Deve aparecer o aviso: ""Deseja realizar a leitura ou preencher com ZERO?"".",
-05,Geração de QR,"Clicar no botão ""Gerar Folha de Etiquetas"".",O sistema deve criar um PDF chamado Etiquetas_AguaFlow_A4.pdf com os códigos de barras.,
-06,Persistência,Fechar o app e abrir de novo.,O sistema deve lembrar em qual unidade o leiturista parou (ou resetar corretamente).,
-
