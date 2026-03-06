@@ -3,9 +3,14 @@ import database as db
 import estilos as st  # Importando o novo módulo de estilos
 
 def montar_tela(page, voltar_menu):
+    """
+    Constrói a interface de medição modularizada.
+    """
+    
+    # 1. BUSCA DE DADOS
     unidade = db.buscar_proximo_pendente()
     
-    # Tela de conclusão usando estilos modulares
+    # 2. TELA DE CONCLUSÃO
     if not unidade:
         return ft.Container(
             content=ft.Column([
@@ -16,17 +21,18 @@ def montar_tela(page, voltar_menu):
             padding=50
         )
 
+    # 3. MAPEAMENTO DE DADOS DA UNIDADE
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18, color=st.COR_PRIMARIA, weight="bold")
     
     def calcular_ao_digitar(e):
+        """Lógica de cálculo de consumo em tempo real"""
         try:
             if input_valor.value:
                 val_limpo = input_valor.value.strip().replace(",", ".")
                 atual = float(val_limpo)
                 consumo = atual - leitura_anterior
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
-                # Usa a cor de alerta do estilos.py
                 texto_consumo.color = st.COR_ALERTA if consumo > 20 else st.COR_PRIMARIA
             else:
                 texto_consumo.value = "Consumo: 0.00 m³"
@@ -34,6 +40,7 @@ def montar_tela(page, voltar_menu):
             texto_consumo.value = "Consumo: ---"
         page.update()
 
+    # 4. CAMPO DE ENTRADA
     input_valor = ft.TextField(
         label="Leitura Atual (m³)", 
         keyboard_type=ft.KeyboardType.NUMBER,
@@ -44,6 +51,7 @@ def montar_tela(page, voltar_menu):
         on_submit=lambda _: salvar_leitura(None)
     )
 
+    # 5. LÓGICA DE SALVAMENTO E PULO
     def salvar_leitura(e):
         if not input_valor.value:
             abrir_alerta_pular()
@@ -77,26 +85,36 @@ def montar_tela(page, voltar_menu):
         dlg.open = True
         page.update()
 
-    # LAYOUT FINAL: Organizado e Modular
+    # 6. MONTAGEM DA LINHA DE BOTÕES (Ação Principal)
+    linha_botoes = ft.Row(
+        controls=[
+            st.botao_salvar("SALVAR", salvar_leitura),
+            ft.IconButton(
+                icon="skip_next", 
+                icon_color=st.COR_ALERTA, 
+                on_click=lambda _: abrir_alerta_pular(),
+                tooltip="Pular Unidade"
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+    )
+
+    # 7. RETORNO ÚNICO DO LAYOUT (Container Principal)
     return ft.Container(
         padding=30,
-        content=ft.Column([
-            ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color=st.COR_PRIMARIA),
-            ft.Text(f"Anterior: {leitura_anterior:.2f} m³", size=st.FONTE_LABEL, color=st.COR_TEXTO_SEC),
-            ft.Divider(),
-            input_valor,
-            texto_consumo,
-            ft.Row([
-                # Chamando o botão padronizado
-                st.botao_salvar("SALVAR", salvar_leitura),
-                ft.IconButton(
-                    icon="skip_next", 
-                    on_click=lambda _: abrir_alerta_pular(), 
-                    icon_color=st.COR_ALERTA,
-                    tooltip="Pular"
-                ),
-            ]),
-            # Chamando o botão de texto padronizado
-            st.botao_texto("Interromper e Sair", lambda _: (page.controls.clear(), voltar_menu(), page.update()))
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        content=ft.Column(
+            controls=[
+                ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color=st.COR_PRIMARIA),
+                ft.Text(f"Anterior: {leitura_anterior:.2f} m³", size=st.FONTE_LABEL, color=st.COR_TEXTO_SEC),
+                ft.Divider(),
+                input_valor,
+                texto_consumo,
+                ft.Container(height=10), # Respiro visual
+                linha_botoes,            # Salvar + Pular
+                ft.Container(height=10), # Respiro visual
+                st.botao_texto("Interromper e Sair", lambda _: (page.controls.clear(), voltar_menu(), page.update()))
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=10 
+        )
     )
