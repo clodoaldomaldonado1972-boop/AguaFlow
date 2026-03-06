@@ -16,15 +16,25 @@ import flet as ft
 def montar_tela_ajuda(ao_voltar):
     """Retorna o componente visual do Guia do Usuário"""
     return ft.Container(
+        # --- AS TRAVAS ANTI-BRANCO ---
+        expand=True,           # Força o container a ocupar a tela toda
+        bgcolor="#1A1C1E",     # Define a cor escura explicitamente
         padding=20,
+        # ----------------------------
         content=ft.Column([
-            ft.Text("❓ Guia de Operação", size=20, weight="bold"),
-            ft.Divider(),
-            ft.Text("1. Iniciar Leitura: Escaneie o QR da unidade e digite o valor.", size=16),
-            ft.Text("2. Etiquetas: Admin gera PDF para impressão A4.", size=16),
-            ft.Text("3. Fechar Mês: Move dados para histórico (SÓ ADMIN).", size=16),
-            ft.ElevatedButton("VOLTAR AO MENU", icon=ft.Icons.ARROW_BACK, on_click=ao_voltar)
-        ])
+            ft.Text("❓ Guia de Operação", size=20, weight="bold", color="blue"),
+            ft.Divider(color="white10"),
+            ft.Text("1. Iniciar Leitura: Escaneie o QR da unidade e digite o valor.", size=16, color="white"),
+            ft.Text("2. Etiquetas: Admin gera PDF para impressão A4.", size=16, color="white"),
+            ft.Text("3. Fechar Mês: Move dados para histórico (SÓ ADMIN).", size=16, color="white"),
+            ft.Container(height=20), # Espaçamento
+            ft.ElevatedButton(
+                "VOLTAR AO MENU", 
+                icon=ft.Icons.ARROW_BACK, 
+                on_click=ao_voltar,
+                style=ft.ButtonStyle(color="white")
+            )
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
 
 # --- 1. FUNÇÃO DE ETIQUETAS QR ---
