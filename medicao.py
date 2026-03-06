@@ -86,7 +86,7 @@ def montar_tela(page, voltar_menu):
         page.update()
 
     # 6. MONTAGEM DA LINHA DE BOTÕES (Ação Principal)
-    linha_botoes = ft. # Row(
+    linha_botoes = ft.Row(
         controls=[
             st.botao_salvar("SALVAR", salvar_leitura),
             ft.IconButton(
@@ -97,11 +97,12 @@ def montar_tela(page, voltar_menu):
             ),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
+    )
     
-    # 7. RETORNO DO LAYOUT
+    # 7. RETORNO DO LAYOUT (Verifique se não há parênteses sobrando abaixo)
     return ft.Container(
         padding=30,
-        alignment=ft.alignment.top_center, # Força tudo a começar do topo
+        alignment=ft.alignment.top_center,
         content=ft.Column(
             controls=[
                 ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color=st.COR_PRIMARIA),
@@ -116,7 +117,6 @@ def montar_tela(page, voltar_menu):
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=15,
-            tight=True, # Faz a coluna ocupar apenas o espaço dos filhos
+            tight=True,
         )
-    ))
-  
+    ) # <--- Certifique-se de que só existe UM fechamento para o Container aqui.
