@@ -1,6 +1,6 @@
 import flet as ft
 import database as db
-import estilos as st  # Importando o novo módulo de estilos
+import estilos as st  # Importando o módulo de estilos
 
 def montar_tela(page, voltar_menu):
     """
@@ -99,10 +99,14 @@ def montar_tela(page, voltar_menu):
         alignment=ft.MainAxisAlignment.CENTER,
     )
     
-    # 7. RETORNO DO LAYOUT (Verifique se não há parênteses sobrando abaixo)
+    # 7. RETORNO DO LAYOUT
     return ft.Container(
         padding=30,
-        alignment=ft.alignment.top_center,
+        # O segredo está aqui:
+        expand=True,                        # Faz o container ocupar a tela toda
+        bgcolor=ft.colors.SURFACE_VARIANT,    # Ou use st.COR_FUNDO se tiver definido
+        alignment=ft.Alignment(0, -1),      # Mantém o conteúdo no topo
+        
         content=ft.Column(
             controls=[
                 ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color=st.COR_PRIMARIA),
@@ -119,4 +123,4 @@ def montar_tela(page, voltar_menu):
             spacing=15,
             tight=True,
         )
-    ) # <--- Certifique-se de que só existe UM fechamento para o Container aqui.
+    )
