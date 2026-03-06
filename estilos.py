@@ -14,7 +14,7 @@ FONTE_LABEL  = 16
 # --- COMPONENTES PADRONIZADOS ---
 def botao_salvar(texto, acao):
     return ft.FilledButton(
-        text=texto,
+        label=texto,          # CORREÇÃO: No FilledButton o certo é 'label'
         icon="save",
         on_click=acao,
         style=ft.ButtonStyle(bgcolor=COR_SUCESSO, color=COR_BRANCO),
@@ -23,7 +23,7 @@ def botao_salvar(texto, acao):
 
 def botao_texto(texto, acao, icone="exit_to_app"):
     return ft.TextButton(
-        text=texto,
+        text=texto,           # No TextButton o argumento é 'text' (é confuso, eu sei!)
         icon=icone,
         icon_color=COR_TEXTO_SEC,
         on_click=acao
