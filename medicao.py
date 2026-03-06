@@ -10,14 +10,18 @@ def montar_tela(page, voltar_menu):
     # 1. BUSCA DE DADOS
     unidade = db.buscar_proximo_pendente()
     
-    # 2. TELA DE CONCLUSÃO
+    # 2. TELA DE CONCLUSÃO (CORRIGIDA: Adicionado Container com Fundo Escuro)
     if not unidade:
         return ft.Container(
+            expand=True,
+            bgcolor="#1A1C1E", # Mantendo o padrão do app
+            alignment=ft.Alignment(0, 0), # Centraliza a mensagem de sucesso
             content=ft.Column([
-                ft.Icon("check_circle", color=st.COR_SUCESSO, size=60),
-                ft.Text("Medição Concluída!", size=20, weight="bold"),
+                ft.Icon(ft.Icons.CHECK_CIRCLE, color=st.COR_SUCESSO, size=80),
+                ft.Text("Medição Concluída!", size=24, weight="bold", color="white"),
+                ft.Container(height=20),
                 st.botao_salvar("Voltar ao Menu", lambda _: (page.controls.clear(), voltar_menu(), page.update()))
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True),
             padding=50
         )
 
@@ -33,6 +37,7 @@ def montar_tela(page, voltar_menu):
                 atual = float(val_limpo)
                 consumo = atual - leitura_anterior
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
+                # Alerta se o consumo for maior que 20m³
                 texto_consumo.color = st.COR_ALERTA if consumo > 20 else st.COR_PRIMARIA
             else:
                 texto_consumo.value = "Consumo: 0.00 m³"
@@ -60,6 +65,7 @@ def montar_tela(page, voltar_menu):
                 valor = float(input_valor.value.replace(",", "."))
                 db.registrar_leitura(id_db, valor)
                 page.controls.clear()
+                # Recarrega a tela para a próxima unidade
                 page.add(montar_tela(page, voltar_menu))
                 page.update()
             except ValueError:
@@ -85,12 +91,12 @@ def montar_tela(page, voltar_menu):
         dlg.open = True
         page.update()
 
-    # 6. MONTAGEM DA LINHA DE BOTÕES (Ação Principal)
+    # 6. MONTAGEM DA LINHA DE BOTÕES
     linha_botoes = ft.Row(
         controls=[
             st.botao_salvar("SALVAR", salvar_leitura),
             ft.IconButton(
-                icon="skip_next", 
+                icon=ft.Icons.SKIP_NEXT, 
                 icon_color=st.COR_ALERTA, 
                 on_click=lambda _: abrir_alerta_pular(),
                 tooltip="Pular Unidade"
@@ -98,29 +104,25 @@ def montar_tela(page, voltar_menu):
         ],
         alignment=ft.MainAxisAlignment.CENTER,
     )
-    
-    # 7. RETORNO DO LAYOUT
-        return ft.Container(
+    # 7. RETORNO DO LAYOUT (VERSÃO BLINDADA SEM ERROS)
+    return ft.Container(
         expand=True,
-        bgcolor=ft.Colors.BACKGROUND, # Agora com "C" maiúsculo
-        padding=30,
-        # Usamos Alignment(0, -1) para evitar o erro de 'top_center'
         alignment=ft.Alignment(0, -1), 
-        
+        bgcolor="#1A1C1E",  # O "balde de tinta" preta
+        padding=30,
         content=ft.Column(
             controls=[
-                ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color=st.COR_PRIMARIA),
-                ft.Text(f"Anterior: {leitura_anterior:.2f} m³", size=st.FONTE_LABEL, color=st.COR_TEXTO_SEC),
-                ft.Divider(),
+                ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color="blue"),
+                ft.Text(f"Anterior: {leitura_anterior:.2f} m³", size=st.FONTE_LABEL, color="white"),
+                ft.Container(height=1, bgcolor="white10"), # Linha divisória manual
                 input_valor,
                 texto_consumo,
                 ft.Container(height=20), 
-                linha_botoes,            
+                linha_botoes,             
                 ft.Container(height=20), 
                 st.botao_texto("Interromper e Sair", lambda _: (page.controls.clear(), voltar_menu(), page.update()))
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=15,
-            tight=True,
+            spacing=15
         )
     )
