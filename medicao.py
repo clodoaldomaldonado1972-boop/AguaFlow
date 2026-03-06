@@ -100,7 +100,13 @@ def montar_tela(page, voltar_menu):
     )
     
     # 7. RETORNO DO LAYOUT
-    return ft.Container(
+        return ft.Container(
+        expand=True,
+        bgcolor=ft.Colors.BACKGROUND, # Agora com "C" maiúsculo
+        padding=30,
+        # Usamos Alignment(0, -1) para evitar o erro de 'top_center'
+        alignment=ft.Alignment(0, -1), 
+        
         content=ft.Column(
             controls=[
                 ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color=st.COR_PRIMARIA),
@@ -116,10 +122,5 @@ def montar_tela(page, voltar_menu):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=15,
             tight=True,
-        ),
-        # ESTAS LINHAS ABAIXO SÃO AS QUE RESOLVEM A MANCHA BRANCA:
-        expand=True,
-        bgcolor=ft.colors.BACKGROUND, # Força o fundo a ser o do sistema (escuro)
-        padding=30,
-        alignment=ft.alignment.top_center,
+        )
     )
