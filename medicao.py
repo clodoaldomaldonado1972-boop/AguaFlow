@@ -101,12 +101,6 @@ def montar_tela(page, voltar_menu):
     
     # 7. RETORNO DO LAYOUT
     return ft.Container(
-        padding=30,
-        # O segredo está aqui:
-        expand=True,                        # Faz o container ocupar a tela toda
-        bgcolor=ft.colors.SURFACE_VARIANT,    # Ou use st.COR_FUNDO se tiver definido
-        alignment=ft.Alignment(0, -1),      # Mantém o conteúdo no topo
-        
         content=ft.Column(
             controls=[
                 ft.Text(f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color=st.COR_PRIMARIA),
@@ -122,5 +116,10 @@ def montar_tela(page, voltar_menu):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=15,
             tight=True,
-        )
+        ),
+        # ESTAS LINHAS ABAIXO SÃO AS QUE RESOLVEM A MANCHA BRANCA:
+        expand=True,
+        bgcolor=ft.colors.BACKGROUND, # Força o fundo a ser o do sistema (escuro)
+        padding=30,
+        alignment=ft.alignment.top_center,
     )
