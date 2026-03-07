@@ -183,4 +183,14 @@ def gerar_qr_unidade(unidade):
         img_qr.visible = True
         page.update()  # ESSA LINHA É VITAL!
 
-    # ... restante do layout ...
+    def montar_tela_ajuda(voltar):
+    return ft.Container(
+        expand=True,
+        bgcolor="#1A1C1E",
+        content=ft.Column([
+            ft.Text("Central de Ajuda", size=24, color="white", weight="bold"),
+            ft.Text("Instruções de uso do ÁguaFlow...", color="white70"),
+            # Adicione aqui seus textos de suporte
+            ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: voltar())
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    )
