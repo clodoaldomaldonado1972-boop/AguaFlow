@@ -124,30 +124,36 @@ def registrar_leitura(id_unidade, valor, status="lido"):
 
 
 def resetar_mes_novo():
-    conn = get_connection()
-    cursor = conn.cursor()
-    # O segredo: Limpar o status para 'pendente' e a leitura_atual para NULL
-    cursor.execute("""
-        UPDATE leituras 
-        SET 
-            leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
-            leitura_atual = NULL,
-            status = 'pendente', 
-            data_leitura = NULL
-    """)
-    conn.commit()  # <--- ESSENCIAL: Sem isto, o banco não muda!
-    conn.close()
-    print("🔄 BANCO RESETADO NO SQLITE!")
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        # 1. Limpa as leituras e volta o status para 'pendente'
+        cursor.execute("""
+            UPDATE leituras 
+            SET 
+                leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
+                leitura_atual = NULL,
+                status = 'pendente', 
+                data_leitura = NULL
+        """)
+        conn.commit()  # <--- ESSENCIAL: Isso aqui é o que "salva" o reset!
+        conn.close()
+        print("✅ SUCESSO: Banco resetado fisicamente!")
+        return True
+    except Exception as e:
+        print(f"❌ Erro no Reset: {e}")
+        return False
 
 
 def confirmar_reset(e):
-    db.resetar_mes_novo()  # <--- Chama a função acima
+    # 1. Manda o banco resetar
+    db.resetar_mes_novo()
+
+    # 2. Fecha o aviso e dá um aviso visual
     dlg.open = False
-    page.snack_bar = ft.SnackBar(ft.Text("Banco Resetado!"), open=True)
+    page.snack_bar = ft.SnackBar(
+        ft.Text("Mês Resetado! Iniciando novo ciclo."), open=True)
     page.update()
-    voltar()  # <--- Volta para o menu principal para atualizar a tela
 
-    conn.commit()
-    conn.close()
-
-    print(f"🔄 Histórico de {mes_atual} salvo e banco resetado!")
+    # 3. FORÇA A VOLTA AO MENU (Isso limpa o erro de 'None')
+    voltar()
