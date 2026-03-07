@@ -91,3 +91,18 @@ def buscar_todas_leituras():
     dados = cursor.fetchall()
     conn.close()
     return dados
+def buscar_proximo_pendente():
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Só traz quem REALMENTE não tem leitura_atual
+    cursor.execute("""
+        SELECT id, unidade, leitura_anterior 
+        FROM leituras 
+        WHERE leitura_atual IS NULL 
+        AND status = 'pendente' 
+        ORDER BY id ASC 
+        LIMIT 1
+    """)
+    res = cursor.fetchone()
+    conn.close()
+    return res
