@@ -1,6 +1,6 @@
 import sqlite3
 import datetime
-import database as db # Garanta que este import existe
+import database as db  # Garanta que este import existe
 
 
 def get_connection():
@@ -65,11 +65,12 @@ def init_db():
 def buscar_proximo_pendente():
     conn = get_connection()
     cursor = conn.cursor()
-    # A LOGICA: Procura onde a leitura_atual ainda é NULA
+    # Importante: procurar quem não tem leitura (NULL)
     cursor.execute("""
         SELECT id, unidade, leitura_anterior 
         FROM leituras 
-        WHERE leitura_atual IS NULL AND status = 'pendente' 
+        WHERE leitura_atual IS NULL 
+        AND status = 'pendente' 
         LIMIT 1
     """)
     res = cursor.fetchone()
