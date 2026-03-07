@@ -183,14 +183,23 @@ def gerar_qr_unidade(unidade):
         img_qr.visible = True
         page.update()  # ESSA LINHA É VITAL!
 
-    def montar_tela_ajuda(voltar):
+    # Linha 186
+
+
+def montar_tela_ajuda(voltar):
+    # Linha 187 (Dê 4 espaços ou um TAB aqui antes do return)
     return ft.Container(
         expand=True,
         bgcolor="#1A1C1E",
         content=ft.Column([
             ft.Text("Central de Ajuda", size=24, color="white", weight="bold"),
-            ft.Text("Instruções de uso do ÁguaFlow...", color="white70"),
-            # Adicione aqui seus textos de suporte
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.QUESTION_MARK, color="blue"),
+                title=ft.Text("Como usar?", color="white"),
+                subtitle=ft.Text(
+                    "1. Inicie a leitura\n2. Digite o valor atual\n3. Gere o relatório no menu", color="white70"),
+            ),
+            ft.Container(height=20),
             ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: voltar())
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
     )
