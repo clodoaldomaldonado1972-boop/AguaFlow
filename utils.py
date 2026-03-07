@@ -13,31 +13,25 @@ from reportlab.pdfgen import canvas
 
 import flet as ft
 
-def montar_tela_ajuda(ao_voltar):
-    """Retorna o componente visual do Guia do Usuário"""
+import flet as ft
+
+# Renomeie de montar_tela_ajuda para montar_tela_qrcode
+
+
+def montar_tela_qrcode(page, voltar):
     return ft.Container(
-        # --- AS TRAVAS ANTI-BRANCO ---
-        expand=True,           # Força o container a ocupar a tela toda
-        bgcolor="#1A1C1E",     # Define a cor escura explicitamente
-        padding=20,
-        # ----------------------------
+        expand=True,
+        bgcolor="#1A1C1E",  # Mata o branco aqui também
         content=ft.Column([
-            ft.Text("❓ Guia de Operação", size=20, weight="bold", color="blue"),
-            ft.Divider(color="white10"),
-            ft.Text("1. Iniciar Leitura: Escaneie o QR da unidade e digite o valor.", size=16, color="white"),
-            ft.Text("2. Etiquetas: Admin gera PDF para impressão A4.", size=16, color="white"),
-            ft.Text("3. Fechar Mês: Move dados para histórico (SÓ ADMIN).", size=16, color="white"),
-            ft.Container(height=20), # Espaçamento
-            ft.ElevatedButton(
-                "VOLTAR AO MENU", 
-                icon=ft.Icons.ARROW_BACK, 
-                on_click=ao_voltar,
-                style=ft.ButtonStyle(color="white")
-            )
+            ft.Text("Gerador de QR Code", size=24,
+                    color="white", weight="bold"),
+            # ... seu código de gerar o QR Code aqui ...
+            ft.ElevatedButton("Voltar", on_click=lambda _: voltar())
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
 
 # --- 1. FUNÇÃO DE ETIQUETAS QR ---
+
 
 def gerar_pdf_etiquetas_qr(lista_unidades):
     nome_pdf = "Etiquetas_QR_Vivere.pdf"
@@ -55,10 +49,11 @@ def gerar_pdf_etiquetas_qr(lista_unidades):
     cont_lin = 0
 
     for unidade in lista_unidades:
-        caminho_img = f"qrcodes/{unidade}.png" 
+        caminho_img = f"qrcodes/{unidade}.png"
         if os.path.exists(caminho_img):
-            c.drawImage(caminho_img, x_atual, y_atual, width=tamanho_qr, height=tamanho_qr)
-        
+            c.drawImage(caminho_img, x_atual, y_atual,
+                        width=tamanho_qr, height=tamanho_qr)
+
             c.drawImage(caminho_img, x_atual, y_atual,
                         width=tamanho_qr, height=tamanho_qr)
             c.setFont("Helvetica-Bold", 10)
@@ -148,24 +143,44 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
         print(f"Erro no e-mail: {e}")
         return False
 
+
 def gerar_qr_unidade(unidade):
     import qrcode
     import os
-    
+
     # 1. Cria a pasta se ela não existir
     if not os.path.exists("qrcodes"):
         os.makedirs("qrcodes")
-    
+
     # 2. Limpa o nome da unidade para evitar erro de arquivo (remove / ou \)
     nome_arquivo = str(unidade).replace("/", "-").replace("\\", "-")
     caminho = f"qrcodes/{nome_arquivo}.png"
-    
+
     # 3. Gera o QR Code
-    qr = qrcode.QRCode(version=1, box_size=10, border=4)
-    qr.add_data(str(unidade))
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    # 4. Salva a imagem
-    img.save(caminho)
-    return caminho
+    # ... código anterior ...
+
+    def gerar_qr(e):
+        # 1. TODO código aqui dentro deve ter 4 espaços de recuo
+        if not input_texto.value:
+            input_texto.error_text = "Digite algo para o QR Code"
+            page.update()
+            return
+
+        import qrcode
+        from io import BytesIO
+        import base64
+
+        # Gera o QR Code na memória
+        qr = qrcode.make(input_texto.value)
+        buffered = BytesIO()
+        qr.save(buffered, format="PNG")
+
+        # Converte para base64 para o Flet exibir sem precisar salvar arquivo no disco
+        img_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+        # ATUALIZA A IMAGEM NA TELA
+        img_qr.src_base64 = img_base64
+        img_qr.visible = True
+        page.update()  # ESSA LINHA É VITAL!
+
+    # ... restante do layout ...
