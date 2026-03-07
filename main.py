@@ -72,7 +72,24 @@ def main(page: ft.Page):
 
     page.add(palco)
     iniciar_app()
-
+def main(page: ft.Page):
+    # --- A CURA PARA A TELA BRANCA ---
+    page.window_bgcolor = "#1A1C1E" # Cor de fundo da janela (Windows)
+    page.bgcolor = "#1A1C1E"        # Cor de fundo do Flet
+    page.theme_mode = ft.ThemeMode.DARK
+    
+    # Aguarda um microssegundo para o Windows processar a transparência
+    page.window_title_bar_hidden = False 
+    
+    page.window_width = 450
+    page.window_height = 800
+    page.padding = 0
+    
+    # ... resto do código ...
+    
+    page.add(palco)
+    iniciar_app()
+    page.update() # Força a renderização final
 
 if __name__ == "__main__":
     os.environ["FLET_RENDERER"] = "skia"
