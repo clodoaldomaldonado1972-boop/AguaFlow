@@ -6,114 +6,21 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from io import BytesIO
+import base64
 
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-
 import flet as ft
+import database as db
 
-import flet as ft
-
-# Renomeie de montar_tela_ajuda para montar_tela_qrcode
-
-
-def montar_tela_qrcode(page, voltar):
-    return ft.Container(
-        expand=True,
-        bgcolor="#1A1C1E",  # Mata o branco aqui também
-        content=ft.Column([
-            ft.Text("Gerador de QR Code", size=24,
-                    color="white", weight="bold"),
-            # ... seu código de gerar o QR Code aqui ...
-            ft.ElevatedButton("Voltar", on_click=lambda _: voltar())
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-    )
-
-# --- 1. FUNÇÃO DE ETIQUETAS QR ---
-
-
-def gerar_pdf_etiquetas_qr(lista_unidades):
-    nome_pdf = "Etiquetas_QR_Vivere.pdf"
-    c = canvas.Canvas(nome_pdf, pagesize=A4)
-    width, height = A4
-
-    colunas, linhas = 4, 6
-    margem_x, margem_y = 1.5 * cm, 2 * cm
-    espaco_x, espaco_y = 4.5 * cm, 4.5 * cm
-    tamanho_qr = 3.5 * cm
-
-    x_atual = margem_x
-    y_atual = height - margem_y - tamanho_qr
-    cont_col = 0
-    cont_lin = 0
-
-    for unidade in lista_unidades:
-        caminho_img = f"qrcodes/{unidade}.png"
-        if os.path.exists(caminho_img):
-            c.drawImage(caminho_img, x_atual, y_atual,
-                        width=tamanho_qr, height=tamanho_qr)
-
-            c.drawImage(caminho_img, x_atual, y_atual,
-                        width=tamanho_qr, height=tamanho_qr)
-            c.setFont("Helvetica-Bold", 10)
-            c.drawCentredString(x_atual + (tamanho_qr/2),
-                                y_atual - 15, unidade.replace("_", " "))
-
-            cont_col += 1
-            x_atual += espaco_x
-            if cont_col >= colunas:
-                cont_col, x_atual = 0, margem_x
-                y_atual -= espaco_y
-                cont_lin += 1
-
-            if cont_lin >= linhas:
-                c.showPage()
-                y_atual = height - margem_y - tamanho_qr
-                cont_lin = 0
-    c.save()
-    return nome_pdf
-
-# --- 2. FUNÇÃO DE RELATÓRIO DE LEITURAS ---
-
-
-def gerar_relatorio_leituras_pdf(dados):
-    nome_arquivo = "relatorio_mensal.pdf"
-    c = canvas.Canvas(nome_arquivo, pagesize=letter)
-
-    def desenhar_cabecalho(canvas_obj, y_pos):
-        canvas_obj.setFont("Helvetica-Bold", 16)
-        canvas_obj.drawString(
-            100, y_pos, "Relatório de Leituras - Vivere Prudente")
-        canvas_obj.setFont("Helvetica-Bold", 10)
-        canvas_obj.drawString(
-            100, y_pos - 30, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-        return y_pos - 60
-
-    y = desenhar_cabecalho(c, 750)
-    c.setFont("Helvetica", 10)
-
-    for r in dados:
-        # r[0]=unidade, r[1]=agua, r[2]=gas, r[3]=data
-        texto = f"Unid: {str(r[0]):<15} | Água: {str(r[1]):>6} m3 | Gás: {str(r[2]):>6} | Data: {str(r[3])}"
-        c.drawString(100, y, texto)
-        y -= 20
-
-        if y < 50:
-            c.showPage()
-            y = desenhar_cabecalho(c, 750)
-            c.setFont("Helvetica", 10)
-
-    c.save()
-    return nome_arquivo
-
-# --- 3. FUNÇÃO DE ENVIO DE E-MAIL ---
-
+# --- 1. FUNÇÕES DE E-MAIL ---
 
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
-    # COLE AQUI AS 16 LETRAS QUE O GOOGLE GEROU
-    minha_senha = "cuxiizdglmgilxgw"
+    minha_senha = "cuxiizdglmgilxgw" # Senha de App de 16 dígitos
+    
     msg = MIMEMultipart()
     msg['From'] = meu_email
     msg['To'] = destinatario
@@ -122,90 +29,99 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
 
     try:
         if not os.path.exists(caminho_pdf):
-            print(f"Erro: O arquivo {caminho_pdf} não foi encontrado.")
             return False
 
         with open(caminho_pdf, "rb") as anexo:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(anexo.read())
             encoders.encode_base64(part)
-            part.add_header(
-                'Content-Disposition', f"attachment; filename={os.path.basename(caminho_pdf)}")
+            part.add_header('Content-Disposition', f"attachment; filename={os.path.basename(caminho_pdf)}")
             msg.attach(part)
 
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(meu_email, minha_senha)
-        server.sendmail(meu_email, destinatario, msg.as_string())
+        server.send_message(msg)
         server.quit()
         return True
     except Exception as e:
         print(f"Erro no e-mail: {e}")
         return False
 
+# --- 2. GERAÇÃO DE PDFS (ETIQUETAS E RELATÓRIO) ---
 
-def gerar_qr_unidade(unidade):
-    import qrcode
-    import os
+def gerar_pdf_etiquetas_qr(lista_unidades):
+    nome_pdf = "Etiquetas_QR_Vivere.pdf"
+    c = canvas.Canvas(nome_pdf, pagesize=A4)
+    width, height = A4
+    colunas, linhas = 4, 6
+    margem_x, margem_y = 1.5 * cm, 2 * cm
+    espaco_x, espaco_y = 4.5 * cm, 4.5 * cm
+    tamanho_qr = 3.5 * cm
 
-    # 1. Cria a pasta se ela não existir
-    if not os.path.exists("qrcodes"):
-        os.makedirs("qrcodes")
+    x_atual, y_atual = margem_x, height - margem_y - tamanho_qr
+    cont_col = cont_lin = 0
 
-    # 2. Limpa o nome da unidade para evitar erro de arquivo (remove / ou \)
-    nome_arquivo = str(unidade).replace("/", "-").replace("\\", "-")
-    caminho = f"qrcodes/{nome_arquivo}.png"
+    for unidade in lista_unidades:
+        caminho_img = f"qrcodes/{unidade}.png"
+        if os.path.exists(caminho_img):
+            c.drawImage(caminho_img, x_atual, y_atual, width=tamanho_qr, height=tamanho_qr)
+            c.setFont("Helvetica-Bold", 10)
+            c.drawCentredString(x_atual + (tamanho_qr/2), y_atual - 15, str(unidade).replace("_", " "))
 
-    # 3. Gera o QR Code
-    # ... código anterior ...
+            cont_col += 1
+            x_atual += espaco_x
+            if cont_col >= colunas:
+                cont_col, x_atual = 0, margem_x
+                y_atual -= espaco_y
+                cont_lin += 1
+            if cont_lin >= linhas:
+                c.showPage()
+                y_atual = height - margem_y - tamanho_qr
+                cont_lin = 0
+    c.save()
+    return nome_pdf
 
-    def gerar_qr(e):
-        # 1. TODO código aqui dentro deve ter 4 espaços de recuo
-        if not input_texto.value:
-            input_texto.error_text = "Digite algo para o QR Code"
-            page.update()
-            return
+def gerar_relatorio_leituras_pdf(dados):
+    nome_arquivo = "relatorio_mensal.pdf"
+    c = canvas.Canvas(nome_arquivo, pagesize=letter)
+    
+    def cabecalho(canvas_obj, y_p):
+        canvas_obj.setFont("Helvetica-Bold", 16)
+        canvas_obj.drawString(100, y_p, "Relatório de Leituras - Vivere Prudente")
+        canvas_obj.setFont("Helvetica", 10)
+        canvas_obj.drawString(100, y_p - 20, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        return y_p - 60
 
-        import qrcode
-        from io import BytesIO
-        import base64
+    y = cabecalho(c, 750)
+    for r in dados:
+        texto = f"Unid: {str(r[0]):<10} | Água: {str(r[1]):>6} m3 | Gás: {str(r[2]):>6} | Data: {str(r[3])}"
+        c.drawString(100, y, texto)
+        y -= 20
+        if y < 50:
+            c.showPage()
+            y = cabecalho(c, 750)
+    c.save()
+    return nome_arquivo
 
-        # Gera o QR Code na memória
-        qr = qrcode.make(input_texto.value)
-        buffered = BytesIO()
-        qr.save(buffered, format="PNG")
-
-        # Converte para base64 para o Flet exibir sem precisar salvar arquivo no disco
-        img_base64 = base64.b64encode(buffered.getvalue()).decode()
-
-        # ATUALIZA A IMAGEM NA TELA
-        img_qr.src_base64 = img_base64
-        img_qr.visible = True
-        page.update()  # ESSA LINHA É VITAL!
-
-    # Linha 186
-
+# --- 3. INTERFACE DE AJUDA E RESET ---
 
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
-        # Alerta de confirmação para evitar resets acidentais
         def confirmar_reset(e):
             db.resetar_mes_novo()
             dlg.open = False
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Banco resetado para o novo mês!"), open=True)
+            page.snack_bar = ft.SnackBar(ft.Text("Banco resetado para o novo mês!"), open=True)
             page.update()
             voltar()
 
         dlg = ft.AlertDialog(
             title=ft.Text("Confirmar Novo Mês?"),
-            content=ft.Text(
-                "Isso moverá as leituras ATUAIS para ANTERIORES e zerará o mês. Certifique-se de ter salvo o PDF primeiro!"),
+            content=ft.Text("Isso moverá as leituras ATUAIS para ANTERIORES. Certifique-se de ter salvo o PDF primeiro!"),
             actions=[
-                ft.TextButton("Confirmar Reset",
-                              on_click=confirmar_reset, color="red"),
-                ft.TextButton("Cancelar", on_click=lambda _: (
-                    setattr(dlg, "open", False), page.update()))
+                ft.TextButton("Confirmar Reset", on_click=confirmar_reset, 
+                              style=ft.ButtonStyle(color=ft.Colors.RED)), # CORRIGIDO
+                ft.TextButton("Cancelar", on_click=lambda _: (setattr(dlg, "open", False), page.update()))
             ]
         )
         page.dialog = dlg
@@ -215,46 +131,19 @@ def montar_tela_ajuda(page, voltar):
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column([
-            ft.Text("MANUAL DO USUÁRIO", size=28,
-                    color="white", weight="bold"),
+            ft.Text("MANUAL E CONFIGURAÇÕES", size=28, color="white", weight="bold"),
             ft.Divider(color="white10"),
-
-            ft.Markdown(
-                value="""
-### 1. Início do Trabalho
-Abra a tela de **Medição**. O sistema apresentará automaticamente a primeira unidade pendente.
-
-### 2. Realizando a Leitura
-- Digite o valor lido no hidrômetro (máximo 7 dígitos).
-- O sistema calcula o consumo em tempo real.
-- Clique em **SALVAR** para avançar para a próxima unidade.
-
-### 3. Unidades Fechadas ou Sem Acesso
-Caso não consiga realizar a leitura, clique no ícone **Pular (Laranja)**. A unidade será marcada como pendente para depois.
-
-### 4. Relatórios e PDF
-Ao finalizar, vá em **Relatórios** e gere o PDF. Ele contém:
-- Consumo individual de cada unidade.
-- Consumo total do prédio.
-- Média de consumo por unidade.
-
-### 5. Virada de Mês (⚠️ CUIDADO)
-Somente após imprimir o relatório final, use o botão **INICIAR NOVO MÊS**. Ele prepara o banco para o próximo ciclo.
-                """,
-                selectable=True,
-                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-            ),
-
+            ft.Markdown("""
+### 1. Medição
+Digite o valor e clique em salvar. O sistema pula para a próxima unidade.
+### 2. Relatórios
+Gere o PDF e envie por e-mail antes de resetar o mês.
+### 3. Virada de Mês
+O botão vermelho abaixo limpa as medições atuais para iniciar um novo ciclo.
+            """, selectable=True),
             ft.Container(height=20),
-
-            ft.ElevatedButton(
-                "INICIAR NOVO MÊS (RESET)",
-                icon=ft.Icons.RESTART_ALT,
-                bgcolor="red", color="white",
-                on_click=acao_reset,
-                width=350
-            ),
-
+            ft.ElevatedButton("INICIAR NOVO MÊS (RESET)", icon=ft.Icons.RESTART_ALT,
+                              bgcolor="red", color="white", on_click=acao_reset, width=350),
             ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
         ], scroll=ft.ScrollMode.AUTO)
     )
