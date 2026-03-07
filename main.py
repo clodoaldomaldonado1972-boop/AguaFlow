@@ -91,4 +91,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     os.environ["FLET_RENDERER"] = "skia"
-    ft.run(main) # O comando atualizado que remove o aviso
+    ft.run(main)  # O comando atualizado que remove o aviso
