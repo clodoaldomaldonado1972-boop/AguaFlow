@@ -6,7 +6,6 @@ import estilos as st
 def montar_tela(page, voltar_menu):
     # 1. BUSCA DE DADOS
     unidade = db.buscar_proximo_pendente()
-
     print(f"DEBUG: Unidade encontrada para ler: {unidade}")
 
     # 2. TELA DE CONCLUSÃO
@@ -44,14 +43,13 @@ def montar_tela(page, voltar_menu):
             texto_consumo.value = "Consumo: ---"
         page.update()
 
-    # 4. CAMPO DE ENTRADA (Ajustado para 7 caracteres)
+    # 4. CAMPO DE ENTRADA (7 caracteres)
     input_valor = ft.TextField(
         label="Leitura Atual (m³)",
         keyboard_type=ft.KeyboardType.NUMBER,
         autofocus=True,
-        max_length=7,          # Limita a 7 dígitos
-        # Para esconder o contador '0/7' sem dar erro de atributo:
-        counter=ft.Container(),
+        max_length=7,
+        counter=ft.Container(),  # Esconde o contador visual
         color="white",
         input_filter=ft.InputFilter(
             allow=True,
@@ -62,30 +60,41 @@ def montar_tela(page, voltar_menu):
         on_submit=lambda _: salvar_leitura(None)
     )
 
-    # 5. LÓGICA DE SALVAMENTO (Garantindo a gravação)
+    # 5. LÓGICAS DE BOTÕES
+    def abrir_alerta_pular():
+        def confirmar_pulo(e):
+            db.registrar_leitura(id_db, 0.0, status="pulado")
+            dlg.open = False
+            page.update()
+            voltar_menu(recarregar_medicao=True)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Pular Unidade?"),
+            content=ft.Text(f"Deseja pular a unidade {nome_unidade}?"),
+            actions=[
+                ft.TextButton("Sim, Pular", on_click=confirmar_pulo),
+                ft.TextButton("Cancelar", on_click=lambda _: (
+                    setattr(dlg, "open", False), page.update()))
+            ]
+        )
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
+
     def salvar_leitura(e):
         if not input_valor.value:
             abrir_alerta_pular()
         else:
             try:
-                # 1. Limpa o valor e converte
-                valor_texto = input_valor.value.strip().replace(",", ".")
-                valor = float(valor_texto)
-
-                # 2. GRAVA NO BANCO (O passo crucial que parece estar falhando)
+                valor = float(input_valor.value.strip().replace(",", "."))
                 db.registrar_leitura(id_db, valor)
-
-                # 3. LOG DE CONFIRMAÇÃO NO TERMINAL
                 print(f"✅ GRAVADO: Unidade {nome_unidade} com valor {valor}")
-
-                # 4. RECARREGA (Usando o callback do main que definimos)
                 voltar_menu(recarregar_medicao=True)
-
             except ValueError:
                 input_valor.error_text = "Número inválido"
                 page.update()
 
-    # 6. LAYOUT FINAL
+    # 6. LAYOUT FINAL (Único Return)
     return ft.Container(
         expand=True,
         bgcolor="#1A1C1E",
