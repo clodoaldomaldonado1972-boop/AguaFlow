@@ -43,6 +43,7 @@ def main(page: ft.Page):
             else:
                 navegar_menu(perfil)
 
+        # LISTA DE BOTÕES DO MENU
         botoes = [
             ft.Text(f"PERFIL: {perfil.upper()}",
                     color="blue", weight="bold", size=20),
@@ -64,17 +65,16 @@ def main(page: ft.Page):
                     reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
             ),
 
-            # 3. AJUDA / SUPORTE
-            ft.OutlinedButton(
-                "AJUDA / SUPORTE",
+            # 3. AJUDA / SUPORTE (Manual e Reset)
+            ft.FilledButton(
+                "AJUDA / MANUAL",
                 width=280,
                 on_click=lambda _: carregar_modulo(
-                    # Passamos 'page' e a função de navegação
-                    utils.montar_tela_ajuda(page, lambda: navegar_menu(perfil))
+                    utils.montar_tela_ajuda(page, lambda: navegar_menu(perfil)))
             ),
 
             ft.Container(height=20),
-            ft.TextButton("SAIR / LOGOUT", on_click=lambda _: iniciar_app())
+            ft.TextButton("Sair", on_click=lambda _: iniciar_app())
         ]
 
         carregar_modulo(ft.Column(
@@ -91,4 +91,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     os.environ["FLET_RENDERER"] = "skia"
-    ft.run(main)
+    ft.app(target=main)  # Usei ft.app que é o padrão atual
