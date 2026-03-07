@@ -124,28 +124,20 @@ def registrar_leitura(id_unidade, valor, status="lido"):
 
 
 def resetar_mes_novo():
-    """Lógica pura de banco de dados."""
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # 1. Faz a virada de valores
-        cursor.execute("""
-            UPDATE leituras 
-            SET 
-                leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
-                leitura_atual = NULL,
-                status = 'pendente', 
-                data_leitura = NULL
-        """)
-
-        conn.commit()
-        conn.close()
-        print("🔄 Banco de dados resetado com sucesso no SQLite!")
-        return True
-    except Exception as e:
-        print(f"Erro ao resetar banco: {e}")
-        return False
+    """Lógica limpa para reiniciar o ciclo de leitura."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE leituras 
+        SET 
+            leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
+            leitura_atual = NULL,
+            status = 'pendente', 
+            data_leitura = NULL
+    """)
+    conn.commit()
+    conn.close()
+    print("🔄 BANCO RESETADO COM SUCESSO!")
 
 
 def confirmar_reset(e):
