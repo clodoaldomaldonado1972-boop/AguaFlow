@@ -1,55 +1,59 @@
 import flet as ft
+import os
+# Importando seus módulos
 import auth
 import reports
 import utils
-import database as db
 import medicao
-import os
+import database as db  # Vamos usar apenas 'db' para facilitar
 
 
 def main(page: ft.Page):
-    # --- CONFIGURAÇÃO MESTRE ---
-    page.theme_mode = ft.ThemeMode.DARK
+    # --- CONFIGURAÇÃO DE INTERFACE ---
+    page.title = "ÁguaFlow"
+    page.window_bgcolor = ft.Colors.TRANSPARENT
     page.bgcolor = "#1A1C1E"
-    page.window_bgcolor = "#1A1C1E"
+    page.theme_mode = ft.ThemeMode.DARK
     page.window_width = 450
     page.window_height = 800
+    page.window_resizable = False  # Mantém o design estável
     page.padding = 0
+    page.spacing = 0
 
+    # Inicializa o banco de dados aqui dentro
     db.init_db()
 
-    # Este é o "Palco" onde os módulos vão aparecer
-    # Ele NUNCA é removido, apenas o que tem dentro dele muda
+    # O "Palco" que vai receber os módulos
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
 
     def navegar_menu(perfil):
-        # Criamos a coluna do menu
-        coluna = ft.Column(
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15)
-
-        coluna.controls.extend([
-            ft.Text(f"Perfil: {perfil.upper()}",
+        # Lista de botões centralizada
+        botoes = [
+            ft.Text(f"PERFIL: {perfil.upper()}",
                     color="blue", weight="bold", size=20),
             ft.Divider(color="white10"),
+
+            # 1. BOTÃO MEDIÇÃO
             ft.FilledButton("INICIAR LEITURA", width=280,
                             on_click=lambda _: carregar_modulo(medicao.montar_tela(page, lambda: navegar_menu(perfil)))),
-            ft.OutlinedButton("AJUDA / GUIA", width=280,
-                              on_click=lambda _: carregar_modulo(utils.montar_tela_ajuda(lambda _: navegar_menu(perfil))))
-        ])
 
-        # Se for admin, adiciona os botões extras
-        if perfil == "admin":
-            coluna.controls.insert(3, ft.FilledButton(
-                "RELATÓRIOS MENSAL", width=280))  # Exemplo
+            # 2. BOTÃO RELATÓRIOS
+            ft.FilledButton("RELATÓRIOS MENSAL", width=280,
+                            on_click=lambda _: carregar_modulo(reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))),
 
-        coluna.controls.append(ft.TextButton(
-            "SAIR", on_click=lambda _: iniciar_app()))
+            # 3. BOTÃO QR CODE
+            ft.OutlinedButton("GERAR QR CODE", width=280,
+                              on_click=lambda _: carregar_modulo(utils.montar_tela_qrcode(page, lambda: navegar_menu(perfil)))),
 
-        carregar_modulo(coluna)
+            ft.Container(height=20),
+            ft.TextButton("SAIR / LOGOUT", on_click=lambda _: iniciar_app())
+        ]
+
+        carregar_modulo(ft.Column(
+            botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
 
     def carregar_modulo(conteudo):
-        # Limpa o conteúdo interno do palco
-        # Usamos ft.Alignment(0, -1) que significa Centro (0) e Topo (-1)
+        # Limpa o palco e insere o novo conteúdo
         palco.content = ft.Container(
             content=conteudo,
             padding=20,
@@ -60,15 +64,13 @@ def main(page: ft.Page):
         page.update()
 
     def iniciar_app():
-        # Carrega o login dentro do palco
+        # Tela inicial de Login
         carregar_modulo(auth.criar_tela_login(page, navegar_menu))
 
-    # Adiciona o palco fixo na página
     page.add(palco)
     iniciar_app()
 
 
 if __name__ == "__main__":
     os.environ["FLET_RENDERER"] = "skia"
-    # Se quiser testar no navegador, use: ft.run(main, view=ft.AppView.WEB_BROWSER)
-    ft.run(main)
+    ft.run(main) # Mudamos de ft.app para ft.run
