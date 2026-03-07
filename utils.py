@@ -186,20 +186,75 @@ def gerar_qr_unidade(unidade):
     # Linha 186
 
 
-def montar_tela_ajuda(voltar):
-    # Linha 187 (Dê 4 espaços ou um TAB aqui antes do return)
+def montar_tela_ajuda(page, voltar):
+    def acao_reset(e):
+        # Alerta de confirmação para evitar resets acidentais
+        def confirmar_reset(e):
+            db.resetar_mes_novo()
+            dlg.open = False
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Banco resetado para o novo mês!"), open=True)
+            page.update()
+            voltar()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Confirmar Novo Mês?"),
+            content=ft.Text(
+                "Isso moverá as leituras ATUAIS para ANTERIORES e zerará o mês. Certifique-se de ter salvo o PDF primeiro!"),
+            actions=[
+                ft.TextButton("Confirmar Reset",
+                              on_click=confirmar_reset, color="red"),
+                ft.TextButton("Cancelar", on_click=lambda _: (
+                    setattr(dlg, "open", False), page.update()))
+            ]
+        )
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
+
     return ft.Container(
-        expand=True,
-        bgcolor="#1A1C1E",
+        expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column([
-            ft.Text("Central de Ajuda", size=24, color="white", weight="bold"),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.QUESTION_MARK, color="blue"),
-                title=ft.Text("Como usar?", color="white"),
-                subtitle=ft.Text(
-                    "1. Inicie a leitura\n2. Digite o valor atual\n3. Gere o relatório no menu", color="white70"),
+            ft.Text("MANUAL DO USUÁRIO", size=28,
+                    color="white", weight="bold"),
+            ft.Divider(color="white10"),
+
+            ft.Markdown(
+                value="""
+### 1. Início do Trabalho
+Abra a tela de **Medição**. O sistema apresentará automaticamente a primeira unidade pendente.
+
+### 2. Realizando a Leitura
+- Digite o valor lido no hidrômetro (máximo 7 dígitos).
+- O sistema calcula o consumo em tempo real.
+- Clique em **SALVAR** para avançar para a próxima unidade.
+
+### 3. Unidades Fechadas ou Sem Acesso
+Caso não consiga realizar a leitura, clique no ícone **Pular (Laranja)**. A unidade será marcada como pendente para depois.
+
+### 4. Relatórios e PDF
+Ao finalizar, vá em **Relatórios** e gere o PDF. Ele contém:
+- Consumo individual de cada unidade.
+- Consumo total do prédio.
+- Média de consumo por unidade.
+
+### 5. Virada de Mês (⚠️ CUIDADO)
+Somente após imprimir o relatório final, use o botão **INICIAR NOVO MÊS**. Ele prepara o banco para o próximo ciclo.
+                """,
+                selectable=True,
+                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
             ),
+
             ft.Container(height=20),
-            ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: voltar())
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
+
+            ft.ElevatedButton(
+                "INICIAR NOVO MÊS (RESET)",
+                icon=ft.Icons.RESTART_ALT,
+                bgcolor="red", color="white",
+                on_click=acao_reset,
+                width=350
+            ),
+
+            ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
+        ], scroll=ft.ScrollMode.AUTO)
     )
