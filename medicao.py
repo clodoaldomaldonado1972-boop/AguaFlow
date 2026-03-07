@@ -5,33 +5,34 @@ import estilos as st
 
 def montar_tela(page, voltar_menu):
     """
-    Constrói a interface de medição modularizada.
+    Interface de medição com correção de navegação e renderização.
     """
 
     # 1. BUSCA DE DADOS
     unidade = db.buscar_proximo_pendente()
 
-    # 2. TELA DE CONCLUSÃO (VERSÃO ANTI-BRANCO)
+    # 2. TELA DE CONCLUSÃO (CORRIGIDA)
     if not unidade:
         return ft.Container(
-            expand=True,           # Força ocupar a largura toda
-            height=1000,           # Força uma altura bem grande para garantir o fundo
-            bgcolor="#1A1C1E",     # Cor escura total
-            alignment=ft.Alignment(0, 0),  # Centraliza o conteúdo
+            expand=True,
+            bgcolor="#1A1C1E",
+            alignment=ft.alignment.center,
             content=ft.Column([
                 ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=80),
                 ft.Text("Medição Concluída!", size=24,
                         weight="bold", color="white"),
                 ft.Text("Todas as unidades foram lidas.", color="white70"),
-                ft.Container(height=20),
-                # Chama a função de voltar que vem do main.py
-                ft.FilledButton("Voltar ao Menu",
-                                on_click=lambda _: voltar_menu())
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True)
+                ft.Container(height=30),
+                ft.FilledButton(
+                    "VOLTAR AO MENU",
+                    on_click=lambda _: voltar_menu()  # Aqui ele volta para o main.py
+                )
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 
     # 3. MAPEAMENTO DE DADOS
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
+
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
                             color=st.COR_PRIMARIA, weight="bold")
 
@@ -49,28 +50,28 @@ def montar_tela(page, voltar_menu):
             texto_consumo.value = "Consumo: ---"
         page.update()
 
-    # 4. CAMPO DE ENTRADA (Reforço de Cor)
+    # 4. CAMPO DE ENTRADA
     input_valor = ft.TextField(
         label="Leitura Atual (m³)",
         keyboard_type=ft.KeyboardType.NUMBER,
         autofocus=True,
-        max_length=7,
-        color="white",  # Garante visibilidade no fundo escuro
-        input_filter=ft.InputFilter(
-            allow=True, regex_string=r"^[0-9,.]*$", replacement_string=""),
+        color="white",
         on_change=calcular_ao_digitar,
+        # Quando der Enter, ele salva e recarrega a tela
         on_submit=lambda _: salvar_leitura(None)
     )
 
-    # 5. LÓGICA DE SALVAMENTO E PULO
-    def carregar_proxima():
-        """Função auxiliar para trocar o conteúdo do palco sem 'limpar' a página"""
-        # Em vez de page.add, usamos a lógica de atualizar o conteúdo do palco
-        # Se você estiver usando o 'palco' do main.py, o ideal é chamar a função de navegação
-        # Aqui, como é recursivo, apenas limpamos e adicionamos o novo Container
-        page.controls.clear()
-        page.add(montar_tela(page, voltar_menu))
-        page.update()
+    # 5. LÓGICA DE SALVAMENTO (SEM CLEAR PAGE)
+    def recarregar_interface():
+        """
+        Em vez de limpar a página toda, nós apenas chamamos 
+        a função de montagem novamente através do disparador do menu.
+        """
+        # Isso força o main.py a redesenhar o 'palco' com a próxima unidade
+        page.go("/temp")  # Um truque simples para resetar o foco se necessário
+        voltar_menu()
+        # Chamamos o iniciar leitura de novo automaticamente
+        page.controls[0].content.content.controls[2].on_click(None)
 
     def salvar_leitura(e):
         if not input_valor.value:
@@ -79,7 +80,8 @@ def montar_tela(page, voltar_menu):
             try:
                 valor = float(input_valor.value.replace(",", "."))
                 db.registrar_leitura(id_db, valor)
-                carregar_proxima()
+                # O segredo: Chamamos a função do main para recarregar o módulo
+                page.controls[0].content.content.controls[2].on_click(None)
             except ValueError:
                 input_valor.error_text = "Número inválido"
                 page.update()
@@ -88,11 +90,13 @@ def montar_tela(page, voltar_menu):
         def confirmar_pulo(e):
             db.registrar_leitura(id_db, 0.0, status="pulado")
             dlg.open = False
-            carregar_proxima()
+            page.update()
+            # Recarrega para a próxima
+            page.controls[0].content.content.controls[2].on_click(None)
 
         dlg = ft.AlertDialog(
             title=ft.Text("Pular Unidade?"),
-            content=ft.Text("Deseja marcar esta unidade como pendente?"),
+            content=ft.Text("Deseja marcar como pendente?"),
             actions=[
                 ft.TextButton("Sim, Pular", on_click=confirmar_pulo),
                 ft.TextButton("Cancelar", on_click=lambda _: (
@@ -103,42 +107,31 @@ def montar_tela(page, voltar_menu):
         dlg.open = True
         page.update()
 
-    # 6. MONTAGEM DA LINHA DE BOTÕES
-    linha_botoes = ft.Row(
-        controls=[
-            st.botao_salvar("SALVAR", salvar_leitura),
-            ft.IconButton(
-                icon=ft.Icons.SKIP_NEXT,
-                icon_color=st.COR_ALERTA,
-                on_click=lambda _: abrir_alerta_pular(),
-                tooltip="Pular Unidade"
-            ),
-        ],
-        alignment=ft.MainAxisAlignment.CENTER,
-    )
-
-    # 7. RETORNO DO LAYOUT (VERSÃO FINAL BLINDADA)
+    # 6. LAYOUT FINAL
     return ft.Container(
         expand=True,
-        alignment=ft.Alignment(0, -1),
         bgcolor="#1A1C1E",
         padding=30,
         content=ft.Column(
             controls=[
-                ft.Text(
-                    f"Unidade: {nome_unidade}", size=st.FONTE_TITULO, weight="bold", color="blue"),
+                ft.Text(f"Unidade: {nome_unidade}",
+                        size=28, weight="bold", color="blue"),
                 ft.Text(f"Anterior: {leitura_anterior:.2f} m³",
-                        size=st.FONTE_LABEL, color="white"),
-                ft.Container(height=1, bgcolor="white10"),
+                        size=18, color="white70"),
+                ft.Divider(color="white10"),
                 input_valor,
                 texto_consumo,
                 ft.Container(height=20),
-                linha_botoes,
-                ft.Container(height=20),
-                # AJUSTE: Simplificado o voltar para não causar conflito de controles
-                st.botao_texto("Interromper e Sair", lambda _: voltar_menu())
+                ft.Row([
+                    ft.ElevatedButton(
+                        "SALVAR", icon=ft.Icons.SAVE, on_click=salvar_leitura, bgcolor="blue", color="white"),
+                    ft.IconButton(icon=ft.Icons.SKIP_NEXT, icon_color="orange",
+                                  on_click=lambda _: abrir_alerta_pular())
+                ], alignment=ft.MainAxisAlignment.CENTER),
+                ft.TextButton("Sair da Medição",
+                              on_click=lambda _: voltar_menu())
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=15
+            spacing=20
         )
     )
