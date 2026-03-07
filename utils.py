@@ -17,10 +17,11 @@ import database as db
 
 # --- 1. FUNÇÕES DE E-MAIL ---
 
+
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
-    minha_senha = "cuxiizdglmgilxgw" # Senha de App de 16 dígitos
-    
+    minha_senha = "cuxiizdglmgilxgw"  # Senha de App de 16 dígitos
+
     msg = MIMEMultipart()
     msg['From'] = meu_email
     msg['To'] = destinatario
@@ -35,7 +36,8 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(anexo.read())
             encoders.encode_base64(part)
-            part.add_header('Content-Disposition', f"attachment; filename={os.path.basename(caminho_pdf)}")
+            part.add_header(
+                'Content-Disposition', f"attachment; filename={os.path.basename(caminho_pdf)}")
             msg.attach(part)
 
         server = smtplib.SMTP('smtp.gmail.com', 587)
@@ -49,6 +51,7 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
         return False
 
 # --- 2. GERAÇÃO DE PDFS (ETIQUETAS E RELATÓRIO) ---
+
 
 def gerar_pdf_etiquetas_qr(lista_unidades):
     nome_pdf = "Etiquetas_QR_Vivere.pdf"
@@ -65,9 +68,11 @@ def gerar_pdf_etiquetas_qr(lista_unidades):
     for unidade in lista_unidades:
         caminho_img = f"qrcodes/{unidade}.png"
         if os.path.exists(caminho_img):
-            c.drawImage(caminho_img, x_atual, y_atual, width=tamanho_qr, height=tamanho_qr)
+            c.drawImage(caminho_img, x_atual, y_atual,
+                        width=tamanho_qr, height=tamanho_qr)
             c.setFont("Helvetica-Bold", 10)
-            c.drawCentredString(x_atual + (tamanho_qr/2), y_atual - 15, str(unidade).replace("_", " "))
+            c.drawCentredString(x_atual + (tamanho_qr/2),
+                                y_atual - 15, str(unidade).replace("_", " "))
 
             cont_col += 1
             x_atual += espaco_x
@@ -82,15 +87,18 @@ def gerar_pdf_etiquetas_qr(lista_unidades):
     c.save()
     return nome_pdf
 
+
 def gerar_relatorio_leituras_pdf(dados):
     nome_arquivo = "relatorio_mensal.pdf"
     c = canvas.Canvas(nome_arquivo, pagesize=letter)
-    
+
     def cabecalho(canvas_obj, y_p):
         canvas_obj.setFont("Helvetica-Bold", 16)
-        canvas_obj.drawString(100, y_p, "Relatório de Leituras - Vivere Prudente")
+        canvas_obj.drawString(
+            100, y_p, "Relatório de Leituras - Vivere Prudente")
         canvas_obj.setFont("Helvetica", 10)
-        canvas_obj.drawString(100, y_p - 20, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        canvas_obj.drawString(
+            100, y_p - 20, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
         return y_p - 60
 
     y = cabecalho(c, 750)
@@ -106,22 +114,32 @@ def gerar_relatorio_leituras_pdf(dados):
 
 # --- 3. INTERFACE DE AJUDA E RESET ---
 
+# --- 3. INTERFACE DE AJUDA E RESET ---
+
+
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
+        # A função confirmar_reset precisa estar TODO dentro de acao_reset
         def confirmar_reset(e):
-            db.resetar_mes_novo()
+            db.resetar_mes_novo()  # Agora o Python acha o banco!
             dlg.open = False
-            page.snack_bar = ft.SnackBar(ft.Text("Banco resetado para o novo mês!"), open=True)
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Mês Resetado! Agora você pode iniciar as novas leituras."),
+                open=True
+            )
             page.update()
-            voltar()
+            voltar()  # <--- Volta ao menu principal para atualizar tudo
 
+        # O Alerta (dlg) precisa estar dentro de acao_reset para ser disparado pelo botão
         dlg = ft.AlertDialog(
             title=ft.Text("Confirmar Novo Mês?"),
-            content=ft.Text("Isso moverá as leituras ATUAIS para ANTERIORES. Certifique-se de ter salvo o PDF primeiro!"),
+            content=ft.Text(
+                "Isso moverá as leituras ATUAIS para ANTERIORES. Certifique-se de ter salvo o PDF primeiro!"),
             actions=[
-                ft.TextButton("Confirmar Reset", on_click=confirmar_reset, 
-                              style=ft.ButtonStyle(color=ft.Colors.RED)), # CORRIGIDO
-                ft.TextButton("Cancelar", on_click=lambda _: (setattr(dlg, "open", False), page.update()))
+                ft.TextButton("Confirmar Reset", on_click=confirmar_reset,
+                              style=ft.ButtonStyle(color=ft.Colors.RED)),
+                ft.TextButton("Cancelar", on_click=lambda _: (
+                    setattr(dlg, "open", False), page.update()))
             ]
         )
         page.dialog = dlg
@@ -131,7 +149,8 @@ def montar_tela_ajuda(page, voltar):
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column([
-            ft.Text("MANUAL E CONFIGURAÇÕES", size=28, color="white", weight="bold"),
+            ft.Text("MANUAL E CONFIGURAÇÕES", size=28,
+                    color="white", weight="bold"),
             ft.Divider(color="white10"),
             ft.Markdown("""
 ### 1. Medição
@@ -142,8 +161,14 @@ Gere o PDF e envie por e-mail antes de resetar o mês.
 O botão vermelho abaixo limpa as medições atuais para iniciar um novo ciclo.
             """, selectable=True),
             ft.Container(height=20),
-            ft.ElevatedButton("INICIAR NOVO MÊS (RESET)", icon=ft.Icons.RESTART_ALT,
-                              bgcolor="red", color="white", on_click=acao_reset, width=350),
+            ft.ElevatedButton(
+                "INICIAR NOVO MÊS (RESET)",
+                icon=ft.Icons.RESTART_ALT,
+                bgcolor="red",
+                color="white",
+                on_click=acao_reset,
+                width=350
+            ),
             ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
         ], scroll=ft.ScrollMode.AUTO)
     )
