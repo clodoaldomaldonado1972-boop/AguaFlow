@@ -8,7 +8,7 @@ import database as db
 
 
 def main(page: ft.Page):
-    # --- 1. CONFIGURAÇÃO DE INTERFACE (ANTI-BRANCO) ---
+    # --- 1. CONFIGURAÇÃO DE INTERFACE ---
     page.title = "ÁguaFlow"
     page.window_bgcolor = "#1A1C1E"
     page.bgcolor = "#1A1C1E"
@@ -22,7 +22,7 @@ def main(page: ft.Page):
     # Inicializa o banco
     db.init_db()
 
-    # --- 2. DEFINIÇÃO DO PALCO (PRECISA VIR ANTES DAS FUNÇÕES) ---
+    # --- 2. PALCO PRINCIPAL ---
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
 
     # --- 3. FUNÇÕES DE NAVEGAÇÃO ---
@@ -32,42 +32,56 @@ def main(page: ft.Page):
             padding=20,
             expand=True,
             bgcolor="#1A1C1E",
-            # Usando coordenadas numéricas (0 = centro, -1 = topo) para evitar erro de atributo
-            alignment=ft.Alignment(0, -1) 
+            alignment=ft.Alignment(0, -1)
         )
         page.update()
 
     def navegar_menu(perfil):
+        # Criamos a lista de botões organizada
         botoes = [
             ft.Text(f"PERFIL: {perfil.upper()}",
                     color="blue", weight="bold", size=20),
             ft.Divider(color="white10"),
 
-            ft.FilledButton("INICIAR LEITURA", width=280,
-                            on_click=lambda _: carregar_modulo(medicao.montar_tela(page, lambda: navegar_menu(perfil)))),
+            # BOTÃO INICIAR LEITURA (Configurado corretamente)
+            ft.FilledButton(
+                "INICIAR LEITURA",
+                width=280,
+                on_click=lambda _: carregar_modulo(
+                    medicao.montar_tela(page, lambda: navegar_menu(perfil)))
+            ),
 
-            ft.FilledButton("RELATÓRIOS MENSAL", width=280,
-                            on_click=lambda _: carregar_modulo(reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))),
+            ft.FilledButton(
+                "RELATÓRIOS MENSAL",
+                width=280,
+                on_click=lambda _: carregar_modulo(
+                    reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
+            ),
 
-            ft.OutlinedButton("AJUDA / SUPORTE", width=280,
-                              on_click=lambda _: carregar_modulo(utils.montar_tela_ajuda(lambda: navegar_menu(perfil)))),
+            ft.OutlinedButton(
+                "AJUDA / SUPORTE",
+                width=280,
+                on_click=lambda _: carregar_modulo(
+                    utils.montar_tela_ajuda(lambda: navegar_menu(perfil)))
+            ),
 
             ft.Container(height=20),
             ft.TextButton("SAIR / LOGOUT", on_click=lambda _: iniciar_app())
         ]
+
+        # Carrega a coluna de botões no palco
         carregar_modulo(ft.Column(
             botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
 
     def iniciar_app():
         carregar_modulo(auth.criar_tela_login(page, navegar_menu))
 
-    # --- 4. INICIALIZAÇÃO FINAL ---
+    # --- 4. EXECUÇÃO ---
     page.add(palco)
     iniciar_app()
     page.update()
 
 
 if __name__ == "__main__":
-    # Força renderização estável no Windows
     os.environ["FLET_RENDERER"] = "skia"
     ft.run(main)

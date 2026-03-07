@@ -4,26 +4,28 @@ import estilos as st
 
 
 def montar_tela(page, voltar_menu):
-    """
-    Interface de medição com correção de navegação e renderização.
-    """
-
     # 1. BUSCA DE DADOS
     unidade = db.buscar_proximo_pendente()
+    
+    # LOG DE TESTE: Adicione isso para ver no terminal se ele achou alguém
+    print(f"DEBUG: Unidade encontrada para ler: {unidade}")
 
-    # 2. TELA DE CONCLUSÃO (CORRIGIDA)
-    # 2. TELA DE CONCLUSÃO
+    # 2. TELA DE CONCLUSÃO (Se não houver nada para ler)
     if not unidade:
         return ft.Container(
             expand=True,
             bgcolor="#1A1C1E",
-            # Mudança aqui: de ft.alignment.center para ft.Alignment(0, 0)
-            alignment=ft.Alignment(0, 0), 
+            alignment=ft.Alignment(0, 0), # Usando a coordenada fixa que não dá erro
             content=ft.Column([
                 ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=80),
-                # ... restante do código ...
+                ft.Text("Medição Concluída!", size=24, weight="bold", color="white"),
+                ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: voltar_menu())
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
+    
+    # 3. SE HOUVER UNIDADE, MONTA O RESTO...
+    id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
+    # ... resto do seu código de layout ...
 
     # 3. MAPEAMENTO DE DADOS
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
