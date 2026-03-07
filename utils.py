@@ -20,7 +20,7 @@ import database as db
 
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
-    minha_senha = "cuxiizdglmgilxgw"  # Senha de App de 16 dígitos
+    minha_senha = "gbywnwkhoozolenj"  # Senha de App de 16 dígitos
 
     msg = MIMEMultipart()
     msg['From'] = meu_email
@@ -122,9 +122,11 @@ def gerar_relatorio_leituras_pdf(dados):
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
         def confirmar_reset(e):
-            # Chama a função que está no database.py
-            sucesso = db.resetar_mes_novo() 
-            
+                db.resetar_mes_novo()  # Limpa o banco
+                dlg.open = False
+                page.update()
+                voltar()  # <--- ESSENCIAL para recarregar o menu e iniciar a leitura
+
             if sucesso:
                 dlg.open = False
                 page.snack_bar = ft.SnackBar(ft.Text("Mês Resetado! Iniciando nova leitura."), open=True)
