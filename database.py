@@ -124,9 +124,9 @@ def registrar_leitura(id_unidade, valor, status="lido"):
 
 
 def resetar_mes_novo():
-    """Lógica limpa para reiniciar o ciclo de leitura."""
     conn = get_connection()
     cursor = conn.cursor()
+    # O segredo: Limpar o status para 'pendente' e a leitura_atual para NULL
     cursor.execute("""
         UPDATE leituras 
         SET 
@@ -135,9 +135,9 @@ def resetar_mes_novo():
             status = 'pendente', 
             data_leitura = NULL
     """)
-    conn.commit()
+    conn.commit()  # <--- ESSENCIAL: Sem isto, o banco não muda!
     conn.close()
-    print("🔄 BANCO RESETADO COM SUCESSO!")
+    print("🔄 BANCO RESETADO NO SQLITE!")
 
 
 def confirmar_reset(e):
