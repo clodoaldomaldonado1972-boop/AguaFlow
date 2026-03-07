@@ -69,7 +69,8 @@ def main(page: ft.Page):
                 "AJUDA / SUPORTE",
                 width=280,
                 on_click=lambda _: carregar_modulo(
-                    utils.montar_tela_ajuda(lambda: navegar_menu(perfil)))
+                    # Passamos 'page' e a função de navegação
+                    utils.montar_tela_ajuda(page, lambda: navegar_menu(perfil))
             ),
 
             ft.Container(height=20),
