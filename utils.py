@@ -118,18 +118,14 @@ def gerar_relatorio_leituras_pdf(dados):
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
         def confirmar_reset(e):
-            # Chamamos a função do banco de dados
-            db.resetar_mes_novo()
-
-            # Feedback visual para o usuário
+            import database as db # Garante que o banco está importado aqui
+            db.resetar_mes_novo() # Executa a limpeza
+            
             dlg.open = False
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Mês Resetado! As leituras atuais viraram 'Anteriores'."),
-                open=True
-            )
+            page.snack_bar = ft.SnackBar(ft.Text("Mês Resetado!"), open=True)
             page.update()
-
-            # Voltar ao menu é o que limpa o erro de "None" no terminal
+            
+            # Força o retorno ao menu para o sistema "acordar"
             voltar()
 
         # Criando a janela de confirmação
