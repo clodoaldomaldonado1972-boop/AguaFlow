@@ -27,27 +27,28 @@ def main(page: ft.Page):
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
 
     def navegar_menu(perfil):
-        # Lista de botões centralizada
+        # Menu atualizado: Removido QR Code redundante e adicionada Ajuda
         botoes = [
-            ft.Text(f"PERFIL: {perfil.upper()}",
-                    color="blue", weight="bold", size=20),
+            ft.Text(f"PERFIL: {perfil.upper()}", color="blue", weight="bold", size=20),
             ft.Divider(color="white10"),
 
             # 1. BOTÃO MEDIÇÃO
             ft.FilledButton("INICIAR LEITURA", width=280,
-                            on_click=lambda _: carregar_modulo(medicao.montar_tela(page, lambda: navegar_menu(perfil)))),
+                on_click=lambda _: carregar_modulo(medicao.montar_tela(page, lambda: navegar_menu(perfil)))),
 
-            # 2. BOTÃO RELATÓRIOS
+            # 2. BOTÃO RELATÓRIOS (Onde os QR Codes já são gerados)
             ft.FilledButton("RELATÓRIOS MENSAL", width=280,
-                            on_click=lambda _: carregar_modulo(reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))),
+                on_click=lambda _: carregar_modulo(reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))),
 
-            # 3. BOTÃO QR CODE
-            ft.OutlinedButton("GERAR QR CODE", width=280,
-                              on_click=lambda _: carregar_modulo(utils.montar_tela_qrcode(page, lambda: navegar_menu(perfil)))),
-
+            # 3. NOVO BOTÃO AJUDA (Substituindo o QR Code direto)
+            ft.OutlinedButton("AJUDA / SUPORTE", width=280,
+                on_click=lambda _: carregar_modulo(utils.montar_tela_ajuda(lambda: navegar_menu(perfil)))),
+            
             ft.Container(height=20),
             ft.TextButton("SAIR / LOGOUT", on_click=lambda _: iniciar_app())
         ]
+
+        carregar_modulo(ft.Column(botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
 
         carregar_modulo(ft.Column(
             botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
