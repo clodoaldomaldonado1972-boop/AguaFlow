@@ -1,5 +1,5 @@
 import sqlite3
-import datetime  # <--- ESSENCIAL PARA O REGISTRO DE DATA
+import datetime
 
 
 def get_connection():
@@ -12,7 +12,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Criando a tabela principal (Garantindo a coluna leitura_atual)
+    # Tabela principal de leituras
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,6 +24,7 @@ def init_db():
         )
     """)
 
+    # Tabela de histórico (para consultas futuras)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS historico_consumo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,17 +35,20 @@ def init_db():
         )
     """)
 
-    # --- VERIFICAÇÃO DE DADOS ---
+    # --- VERIFICAÇÃO E POPULAÇÃO INICIAL ---
     cursor.execute("SELECT COUNT(*) FROM leituras")
     count = cursor.fetchone()[0]
 
     if count == 0:
         print("📁 Banco vazio! Gerando unidades do 16º ao 1º andar...")
         unidades = []
+        # Gera do 16 ao 1 (Andares)
         for andar in range(16, 0, -1):
+            # Gera do 6 ao 1 (Finais)
             for final in range(6, 0, -1):
-                # Usando :02d para ficar 1601, 0101 etc, ou apenas {andar}{final}
-                unidades.append((f"{andar}{final}", 0.0))
+                # Nome da unidade ex: 166, 165... 11
+                nome_unidade = f"{andar}{final}"
+                unidades.append((nome_unidade, 0.0))
 
         unidades.append(('LAZER', 0.0))
         unidades.append(('GERAL', 0.0))
@@ -62,46 +66,10 @@ def init_db():
 
 
 def buscar_proximo_pendente():
+    """Busca a próxima unidade que ainda não foi lida."""
     conn = get_connection()
     cursor = conn.cursor()
-    # Importante: procurar quem não tem leitura (NULL)
-    cursor.execute("""
-        SELECT id, unidade, leitura_anterior 
-        FROM leituras 
-        WHERE leitura_atual IS NULL 
-        AND status = 'pendente' 
-        LIMIT 1
-    """)
-    res = cursor.fetchone()
-    conn.close()
-    return res
-
-
-def buscar_todas_leituras():
-    """ESSA É A FUNÇÃO QUE O REPORTS.PY CHAMA"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    # Pegamos os dados e já calculamos o consumo para o PDF
-    cursor.execute("""
-        SELECT 
-            id, 
-            unidade, 
-            leitura_anterior, 
-            leitura_atual, 
-            (IFNULL(leitura_atual, 0) - leitura_anterior) as consumo,
-            data_leitura 
-        FROM leituras 
-        ORDER BY unidade ASC
-    """)
-    dados = cursor.fetchall()
-    conn.close()
-    return dados
-
-
-def buscar_proximo_pendente():
-    conn = get_connection()
-    cursor = conn.cursor()
-    # Só traz quem REALMENTE não tem leitura_atual
+    # ORDER BY id ASC garante que ele siga a sequência de inserção
     cursor.execute("""
         SELECT id, unidade, leitura_anterior 
         FROM leituras 
@@ -115,10 +83,34 @@ def buscar_proximo_pendente():
     return res
 
 
-def registrar_leitura(id_unidade, valor, status="lido"):
+def buscar_todas_leituras():
+    """Busca dados para o relatório. Protege o consumo contra valores nulos."""
     conn = get_connection()
     cursor = conn.cursor()
-    # Pega data e hora atual
+    # O CASE impede consumo negativo se leitura_atual for menor que anterior por erro
+    cursor.execute("""
+        SELECT 
+            id, 
+            unidade, 
+            leitura_anterior, 
+            leitura_atual, 
+            CASE 
+                WHEN leitura_atual IS NULL THEN 0 
+                ELSE (leitura_atual - leitura_anterior) 
+            END as consumo,
+            data_leitura 
+        FROM leituras 
+        ORDER BY unidade ASC
+    """)
+    dados = cursor.fetchall()
+    conn.close()
+    return dados
+
+
+def registrar_leitura(id_unidade, valor, status="lido"):
+    """Salva a leitura no banco com data e hora."""
+    conn = get_connection()
+    cursor = conn.cursor()
     agora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute("""
@@ -130,3 +122,28 @@ def registrar_leitura(id_unidade, valor, status="lido"):
     conn.commit()
     conn.close()
     print(f"DEBUG DB: Unidade {id_unidade} atualizada com sucesso.")
+
+
+def resetar_mes_novo():
+    """
+    Prepara o banco para um novo mês:
+    1. Transforma a leitura atual em leitura anterior.
+    2. Limpa a leitura atual e a data.
+    3. Volta o status para pendente.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Esta é a lógica de virada de mês
+    cursor.execute("""
+        UPDATE leituras 
+        SET 
+            leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
+            leitura_atual = NULL,
+            status = 'pendente',
+            data_leitura = NULL
+    """)
+
+    conn.commit()
+    conn.close()
+    print("🔄 Banco resetado! As leituras atuais viraram 'Anteriores'.")
