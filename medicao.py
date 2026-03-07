@@ -12,21 +12,16 @@ def montar_tela(page, voltar_menu):
     unidade = db.buscar_proximo_pendente()
 
     # 2. TELA DE CONCLUSÃO (CORRIGIDA)
+    # 2. TELA DE CONCLUSÃO
     if not unidade:
         return ft.Container(
             expand=True,
             bgcolor="#1A1C1E",
-            alignment=ft.alignment.center,
+            # Mudança aqui: de ft.alignment.center para ft.Alignment(0, 0)
+            alignment=ft.Alignment(0, 0), 
             content=ft.Column([
                 ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=80),
-                ft.Text("Medição Concluída!", size=24,
-                        weight="bold", color="white"),
-                ft.Text("Todas as unidades foram lidas.", color="white70"),
-                ft.Container(height=30),
-                ft.FilledButton(
-                    "VOLTAR AO MENU",
-                    on_click=lambda _: voltar_menu()  # Aqui ele volta para o main.py
-                )
+                # ... restante do código ...
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 

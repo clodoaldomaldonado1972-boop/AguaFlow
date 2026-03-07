@@ -1,96 +1,73 @@
 import flet as ft
 import os
-# Importando seus módulos
 import auth
 import reports
 import utils
 import medicao
-import database as db  # Vamos usar apenas 'db' para facilitar
+import database as db
 
 
 def main(page: ft.Page):
-    # --- CONFIGURAÇÃO DE INTERFACE ---
+    # --- 1. CONFIGURAÇÃO DE INTERFACE (ANTI-BRANCO) ---
     page.title = "ÁguaFlow"
-    page.window_bgcolor = ft.Colors.TRANSPARENT
+    page.window_bgcolor = "#1A1C1E"
     page.bgcolor = "#1A1C1E"
     page.theme_mode = ft.ThemeMode.DARK
     page.window_width = 450
     page.window_height = 800
-    page.window_resizable = False  # Mantém o design estável
+    page.window_resizable = False
     page.padding = 0
     page.spacing = 0
 
-    # Inicializa o banco de dados aqui dentro
+    # Inicializa o banco
     db.init_db()
 
-    # O "Palco" que vai receber os módulos
+    # --- 2. DEFINIÇÃO DO PALCO (PRECISA VIR ANTES DAS FUNÇÕES) ---
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
 
+    # --- 3. FUNÇÕES DE NAVEGAÇÃO ---
+    def carregar_modulo(conteudo):
+        palco.content = ft.Container(
+            content=conteudo,
+            padding=20,
+            expand=True,
+            bgcolor="#1A1C1E",
+            # Usando coordenadas numéricas (0 = centro, -1 = topo) para evitar erro de atributo
+            alignment=ft.Alignment(0, -1) 
+        )
+        page.update()
+
     def navegar_menu(perfil):
-        # Menu atualizado: Removido QR Code redundante e adicionada Ajuda
         botoes = [
             ft.Text(f"PERFIL: {perfil.upper()}",
                     color="blue", weight="bold", size=20),
             ft.Divider(color="white10"),
 
-            # 1. BOTÃO MEDIÇÃO
             ft.FilledButton("INICIAR LEITURA", width=280,
                             on_click=lambda _: carregar_modulo(medicao.montar_tela(page, lambda: navegar_menu(perfil)))),
 
-            # 2. BOTÃO RELATÓRIOS (Onde os QR Codes já são gerados)
             ft.FilledButton("RELATÓRIOS MENSAL", width=280,
                             on_click=lambda _: carregar_modulo(reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))),
 
-            # 3. NOVO BOTÃO AJUDA (Substituindo o QR Code direto)
             ft.OutlinedButton("AJUDA / SUPORTE", width=280,
                               on_click=lambda _: carregar_modulo(utils.montar_tela_ajuda(lambda: navegar_menu(perfil)))),
 
             ft.Container(height=20),
             ft.TextButton("SAIR / LOGOUT", on_click=lambda _: iniciar_app())
         ]
-
         carregar_modulo(ft.Column(
             botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
-
-        carregar_modulo(ft.Column(
-            botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
-
-    def carregar_modulo(conteudo):
-        # Limpa o palco e insere o novo conteúdo
-        palco.content = ft.Container(
-            content=conteudo,
-            padding=20,
-            expand=True,
-            bgcolor="#1A1C1E",
-            alignment=ft.Alignment(0, -1)
-        )
-        page.update()
 
     def iniciar_app():
-        # Tela inicial de Login
         carregar_modulo(auth.criar_tela_login(page, navegar_menu))
 
+    # --- 4. INICIALIZAÇÃO FINAL ---
     page.add(palco)
     iniciar_app()
-def main(page: ft.Page):
-    # --- A CURA PARA A TELA BRANCA ---
-    page.window_bgcolor = "#1A1C1E" # Cor de fundo da janela (Windows)
-    page.bgcolor = "#1A1C1E"        # Cor de fundo do Flet
-    page.theme_mode = ft.ThemeMode.DARK
-    
-    # Aguarda um microssegundo para o Windows processar a transparência
-    page.window_title_bar_hidden = False 
-    
-    page.window_width = 450
-    page.window_height = 800
-    page.padding = 0
-    
-    # ... resto do código ...
-    
-    page.add(palco)
-    iniciar_app()
-    page.update() # Força a renderização final
+    page.update()
+
 
 if __name__ == "__main__":
+    # Força renderização estável no Windows
     os.environ["FLET_RENDERER"] = "skia"
-    ft.run(main)  # Mudamos de ft.app para ft.run
+    ft.run(main)
