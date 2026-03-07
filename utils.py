@@ -121,29 +121,32 @@ def gerar_relatorio_leituras_pdf(dados):
 
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
-        # A função de confirmação DEVE estar aqui dentro para funcionar
         def confirmar_reset(e):
-            db.resetar_mes_novo()  # Limpa o banco e define status como 'pendente'
-            dlg.open = False
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Mês Resetado! Iniciando novo ciclo de leitura."), 
-                open=True
-            )
-            page.update()
-            voltar()  # Força o retorno ao menu para atualizar os botões
+            # Chama a função que está no database.py
+            sucesso = db.resetar_mes_novo() 
+            
+            if sucesso:
+                dlg.open = False
+                page.snack_bar = ft.SnackBar(ft.Text("Mês Resetado! Iniciando nova leitura."), open=True)
+                page.update()
+                voltar() # <--- ESSENCIAL: Volta ao menu para limpar o "None"
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("Erro ao resetar banco!"), open=True)
+                page.update()
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Confirmar Novo Mês?"),
-            content=ft.Text("As leituras atuais serão movidas para o histórico e o banco será zerado."),
+            title=ft.Text("Confirmar Reset Mensal?"),
+            content=ft.Text("Isso zerará as leituras atuais para começar o novo mês."),
             actions=[
-                ft.TextButton("Confirmar Reset", on_click=confirmar_reset, style=ft.ButtonStyle(color="red")),
+                ft.TextButton("Confirmar", on_click=confirmar_reset, style=ft.ButtonStyle(color="red")),
                 ft.TextButton("Cancelar", on_click=lambda _: (setattr(dlg, "open", False), page.update()))
             ]
         )
         page.dialog = dlg
         dlg.open = True
         page.update()
-
+    
+    # ... resto do código da tela (Markdown e botões)
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column([

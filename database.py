@@ -66,10 +66,9 @@ def init_db():
 
 
 def buscar_proximo_pendente():
-    """Busca a próxima unidade que ainda não foi lida."""
     conn = get_connection()
     cursor = conn.cursor()
-    # ORDER BY id ASC garante que ele siga a sequência de inserção
+    # Importante: buscar por status 'pendente' que o Reset define
     cursor.execute("""
         SELECT id, unidade, leitura_anterior 
         FROM leituras 
@@ -125,25 +124,38 @@ def registrar_leitura(id_unidade, valor, status="lido"):
 
 
 def resetar_mes_novo():
-    """
-    Prepara o banco para um novo mês:
-    1. Transforma a leitura atual em leitura anterior.
-    2. Limpa a leitura atual e a data.
-    3. Volta o status para pendente.
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
+    """Lógica pura de banco de dados."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    # Esta é a lógica de virada de mês
-    cursor.execute("""
-        UPDATE leituras 
-        SET 
-            leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
-            leitura_atual = NULL,
-            status = 'pendente',
-            data_leitura = NULL
-    """)
+        # 1. Faz a virada de valores
+        cursor.execute("""
+            UPDATE leituras 
+            SET 
+                leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
+                leitura_atual = NULL,
+                status = 'pendente', 
+                data_leitura = NULL
+        """)
+
+        conn.commit()
+        conn.close()
+        print("🔄 Banco de dados resetado com sucesso no SQLite!")
+        return True
+    except Exception as e:
+        print(f"Erro ao resetar banco: {e}")
+        return False
+
+
+def confirmar_reset(e):
+    db.resetar_mes_novo()  # <--- Chama a função acima
+    dlg.open = False
+    page.snack_bar = ft.SnackBar(ft.Text("Banco Resetado!"), open=True)
+    page.update()
+    voltar()  # <--- Volta para o menu principal para atualizar a tela
 
     conn.commit()
     conn.close()
-    print("🔄 Banco resetado! As leituras atuais viraram 'Anteriores'.")
+
+    print(f"🔄 Histórico de {mes_atual} salvo e banco resetado!")
