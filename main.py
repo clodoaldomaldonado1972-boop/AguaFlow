@@ -37,20 +37,26 @@ def main(page: ft.Page):
         page.update()
 
     def navegar_menu(perfil):
-        # Criamos a lista de botões organizada
+        def voltar_e_recarregar(recarregar_medicao=False):
+            if recarregar_medicao:
+                carregar_modulo(medicao.montar_tela(page, voltar_e_recarregar))
+            else:
+                navegar_menu(perfil)
+
         botoes = [
             ft.Text(f"PERFIL: {perfil.upper()}",
                     color="blue", weight="bold", size=20),
             ft.Divider(color="white10"),
 
-            # BOTÃO INICIAR LEITURA (Configurado corretamente)
+            # 1. INICIAR LEITURA
             ft.FilledButton(
                 "INICIAR LEITURA",
                 width=280,
                 on_click=lambda _: carregar_modulo(
-                    medicao.montar_tela(page, lambda: navegar_menu(perfil)))
+                    medicao.montar_tela(page, voltar_e_recarregar))
             ),
 
+            # 2. RELATÓRIOS MENSAL
             ft.FilledButton(
                 "RELATÓRIOS MENSAL",
                 width=280,
@@ -58,6 +64,7 @@ def main(page: ft.Page):
                     reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
             ),
 
+            # 3. AJUDA / SUPORTE
             ft.OutlinedButton(
                 "AJUDA / SUPORTE",
                 width=280,
@@ -69,7 +76,6 @@ def main(page: ft.Page):
             ft.TextButton("SAIR / LOGOUT", on_click=lambda _: iniciar_app())
         ]
 
-        # Carrega a coluna de botões no palco
         carregar_modulo(ft.Column(
             botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
 

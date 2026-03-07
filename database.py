@@ -1,6 +1,5 @@
 import sqlite3
-import datetime
-import database as db  # Garanta que este import existe
+import datetime  # <--- ESSENCIAL PARA O REGISTRO DE DATA
 
 
 def get_connection():
@@ -117,17 +116,17 @@ def buscar_proximo_pendente():
 
 
 def registrar_leitura(id_unidade, valor, status="lido"):
-    """Salva a leitura atual no banco de dados"""
     conn = get_connection()
     cursor = conn.cursor()
-    # Pega a data e hora atual
-    data_hoje = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Pega data e hora atual
+    agora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute("""
         UPDATE leituras 
         SET leitura_atual = ?, status = ?, data_leitura = ? 
         WHERE id = ?
-    """, (valor, status, data_hoje, id_unidade))
+    """, (valor, status, agora, id_unidade))
 
     conn.commit()
     conn.close()
+    print(f"DEBUG DB: Unidade {id_unidade} atualizada com sucesso.")
