@@ -118,35 +118,22 @@ def gerar_relatorio_leituras_pdf(dados):
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
         def confirmar_reset(e):
-            # 1. Força o reset no banco
-    db.resetar_mes_novo()
-
-    # 2. Fecha o alerta
-    dlg.open = False
-    page.update()
-
-    # --- 3. INTERFACE DE AJUDA E RESET ---
-
-
-# --- 3. INTERFACE DE AJUDA E RESET ---
-
-def montar_tela_ajuda(page, voltar):
-    def acao_reset(e):
-        # A função de confirmação precisa de um bloco recuado abaixo dela
-        def confirmar_reset(e):
-            db.resetar_mes_novo()  # <--- AGORA ESTÁ DENTRO (COM RECUO)
+            db.resetar_mes_novo()  # Chama o reset com commit
             dlg.open = False
-            page.snack_bar = ft.SnackBar(ft.Text("Mês Resetado! Iniciando novo ciclo."), open=True)
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Mês Resetado! Iniciando novo ciclo."), open=True)
             page.update()
-            voltar()  # <--- Volta ao menu para limpar o erro de 'None'
+            voltar()  # Recarrega o menu principal
 
-        # O Alerta (dlg) precisa estar alinhado com o 'def confirmar_reset'
         dlg = ft.AlertDialog(
             title=ft.Text("Confirmar Reset Mensal?"),
-            content=ft.Text("Isso zerará as leituras atuais para começar o novo mês."),
+            content=ft.Text(
+                "Isso zerará as leituras atuais para começar o novo mês."),
             actions=[
-                ft.TextButton("Confirmar", on_click=confirmar_reset, style=ft.ButtonStyle(color="red")),
-                ft.TextButton("Cancelar", on_click=lambda _: (setattr(dlg, "open", False), page.update()))
+                ft.TextButton("Confirmar", on_click=confirmar_reset,
+                              style=ft.ButtonStyle(color="red")),
+                ft.TextButton("Cancelar", on_click=lambda _: (
+                    setattr(dlg, "open", False), page.update()))
             ]
         )
         page.dialog = dlg
@@ -156,7 +143,8 @@ def montar_tela_ajuda(page, voltar):
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column([
-            ft.Text("MANUAL E CONFIGURAÇÕES", size=28, color="white", weight="bold"),
+            ft.Text("MANUAL E CONFIGURAÇÕES", size=28,
+                    color="white", weight="bold"),
             ft.Divider(color="white10"),
             ft.Markdown("""
 ### 1. Medição
@@ -168,13 +156,13 @@ O botão abaixo prepara o sistema para o próximo mês.
             """),
             ft.Container(height=20),
             ft.ElevatedButton(
-                "INICIAR NOVO MÊS (RESET)", 
+                "INICIAR NOVO MÊS (RESET)",
                 icon=ft.Icons.RESTART_ALT,
-                bgcolor="red", 
-                color="white", 
-                on_click=acao_reset, 
+                bgcolor="red",
+                color="white",
+                on_click=acao_reset,
                 width=350
             ),
             ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
         ], scroll=ft.ScrollMode.AUTO)
-    )  
+    )
