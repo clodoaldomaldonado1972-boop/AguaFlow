@@ -5,6 +5,7 @@ import reports
 import utils
 import medicao
 import database as db
+db.resetar_mes_novo() # Adicione isso, rode o app, e depois apague a linha.
 
 
 def main(page: ft.Page):

@@ -8,7 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from io import BytesIO
 import base64
-import gestao_periodos  # O novo módulo que você criou na raiz
+import gestao_periodos
 
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm
@@ -21,7 +21,7 @@ import database as db
 
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
-    minha_senha = "gbywnwkhoozolenj"  # Senha de App de 16 dígitos
+    minha_senha = "gbywnwkhoozolenj"
 
     msg = MIMEMultipart()
     msg['From'] = meu_email
@@ -51,7 +51,7 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
         print(f"Erro no e-mail: {e}")
         return False
 
-# --- 2. GERAÇÃO DE PDFS (ETIQUETAS E RELATÓRIO) ---
+# --- 2. GERAÇÃO DE PDFS ---
 
 
 def gerar_pdf_etiquetas_qr(lista_unidades):
@@ -119,34 +119,39 @@ def gerar_relatorio_leituras_pdf(dados):
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
         def confirmar_reset(e):
-            # 1. Definimos para quem vai o relatório automático
-            email_responsavel = "clodoaldomaldonado112@gmail.com" # Ou o e-mail do escritório
-            
-            # 2. Chamamos a função inteligente do novo módulo
-            # Ela envia o e-mail E reseta o banco em um único passo
+            email_responsavel = "clodoaldomaldonado112@gmail.com"
             sucesso = gestao_periodos.finalizar_mes_e_enviar(email_responsavel)
-            
+
             if sucesso:
                 dlg.open = False
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("Sucesso! Relatório enviado e novo mês iniciado."),
-                    bgcolor="green",
-                    open=True
-                )
+                page.snack_bar = ft.SnackBar(ft.Text(
+                    "Sucesso! Relatório enviado e novo mês iniciado."), bgcolor="green", open=True)
                 page.update()
-                voltar() # Volta ao menu e destrava o "None"
+                voltar()
             else:
-                # Se der erro (ex: senha do e-mail errada), o banco NÃO reseta por segurança
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("ERRO: O relatório não pôde ser enviado. Verifique sua senha de e-mail."),
-                    bgcolor="red",
-                    open=True
-                )
+                page.snack_bar = ft.SnackBar(ft.Text(
+                    "ERRO: Verifique sua senha de e-mail ou internet."), bgcolor="red", open=True)
                 page.update()
-            return ft.Container(
-                
-            expand=True, bgcolor="#1A1C1E", padding=30,
-            content=ft.Column([
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Confirmar Reset Mensal?"),
+            content=ft.Text(
+                "O sistema enviará o PDF ao escritório e preparará o novo mês."),
+            actions=[
+                ft.TextButton("Confirmar", on_click=confirmar_reset,
+                              style=ft.ButtonStyle(color="red")),
+                ft.TextButton("Cancelar", on_click=lambda _: (
+                    setattr(dlg, "open", False), page.update()))
+            ]
+        )
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
+
+    # O RETURN DEVE ESTAR AQUI (ALINHADO COM O INÍCIO DA FUNÇÃO montar_tela_ajuda)
+    return ft.Container(
+        expand=True, bgcolor="#1A1C1E", padding=30,
+        content=ft.Column([
             ft.Text("MANUAL E CONFIGURAÇÕES", size=28,
                     color="white", weight="bold"),
             ft.Divider(color="white10"),
@@ -154,18 +159,18 @@ def montar_tela_ajuda(page, voltar):
 ### 1. Medição
 O sistema segue a ordem do 16º ao 1º andar.
 ### 2. Relatórios
-Gere o relatório antes de resetar os dados.
+O envio agora é automático ao clicar no botão abaixo.
 ### 3. Virada de Mês
-O botão abaixo prepara o sistema para o próximo mês.
+O sistema preserva os dados do mês anterior como histórico.
             """),
             ft.Container(height=20),
             ft.ElevatedButton(
-                "INICIAR NOVO MÊS (RESET)",
-                icon=ft.Icons.RESTART_ALT,
+                "ENVIAR RELATÓRIO E INICIAR NOVO MÊS",
+                icon=ft.Icons.SEND_AND_ARCHIVE,
                 bgcolor="red",
                 color="white",
                 on_click=acao_reset,
-                width=350
+                width=400
             ),
             ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
         ], scroll=ft.ScrollMode.AUTO)
