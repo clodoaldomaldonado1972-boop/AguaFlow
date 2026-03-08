@@ -1,61 +1,75 @@
 import qrcode
 import os
+from PIL import Image, ImageDraw, ImageFont
 
 
-def garantir_pasta_existente(pasta="qrcodes"):
-    """Cria a pasta onde as imagens serão salvas, se não existir."""
+def gerar_imagem_unidade(unidade, condominio="VIVERE PRUDENTE"):
+    pasta = "qrcodes"
     if not os.path.exists(pasta):
         os.makedirs(pasta)
-        print(f"✅ Pasta '{pasta}' criada.")
 
-
-def gerar_imagem_unidade(unidade, pasta="qrcodes"):
-    """Gera o arquivo PNG de um único QR Code."""
-    garantir_pasta_existente(pasta)
-
-    # Configuração técnica para leitura fácil em locais escuros
+    # 1. CRIAR O QR CODE PURO
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,  # Nível Médio de correção
+        # Alta correção para permitir texto
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
         box_size=10,
         border=4,
     )
-
     qr.add_data(str(unidade))
     qr.make(fit=True)
+    img_qr = qr.make_image(
+        fill_color="black", back_color="white").convert('RGB')
 
-    img = qr.make_image(fill_color="black", back_color="white")
+    # 2. ADICIONAR ESPAÇO PARA O TEXTO (Aumenta a imagem para baixo)
+    largura, altura = img_qr.size
+    nova_altura = altura + 80  # Espaço extra de 80 pixels para o texto
+    img_final = Image.new('RGB', (largura, nova_altura), 'white')
+    img_final.paste(img_qr, (0, 0))
 
-    # Define o nome do arquivo (ex: qrcodes/161.png)
+    # 3. ESCREVER O NOME E A UNIDADE NA IMAGEM
+    draw = ImageDraw.Draw(img_final)
+
+    # Tenta carregar uma fonte, se não tiver usa a padrão
+    try:
+        font_titulo = ImageFont.truetype("arialbd.ttf", 25)
+        font_unid = ImageFont.truetype("arial.ttf", 22)
+    except:
+        font_titulo = font_unid = ImageFont.load_default()
+
+    # Centralizar e desenhar o texto
+    texto_condo = condominio
+    texto_unid = f"APTO: {unidade}"
+
+    # Calcula posições centrais
+    w_condo = draw.textlength(texto_condo, font=font_titulo)
+    w_unid = draw.textlength(texto_unid, font=font_unid)
+
+    draw.text(((largura - w_condo) / 2, altura - 5),
+              texto_condo, fill="black", font=font_titulo)
+    draw.text(((largura - w_unid) / 2, altura + 30),
+              texto_unid, fill="black", font=font_unid)
+
+    # 4. SALVAR
     caminho = os.path.join(pasta, f"{unidade}.png")
-    img.save(caminho)
+    img_final.save(caminho)
     return caminho
 
 
 def gerar_todos_vivere():
-    """Gera a carga total de QR Codes do condomínio de uma vez só."""
-    garantir_pasta_existente()
+    print("🚀 Gerando imagens com Identificação Integrada...")
+    # Áreas comuns
+    comuns = ["Geral", "Lazer"]
+    for item in comuns:
+        gerar_imagem_unidade(item)
 
-    # 1. Áreas Comuns
-    lista_unidades = ["Hidrometro_Geral", "Area_de_Lazer"]
-
-    # 2. Apartamentos (16 andares, 6 por andar)
-    # Usamos o :02 para o apto 1 virar 01 (ex: 1601 em vez de 161 se preferir padrão 4 dígitos)
-    # Se o seu banco usa 3 dígitos (161), use: f"{andar}{apto}"
+    # Apartamentos (16 andares)
     for andar in range(16, 0, -1):
         for apto in range(1, 7):
             unidade = f"{andar}{apto:02}"
-            lista_unidades.append(unidade)
-
-    print(f"🚀 Gerando {len(lista_unidades)} imagens...")
-
-    for uni in lista_unidades:
-        gerar_imagem_unidade(uni)
-
-    print("✅ Processo concluído! Todas as imagens estão na pasta /qrcodes.")
+            gerar_imagem_unidade(unidade)
+    print("✅ Todas as imagens foram criadas na pasta /qrcodes")
 
 
 if __name__ == "__main__":
-    # Se você rodar este arquivo diretamente (python gerador_qr.py),
-    # ele gera todos os 98 códigos de uma vez.
     gerar_todos_vivere()
