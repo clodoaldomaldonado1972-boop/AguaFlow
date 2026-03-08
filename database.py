@@ -4,6 +4,7 @@ import datetime
 
 def get_connection():
     """Conexão única padronizada para todo o sistema."""
+    # check_same_thread=False é importante para o Flet não travar o banco
     return sqlite3.connect("aguaflow.db", check_same_thread=False)
 
 
@@ -12,7 +13,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 1. Cria a tabela com a estrutura completa (Já incluindo data_anterior)
+    # 1. Cria a tabela principal
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,23 +37,22 @@ def init_db():
         )
     """)
 
-    # --- MIGRAR BANCO EXISTENTE (Caso o usuário já tenha o banco sem a coluna) ---
+    # Migração segura para quem não tem a coluna data_anterior
     try:
         cursor.execute("ALTER TABLE leituras ADD COLUMN data_anterior TEXT")
         print("✅ Coluna 'data_anterior' adicionada com sucesso.")
     except sqlite3.OperationalError:
-        # Se cair aqui, é porque a coluna já existe, então não faz nada
         pass
 
-    # --- POPULAÇÃO INICIAL ---
+    # POPULAÇÃO INICIAL (Lógica do Vivere Prudente)
     cursor.execute("SELECT COUNT(*) FROM leituras")
-    count = cursor.fetchone()[0]
-
-    if count == 0:
-        print("📁 Banco vazio! Gerando unidades...")
+    if cursor.fetchone()[0] == 0:
+        print("📁 Banco vazio! Gerando unidades do 16º ao 1º andar...")
         unidades = []
+        # Loop do andar 16 ao 1
         for andar in range(16, 0, -1):
-            for final in range(1, 7):  # Ajustado para 1 a 6
+            # Finais 1 a 6
+            for final in range(1, 7):
                 nome_unidade = f"{andar}{final:02d}"
                 unidades.append((nome_unidade, 0.0))
 
@@ -64,7 +64,7 @@ def init_db():
             unidades
         )
         conn.commit()
-        print(f"✅ {len(unidades)} unidades inseridas.")
+        print(f"✅ {len(unidades)} unidades inseridas com sucesso.")
 
     conn.close()
 
@@ -73,13 +73,9 @@ def buscar_todas_leituras():
     """Busca dados para o relatório incluindo as duas datas."""
     conn = get_connection()
     cursor = conn.cursor()
+    # Ordem alfabética para o relatório final
     cursor.execute("""
-        SELECT 
-            unidade, 
-            leitura_atual, 
-            leitura_anterior, 
-            data_leitura,    -- Data Atual
-            data_anterior    -- Data Anterior
+        SELECT unidade, leitura_atual, leitura_anterior, data_leitura, data_anterior 
         FROM leituras 
         ORDER BY unidade ASC
     """)
@@ -91,7 +87,7 @@ def buscar_todas_leituras():
 def registrar_leitura(id_unidade, valor, status="lido"):
     conn = get_connection()
     cursor = conn.cursor()
-    agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")  # Formato BR
+    agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
 
     cursor.execute("""
         UPDATE leituras 
@@ -103,7 +99,7 @@ def registrar_leitura(id_unidade, valor, status="lido"):
 
 
 def resetar_mes_novo():
-    """Prepara o banco para o próximo mês movendo datas e valores."""
+    """Prepara o banco para o próximo mês movendo leituras atuais para o histórico."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -123,14 +119,27 @@ def resetar_mes_novo():
         print(f"❌ Erro no Reset: {e}")
         return False
 
+
 def buscar_proximo_pendente():
-    conn = conectar()
+    """
+    Busca a próxima unidade para ler.
+    CORREÇÃO: Agora usa get_connection() para evitar NameError.
+    ORDEM: Do 166 ao 11, depois áreas comuns.
+    """
+    conn = get_connection()  # Use o nome correto da função!
     cursor = conn.cursor()
-    # Ordena do maior andar para o menor, e dentro do andar, do apto 1 ao 6
+
+    # Ordem Vivere Prudente:
+    # 1. Prioriza unidades que começam com número (0) sobre texto (1)
+    # 2. Ordena numéricos de forma decrescente (do 166 para o 11)
     cursor.execute("""
-        SELECT id, unidade, leitura_atual 
+        SELECT id, unidade, leitura_anterior 
         FROM leituras 
-        WHERE leitura_atual IS NULL OR leitura_atual = 0
-        ORDER BY CAST(unidade AS INTEGER) DESC
+        WHERE (leitura_atual IS NULL OR leitura_atual = 0)
+        ORDER BY 
+            CASE WHEN unidade GLOB '[0-9]*' THEN 0 ELSE 1 END, 
+            CAST(unidade AS INTEGER) DESC
     """)
-    return cursor.fetchone()
+    res = cursor.fetchone()
+    conn.close()
+    return res
