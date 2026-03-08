@@ -118,21 +118,33 @@ def gerar_relatorio_leituras_pdf(dados):
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
         def confirmar_reset(e):
-            import database as db # Garante que o banco está importado aqui
-            db.resetar_mes_novo() # Executa a limpeza
-            
-            dlg.open = False
-            page.snack_bar = ft.SnackBar(ft.Text("Mês Resetado!"), open=True)
-            page.update()
-            
-            # Força o retorno ao menu para o sistema "acordar"
-            voltar()
+            # 1. Força o reset no banco
+    db.resetar_mes_novo()
 
-        # Criando a janela de confirmação
+    # 2. Fecha o alerta
+    dlg.open = False
+    page.update()
+
+    # --- 3. INTERFACE DE AJUDA E RESET ---
+
+
+d  # --- 3. INTERFACE DE AJUDA E RESET ---
+
+
+def montar_tela_ajuda(page, voltar):
+    def acao_reset(e):
+        def confirmar_reset(e):
+            # AQUI ESTÁ O SEGREDO: Tudo o que a função faz precisa de recuo (Tab)
+            db.resetar_mes_novo()
+            dlg.open = False
+            page.update()
+            voltar()  # Volta ao menu e limpa o erro de 'None'
+
+        # O Alerta também precisa estar dentro da função 'acao_reset'
         dlg = ft.AlertDialog(
             title=ft.Text("Confirmar Reset Mensal?"),
             content=ft.Text(
-                "Isso zerará as leituras atuais para começar o novo mês. Certifique-se de ter enviado o e-mail antes!"),
+                "Isso zerará as leituras atuais para começar o novo mês."),
             actions=[
                 ft.TextButton("Confirmar", on_click=confirmar_reset,
                               style=ft.ButtonStyle(color="red")),
