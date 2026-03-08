@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from io import BytesIO
 import base64
+import gestao_periodos  # O novo módulo que você criou na raiz
 
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm
@@ -118,31 +119,34 @@ def gerar_relatorio_leituras_pdf(dados):
 def montar_tela_ajuda(page, voltar):
     def acao_reset(e):
         def confirmar_reset(e):
-            db.resetar_mes_novo()  # Chama o reset com commit
-            dlg.open = False
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Mês Resetado! Iniciando novo ciclo."), open=True)
-            page.update()
-            voltar()  # Recarrega o menu principal
-
-        dlg = ft.AlertDialog(
-            title=ft.Text("Confirmar Reset Mensal?"),
-            content=ft.Text(
-                "Isso zerará as leituras atuais para começar o novo mês."),
-            actions=[
-                ft.TextButton("Confirmar", on_click=confirmar_reset,
-                              style=ft.ButtonStyle(color="red")),
-                ft.TextButton("Cancelar", on_click=lambda _: (
-                    setattr(dlg, "open", False), page.update()))
-            ]
-        )
-        page.dialog = dlg
-        dlg.open = True
-        page.update()
-
-    return ft.Container(
-        expand=True, bgcolor="#1A1C1E", padding=30,
-        content=ft.Column([
+            # 1. Definimos para quem vai o relatório automático
+            email_responsavel = "clodoaldomaldonado112@gmail.com" # Ou o e-mail do escritório
+            
+            # 2. Chamamos a função inteligente do novo módulo
+            # Ela envia o e-mail E reseta o banco em um único passo
+            sucesso = gestao_periodos.finalizar_mes_e_enviar(email_responsavel)
+            
+            if sucesso:
+                dlg.open = False
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("Sucesso! Relatório enviado e novo mês iniciado."),
+                    bgcolor="green",
+                    open=True
+                )
+                page.update()
+                voltar() # Volta ao menu e destrava o "None"
+            else:
+                # Se der erro (ex: senha do e-mail errada), o banco NÃO reseta por segurança
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("ERRO: O relatório não pôde ser enviado. Verifique sua senha de e-mail."),
+                    bgcolor="red",
+                    open=True
+                )
+                page.update()
+            return ft.Container(
+                
+            expand=True, bgcolor="#1A1C1E", padding=30,
+            content=ft.Column([
             ft.Text("MANUAL E CONFIGURAÇÕES", size=28,
                     color="white", weight="bold"),
             ft.Divider(color="white10"),
