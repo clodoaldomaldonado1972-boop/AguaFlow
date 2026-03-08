@@ -61,7 +61,8 @@ def main(page: ft.Page):
             padding=20,
             expand=True,
             bgcolor="#1A1C1E",
-            alignment=ft.alignment.top_center  # Centraliza o conteúdo no topo
+            # Coordenadas: 0 é o centro horizontal, -1 é o topo vertical
+            alignment=ft.Alignment(0, -1)
         )
         page.update()
 
@@ -125,6 +126,6 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    # Garante melhor performance visual no Windows/Android
     os.environ["FLET_RENDERER"] = "skia"
-    ft.app(target=main)  # Use ft.app para rodar corretamente
+    # O comando run() é o substituto moderno para evitar o aviso de deprecated
+    ft.app(target=main)

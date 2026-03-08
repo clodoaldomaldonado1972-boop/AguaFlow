@@ -31,11 +31,19 @@ def montar_tela(page, voltar_menu):
 
     def calcular_ao_digitar(e):
         try:
+            # Limpa erro visual ao começar a digitar
+            input_valor.error_text = ""
+
             if input_valor.value:
-                val_limpo = input_valor.value.strip().replace(",", ".")
+                # Troca vírgula por ponto para o cálculo não falhar
+                val_limpo = input_valor.value.replace(",", ".")
                 atual = float(val_limpo)
                 consumo = atual - leitura_anterior
+
+                # Exibe o consumo calculado
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
+
+                # Alerta visual se o consumo for muito alto (Ex: > 20m³)
                 texto_consumo.color = st.COR_ALERTA if consumo > 20 else st.COR_PRIMARIA
             else:
                 texto_consumo.value = "Consumo: 0.00 m³"

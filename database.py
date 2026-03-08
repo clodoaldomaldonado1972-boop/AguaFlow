@@ -8,23 +8,24 @@ def get_connection():
 
 
 def init_db():
-    """Inicializa o banco e as tabelas se não existirem."""
+    """Inicializa o banco e as tabelas com suporte a datas."""
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Tabela principal de leituras
+    # 1. Cria a tabela com a estrutura completa (Já incluindo data_anterior)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             unidade TEXT NOT NULL,
             leitura_anterior REAL DEFAULT 0.0,
+            data_anterior TEXT,
             leitura_atual REAL DEFAULT NULL, 
             status TEXT DEFAULT 'pendente',
             data_leitura TEXT
         )
     """)
 
-    # Tabela de histórico (para consultas futuras)
+    # 2. Tabela de histórico
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS historico_consumo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,19 +36,24 @@ def init_db():
         )
     """)
 
-    # --- VERIFICAÇÃO E POPULAÇÃO INICIAL ---
+    # --- MIGRAR BANCO EXISTENTE (Caso o usuário já tenha o banco sem a coluna) ---
+    try:
+        cursor.execute("ALTER TABLE leituras ADD COLUMN data_anterior TEXT")
+        print("✅ Coluna 'data_anterior' adicionada com sucesso.")
+    except sqlite3.OperationalError:
+        # Se cair aqui, é porque a coluna já existe, então não faz nada
+        pass
+
+    # --- POPULAÇÃO INICIAL ---
     cursor.execute("SELECT COUNT(*) FROM leituras")
     count = cursor.fetchone()[0]
 
     if count == 0:
-        print("📁 Banco vazio! Gerando unidades do 16º ao 1º andar...")
+        print("📁 Banco vazio! Gerando unidades...")
         unidades = []
-        # Gera do 16 ao 1 (Andares)
         for andar in range(16, 0, -1):
-            # Gera do 6 ao 1 (Finais)
-            for final in range(6, 0, -1):
-                # Nome da unidade ex: 166, 165... 11
-                nome_unidade = f"{andar}{final}"
+            for final in range(1, 7):  # Ajustado para 1 a 6
+                nome_unidade = f"{andar}{final:02d}"
                 unidades.append((nome_unidade, 0.0))
 
         unidades.append(('LAZER', 0.0))
@@ -58,17 +64,69 @@ def init_db():
             unidades
         )
         conn.commit()
-        print(f"✅ {len(unidades)} unidades inseridas com sucesso!")
-    else:
-        print(f"✅ Banco carregado: {count} unidades encontradas.")
+        print(f"✅ {len(unidades)} unidades inseridas.")
 
     conn.close()
 
 
-def buscar_proximo_pendente():
+def buscar_todas_leituras():
+    """Busca dados para o relatório incluindo as duas datas."""
     conn = get_connection()
     cursor = conn.cursor()
-    # Importante: buscar por status 'pendente' que o Reset define
+    cursor.execute("""
+        SELECT 
+            unidade, 
+            leitura_atual, 
+            leitura_anterior, 
+            data_leitura,    -- Data Atual
+            data_anterior    -- Data Anterior
+        FROM leituras 
+        ORDER BY unidade ASC
+    """)
+    dados = cursor.fetchall()
+    conn.close()
+    return dados
+
+
+def registrar_leitura(id_unidade, valor, status="lido"):
+    conn = get_connection()
+    cursor = conn.cursor()
+    agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")  # Formato BR
+
+    cursor.execute("""
+        UPDATE leituras 
+        SET leitura_atual = ?, status = ?, data_leitura = ? 
+        WHERE id = ?
+    """, (valor, status, agora, id_unidade))
+    conn.commit()
+    conn.close()
+
+
+def resetar_mes_novo():
+    """Prepara o banco para o próximo mês movendo datas e valores."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE leituras 
+            SET 
+                leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
+                data_anterior = IFNULL(data_leitura, data_anterior),
+                leitura_atual = NULL,
+                status = 'pendente', 
+                data_leitura = NULL
+        """)
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"❌ Erro no Reset: {e}")
+        return False
+def buscar_proximo_pendente():
+    """Busca a próxima unidade que ainda não foi lida no ciclo atual."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Busca a primeira unidade onde a leitura_atual ainda é NULA
     cursor.execute("""
         SELECT id, unidade, leitura_anterior 
         FROM leituras 
@@ -80,78 +138,3 @@ def buscar_proximo_pendente():
     res = cursor.fetchone()
     conn.close()
     return res
-
-
-def buscar_todas_leituras():
-    """Busca dados para o relatório. Protege o consumo contra valores nulos."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    # O CASE impede consumo negativo se leitura_atual for menor que anterior por erro
-    cursor.execute("""
-        SELECT 
-            id, 
-            unidade, 
-            leitura_anterior, 
-            leitura_atual, 
-            CASE 
-                WHEN leitura_atual IS NULL THEN 0 
-                ELSE (leitura_atual - leitura_anterior) 
-            END as consumo,
-            data_leitura 
-        FROM leituras 
-        ORDER BY unidade ASC
-    """)
-    dados = cursor.fetchall()
-    conn.close()
-    return dados
-
-
-def registrar_leitura(id_unidade, valor, status="lido"):
-    """Salva a leitura no banco com data e hora."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    agora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor.execute("""
-        UPDATE leituras 
-        SET leitura_atual = ?, status = ?, data_leitura = ? 
-        WHERE id = ?
-    """, (valor, status, agora, id_unidade))
-
-    conn.commit()
-    conn.close()
-    print(f"DEBUG DB: Unidade {id_unidade} atualizada com sucesso.")
-
-
-def resetar_mes_novo():
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        # Este comando limpa o 'None' e volta as 98 unidades para o início
-        cursor.execute("""
-            UPDATE leituras 
-            SET 
-                leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
-                leitura_atual = NULL,
-                status = 'pendente', 
-                data_leitura = NULL
-        """)
-        conn.commit()  # <--- SE NÃO TIVER ISSO, O RESET NÃO SALVA!
-        conn.close()
-        print("✅ SUCESSO: Banco resetado fisicamente no SQLite!")
-        return True
-    except Exception as e:
-        print(f"❌ Erro no Reset: {e}")
-        return False
-
-
-def confirmar_reset(e):
-            import database as db  # Garante que o banco está acessível
-            db.resetar_mes_novo()   # Limpa o banco (agora com commit!)
-            
-            dlg.open = False
-            page.snack_bar = ft.SnackBar(ft.Text("Mês Resetado! Iniciando novo ciclo."), open=True)
-            page.update()
-            
-            # ISSO AQUI É O QUE LIMPA O ERRO DE 'NONE':
-            voltar()
