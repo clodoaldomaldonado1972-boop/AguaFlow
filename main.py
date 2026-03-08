@@ -5,7 +5,22 @@ import reports
 import utils
 import medicao
 import database as db
-db.resetar_mes_novo() # Adicione isso, rode o app, e depois apague a linha.
+
+# --- LINHAS DE DESTRAVAMENTO (APAGUE APÓS RODAR UMA VEZ) ---
+db.init_db()  # Garante que o banco existe
+try:
+    db.forcar_reset_agora()
+    print("✅ SISTEMA DESTRAVADO COM SUCESSO!")
+except:
+    # Se a função acima não estiver no database.py, usamos o comando direto:
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE leituras SET status = 'pendente', leitura_atual = NULL")
+    conn.commit()
+    conn.close()
+    print("✅ RESET MANUAL EXECUTADO DIRETO NO MAIN!")
+# ---------------------------------------------------------
 
 
 def main(page: ft.Page):
@@ -44,13 +59,11 @@ def main(page: ft.Page):
             else:
                 navegar_menu(perfil)
 
-        # LISTA DE BOTÕES DO MENU
         botoes = [
             ft.Text(f"PERFIL: {perfil.upper()}",
                     color="blue", weight="bold", size=20),
             ft.Divider(color="white10"),
 
-            # 1. INICIAR LEITURA
             ft.FilledButton(
                 "INICIAR LEITURA",
                 width=280,
@@ -58,7 +71,6 @@ def main(page: ft.Page):
                     medicao.montar_tela(page, voltar_e_recarregar))
             ),
 
-            # 2. RELATÓRIOS MENSAL
             ft.FilledButton(
                 "RELATÓRIOS MENSAL",
                 width=280,
@@ -66,7 +78,6 @@ def main(page: ft.Page):
                     reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
             ),
 
-            # 3. AJUDA / SUPORTE (Manual e Reset)
             ft.FilledButton(
                 "AJUDA / MANUAL",
                 width=280,
@@ -92,4 +103,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     os.environ["FLET_RENDERER"] = "skia"
-    ft.run(main)  # O comando atualizado que remove o aviso
+    ft.run(main)
