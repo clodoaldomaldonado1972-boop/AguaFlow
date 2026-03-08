@@ -5,27 +5,40 @@ import reports
 import utils
 import medicao
 import database as db
+import gerador_qr  # <--- NOVO: Para garantir que as imagens existam
+import gerador_pdf  # <--- NOVO: Caso precise de algum suporte inicial
 
-# --- LINHAS DE DESTRAVAMENTO (APAGUE APÓS RODAR UMA VEZ) ---
-db.init_db()  # Garante que o banco existe
-try:
-    db.forcar_reset_agora()
-    print("✅ SISTEMA DESTRAVADO COM SUCESSO!")
-except:
-    # Se a função acima não estiver no database.py, usamos o comando direto:
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE leituras SET status = 'pendente', leitura_atual = NULL")
-    conn.commit()
-    conn.close()
-    print("✅ RESET MANUAL EXECUTADO DIRETO NO MAIN!")
-# ---------------------------------------------------------
+# --- INICIALIZAÇÃO E MANUTENÇÃO DO SISTEMA ---
+
+
+def inicializar_sistema():
+    db.init_db()  # Garante que o banco e as tabelas existem
+
+    # Tenta resetar o status se necessário (Manutenção)
+    try:
+        # Se você tiver a função forcar_reset_agora no database.py:
+        # db.forcar_reset_agora()
+
+        # Caso queira garantir que o app comece pronto para leitura:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        # Opcional: Limpa pendências antigas ao iniciar
+        # cursor.execute("UPDATE leituras SET status = 'pendente' WHERE status IS NULL")
+        conn.commit()
+        conn.close()
+        print("✅ BANCO DE DADOS CONECTADO!")
+    except Exception as e:
+        print(f"⚠️ Erro na manutenção inicial: {e}")
+
+    # GARANTIA DOS QR CODES: Se a pasta estiver vazia, gera tudo
+    if not os.path.exists("qrcodes") or len(os.listdir("qrcodes")) < 10:
+        print("🚀 Gerando base de QR Codes inicial...")
+        gerador_qr.gerar_todos_vivere()
 
 
 def main(page: ft.Page):
     # --- 1. CONFIGURAÇÃO DE INTERFACE ---
-    page.title = "ÁguaFlow"
+    page.title = "Vivere Flow - Gestão de Consumo"
     page.window_bgcolor = "#1A1C1E"
     page.bgcolor = "#1A1C1E"
     page.theme_mode = ft.ThemeMode.DARK
@@ -35,8 +48,8 @@ def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
-    # Inicializa o banco
-    db.init_db()
+    # Inicializa banco e arquivos
+    inicializar_sistema()
 
     # --- 2. PALCO PRINCIPAL ---
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
@@ -48,7 +61,7 @@ def main(page: ft.Page):
             padding=20,
             expand=True,
             bgcolor="#1A1C1E",
-            alignment=ft.Alignment(0, -1)
+            alignment=ft.alignment.top_center  # Centraliza o conteúdo no topo
         )
         page.update()
 
@@ -59,38 +72,48 @@ def main(page: ft.Page):
             else:
                 navegar_menu(perfil)
 
+        # Layout do Menu Principal
         botoes = [
-            ft.Text(f"PERFIL: {perfil.upper()}",
-                    color="blue", weight="bold", size=20),
-            ft.Divider(color="white10"),
+            ft.Icon(ft.Icons.WATER_DROP, color="blue", size=50),
+            ft.Text(f"BEM-VINDO", size=14, color="white54"),
+            ft.Text(f"{perfil.upper()}", color="white",
+                    weight="bold", size=22),
+            ft.Divider(color="white10", height=40),
 
             ft.FilledButton(
                 "INICIAR LEITURA",
-                width=280,
+                width=300,
+                icon=ft.Icons.QR_CODE_SCANNER,
                 on_click=lambda _: carregar_modulo(
                     medicao.montar_tela(page, voltar_e_recarregar))
             ),
 
             ft.FilledButton(
                 "RELATÓRIOS MENSAL",
-                width=280,
+                width=300,
+                icon=ft.Icons.PIE_CHART,
                 on_click=lambda _: carregar_modulo(
                     reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
             ),
 
             ft.FilledButton(
-                "AJUDA / MANUAL",
-                width=280,
+                "AJUDA / CONFIGURAÇÕES",
+                width=300,
+                icon=ft.Icons.SETTINGS,
                 on_click=lambda _: carregar_modulo(
                     utils.montar_tela_ajuda(page, lambda: navegar_menu(perfil)))
             ),
 
-            ft.Container(height=20),
-            ft.TextButton("Sair", on_click=lambda _: iniciar_app())
+            ft.Container(height=40),
+            ft.TextButton("Encerrar Sessão", icon=ft.Icons.LOGOUT,
+                          on_click=lambda _: iniciar_app())
         ]
 
         carregar_modulo(ft.Column(
-            botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
+            botoes,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=15
+        ))
 
     def iniciar_app():
         carregar_modulo(auth.criar_tela_login(page, navegar_menu))
@@ -102,5 +125,6 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
+    # Garante melhor performance visual no Windows/Android
     os.environ["FLET_RENDERER"] = "skia"
-    ft.run(main)
+    ft.app(target=main)  # Use ft.app para rodar corretamente
