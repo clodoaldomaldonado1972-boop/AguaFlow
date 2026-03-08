@@ -44,29 +44,30 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
-    # POPULAÇÃO INICIAL (Lógica do Vivere Prudente)
-    cursor.execute("SELECT COUNT(*) FROM leituras")
-    if cursor.fetchone()[0] == 0:
-        print("📁 Banco vazio! Gerando unidades do 16º ao 1º andar...")
-        unidades = []
-        # Loop do andar 16 ao 1
-        for andar in range(16, 0, -1):
-            # Finais 1 a 6
-            for final in range(1, 7):
-                nome_unidade = f"{andar}{final:02d}"
-                unidades.append((nome_unidade, 0.0))
 
-        unidades.append(('LAZER', 0.0))
-        unidades.append(('GERAL', 0.0))
+    # --- POPULAÇÃO INICIAL (Lógica Vivere Prudente: 161 a 166) ---
+cursor.execute("SELECT COUNT(*) FROM leituras")
+if cursor.fetchone()[0] == 0:
+    print("📁 Banco vazio! Gerando unidades do 16º ao 1º andar...")
+    unidades = []
 
-        cursor.executemany(
-            "INSERT INTO leituras (unidade, leitura_anterior, status) VALUES (?, ?, 'pendente')",
-            unidades
-        )
-        conn.commit()
-        print(f"✅ {len(unidades)} unidades inseridas com sucesso.")
+    # Loop do andar 16 ao 1
+    for andar in range(16, 0, -1):
+        # Para cada andar, gera do 6 para o 1 (ou 1 para o 6 conforme sua preferência)
+        for final in range(6, 0, -1):
+            # Se for andar 16 e final 6 -> "166"
+            # Se for andar 1 e final 6 -> "16"
+            nome_unidade = f"{andar}{final}"
+            unidades.append((nome_unidade, 0.0))
 
-    conn.close()
+    unidades.append(('LAZER', 0.0))
+    unidades.append(('GERAL', 0.0))
+
+    cursor.executemany(
+        "INSERT INTO leituras (unidade, leitura_anterior, status) VALUES (?, ?, 'pendente')",
+        unidades
+    )
+    conn.commit()
 
 
 def buscar_todas_leituras():
