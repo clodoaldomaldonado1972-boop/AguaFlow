@@ -122,19 +122,15 @@ def resetar_mes_novo():
     except Exception as e:
         print(f"❌ Erro no Reset: {e}")
         return False
+
 def buscar_proximo_pendente():
-    """Busca a próxima unidade que ainda não foi lida no ciclo atual."""
-    conn = get_connection()
+    conn = conectar()
     cursor = conn.cursor()
-    # Busca a primeira unidade onde a leitura_atual ainda é NULA
+    # Ordena do maior andar para o menor, e dentro do andar, do apto 1 ao 6
     cursor.execute("""
-        SELECT id, unidade, leitura_anterior 
+        SELECT id, unidade, leitura_atual 
         FROM leituras 
-        WHERE leitura_atual IS NULL 
-        AND status = 'pendente' 
-        ORDER BY id ASC 
-        LIMIT 1
+        WHERE leitura_atual IS NULL OR leitura_atual = 0
+        ORDER BY CAST(unidade AS INTEGER) DESC
     """)
-    res = cursor.fetchone()
-    conn.close()
-    return res
+    return cursor.fetchone()

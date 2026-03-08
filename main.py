@@ -128,4 +128,4 @@ def main(page: ft.Page):
 if __name__ == "__main__":
     os.environ["FLET_RENDERER"] = "skia"
     # O comando run() é o substituto moderno para evitar o aviso de deprecated
-    ft.app(target=main)
+    ft.run(target=main)
