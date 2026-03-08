@@ -127,7 +127,7 @@ def resetar_mes_novo():
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        # 1. Limpa as leituras e volta o status para 'pendente'
+        # Este comando limpa o 'None' e volta as 98 unidades para o início
         cursor.execute("""
             UPDATE leituras 
             SET 
@@ -136,9 +136,9 @@ def resetar_mes_novo():
                 status = 'pendente', 
                 data_leitura = NULL
         """)
-        conn.commit()  # <--- ESSENCIAL: Isso aqui é o que "salva" o reset!
+        conn.commit()  # <--- SE NÃO TIVER ISSO, O RESET NÃO SALVA!
         conn.close()
-        print("✅ SUCESSO: Banco resetado fisicamente!")
+        print("✅ SUCESSO: Banco resetado fisicamente no SQLite!")
         return True
     except Exception as e:
         print(f"❌ Erro no Reset: {e}")
@@ -146,14 +146,12 @@ def resetar_mes_novo():
 
 
 def confirmar_reset(e):
-    # 1. Manda o banco resetar
-    db.resetar_mes_novo()
-
-    # 2. Fecha o aviso e dá um aviso visual
-    dlg.open = False
-    page.snack_bar = ft.SnackBar(
-        ft.Text("Mês Resetado! Iniciando novo ciclo."), open=True)
-    page.update()
-
-    # 3. FORÇA A VOLTA AO MENU (Isso limpa o erro de 'None')
-    voltar()
+            import database as db  # Garante que o banco está acessível
+            db.resetar_mes_novo()   # Limpa o banco (agora com commit!)
+            
+            dlg.open = False
+            page.snack_bar = ft.SnackBar(ft.Text("Mês Resetado! Iniciando novo ciclo."), open=True)
+            page.update()
+            
+            # ISSO AQUI É O QUE LIMPA O ERRO DE 'NONE':
+            voltar()
