@@ -10,6 +10,7 @@ import flet as ft
 
 # --- 1. FUNÇÃO DE E-MAIL (Lógica Interna) ---
 
+
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
     minha_senha = "uhviwhsjjxmcbboh"
@@ -24,7 +25,7 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
         if not os.path.exists(caminho_pdf):
             print("Erro: PDF não encontrado no caminho especificado.")
             return False
-        
+
         with open(caminho_pdf, "rb") as anexo:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(anexo.read())
@@ -45,31 +46,33 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
 
 # --- 2. INTERFACE DE AJUDA ---
 
+
 def montar_tela_ajuda(page, voltar):
-    
+
     # Função que REALMENTE faz o trabalho pesado
     def confirmar_reset(e):
-        dlg.open = False # Fecha o aviso
+        dlg.open = False  # Fecha o aviso
         page.update()
-        
+
         # Feedback visual imediato
-        page.snack_bar = ft.SnackBar(ft.Text("Gerando relatório e enviando e-mail..."), open=True)
+        page.snack_bar = ft.SnackBar(
+            ft.Text("Gerando relatório e enviando e-mail..."), open=True)
         page.update()
 
         email_responsavel = "clodoaldomaldonado112@gmail.com"
-        
+
         # Chama o maestro (gestao_periodos)
         sucesso = gestao_periodos.finalizar_mes_e_enviar(email_responsavel)
 
         if sucesso:
             page.snack_bar = ft.SnackBar(
-                ft.Text("Sucesso! Relatório enviado e banco resetado."), 
+                ft.Text("Sucesso! Relatório enviado e banco resetado."),
                 bgcolor="green", open=True)
             page.update()
-            voltar() # Volta para o menu
+            voltar()  # Volta para o menu
         else:
             page.snack_bar = ft.SnackBar(
-                ft.Text("ERRO ao processar. Verifique internet ou permissões."), 
+                ft.Text("ERRO ao processar. Verifique internet ou permissões."),
                 bgcolor="red", open=True)
             page.update()
 
@@ -78,21 +81,26 @@ def montar_tela_ajuda(page, voltar):
         title=ft.Text("Confirmar Reset Mensal?"),
         content=ft.Text("Isso enviará o e-mail e limpará as medições atuais."),
         actions=[
-            ft.TextButton("Confirmar", on_click=confirmar_reset, style=ft.ButtonStyle(color="red")),
-            ft.TextButton("Cancelar", on_click=lambda _: (setattr(dlg, "open", False), page.update()))
+            ft.TextButton("Confirmar", on_click=confirmar_reset,
+                          style=ft.ButtonStyle(color="red")),
+            ft.TextButton("Cancelar", on_click=lambda _: (
+                setattr(dlg, "open", False), page.update()))
         ]
     )
 
     # Função apenas para abrir o diálogo
+
     def abrir_alerta(e):
-        page.dialog = dlg
+        # Limpa overlays antigos e adiciona o novo diálogo
+        page.overlay.append(dlg)
         dlg.open = True
         page.update()
 
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column([
-            ft.Text("MANUAL E CONFIGURAÇÕES", size=28, color="white", weight="bold"),
+            ft.Text("MANUAL E CONFIGURAÇÕES", size=28,
+                    color="white", weight="bold"),
             ft.Divider(color="white10"),
             ft.Markdown("""
 ### 1. Medição
@@ -108,7 +116,7 @@ O envio agora é automático ao clicar no botão abaixo.
                 icon=ft.Icons.SEND_AND_ARCHIVE,
                 bgcolor="red",
                 color="white",
-                on_click=abrir_alerta, # AGORA CHAMA A FUNÇÃO CERTA
+                on_click=abrir_alerta,  # AGORA CHAMA A FUNÇÃO CERTA
                 width=400
             ),
             ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
