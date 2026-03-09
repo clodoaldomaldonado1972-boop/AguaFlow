@@ -124,8 +124,8 @@ def montar_tela(page, voltar_menu):
                 texto_consumo,
                 ft.Container(height=20),
                 ft.Row([
-                    ft.ElevatedButton(
-                        "SALVAR", icon=ft.Icons.SAVE, on_click=salvar_leitura, bgcolor="blue", color="white"),
+                    # Em vez de ft.ElevatedButton, use:
+                    ft.FilledButton("GERAR RELATÓRIO MENSAL", icon=ft.Icons.PICTURE_AS_PDF)
                     ft.IconButton(icon=ft.Icons.SKIP_NEXT, icon_color="orange",
                                   on_click=lambda _: abrir_alerta_pular())
                 ], alignment=ft.MainAxisAlignment.CENTER),
