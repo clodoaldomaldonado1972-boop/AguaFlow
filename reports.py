@@ -185,11 +185,28 @@ def montar_tela_relatorios(page, voltar):
                     color="white", weight="bold"),
             ft.Divider(color="white10"),
             ft.Container(height=20),
-            ft.ElevatedButton("GERAR RELATÓRIO MENSAL", icon=ft.Icons.PICTURE_AS_PDF,
-                              on_click=btn_gerar_leitura, width=350, height=50),
-            ft.ElevatedButton("GERAR ETIQUETAS QR", icon=ft.Icons.QR_CODE,
-                              on_click=btn_gerar_etiquetas, width=350, height=50, bgcolor="blue800", color="white"),
+
+            # Botão 1: Relatório Mensal (Corrigido)
+            ft.FilledButton(
+                "GERAR RELATÓRIO MENSAL",
+                icon=ft.Icons.PICTURE_AS_PDF,
+                on_click=btn_gerar_leitura,
+                width=350,
+                height=50
+            ),
+
+            # Botão 2: Etiquetas QR (Também atualizado para FilledButton)
+            ft.FilledButton(
+                "GERAR ETIQUETAS QR",
+                icon=ft.Icons.QR_CODE,
+                on_click=btn_gerar_etiquetas,
+                width=350,
+                height=50,
+                style=ft.ButtonStyle(bgcolor="blue800", color="white")
+            ),
+
             ft.Container(height=20),
-            ft.TextButton("Sair dos Relatórios", on_click=lambda _: voltar())
+            ft.TextButton("Sair dos Relatórios",
+                          on_click=lambda _: voltar(), color="white70")
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
