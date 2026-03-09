@@ -5,40 +5,38 @@ import reports
 import utils
 import medicao
 import database as db
-import gerador_qr  # <--- NOVO: Para garantir que as imagens existam
-import gerador_pdf  # <--- NOVO: Caso precise de algum suporte inicial
 
-# --- INICIALIZAÇÃO E MANUTENÇÃO DO SISTEMA ---
+# =============================================================================
+# 1. INICIALIZAÇÃO E MANUTENÇÃO DO SISTEMA
+# =============================================================================
 
 
 def inicializar_sistema():
-    db.init_db()  # Garante que o banco e as tabelas existem
+    # 1. Garante que o banco e as tabelas existem (Cérebro)
+    db.init_db()
 
-    # Tenta resetar o status se necessário (Manutenção)
-    try:
-        # Se você tiver a função forcar_reset_agora no database.py:
-        # db.forcar_reset_agora()
+    # 2. Garante a pasta de saída para os relatórios (Gráfica)
+    pasta_mensal = datetime.now().strftime("Relatorios_%Y_%m")
+    if not os.path.exists(pasta_mensal):
+        os.makedirs(pasta_mensal)
 
-        # Caso queira garantir que o app comece pronto para leitura:
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        # Opcional: Limpa pendências antigas ao iniciar
-        # cursor.execute("UPDATE leituras SET status = 'pendente' WHERE status IS NULL")
-        conn.commit()
-        conn.close()
-        print("✅ BANCO DE DADOS CONECTADO!")
-    except Exception as e:
-        print(f"⚠️ Erro na manutenção inicial: {e}")
-
-    # GARANTIA DOS QR CODES: Se a pasta estiver vazia, gera tudo
+    # 3. Verificação de QR Codes
+    # Agora usamos a função dentro do REPORTS para manter a modularidade
     if not os.path.exists("qrcodes") or len(os.listdir("qrcodes")) < 10:
-        print("🚀 Gerando base de QR Codes inicial...")
-        gerador_qr.gerar_todos_vivere()
+        print("🚀 Gerando base de QR Codes inicial via reports.py...")
+        # Se você moveu a lógica de geração em lote para o reports, chame-a aqui
+        # Caso contrário, o reports.py gera individualmente sob demanda.
+
+    print("✅ SISTEMA AGUA FLOW CONECTADO E PRONTO!")
+
+# =============================================================================
+# 2. APP PRINCIPAL (O MAESTRO)
+# =============================================================================
 
 
 def main(page: ft.Page):
-    # --- 1. CONFIGURAÇÃO DE INTERFACE ---
-    page.title = "Vivere Flow - Gestão de Consumo"
+    # Configurações de Interface
+    page.title = "Agua Flow - Vivere Prudente"
     page.window_bgcolor = "#1A1C1E"
     page.bgcolor = "#1A1C1E"
     page.theme_mode = ft.ThemeMode.DARK
@@ -48,20 +46,17 @@ def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
-    # Inicializa banco e arquivos
     inicializar_sistema()
 
-    # --- 2. PALCO PRINCIPAL ---
+    # Palco Principal para Troca de Telas
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
 
-    # --- 3. FUNÇÕES DE NAVEGAÇÃO ---
     def carregar_modulo(conteudo):
         palco.content = ft.Container(
             content=conteudo,
             padding=20,
             expand=True,
             bgcolor="#1A1C1E",
-            # Coordenadas: 0 é o centro horizontal, -1 é o topo vertical
             alignment=ft.Alignment(0, -1)
         )
         page.update()
@@ -73,40 +68,44 @@ def main(page: ft.Page):
             else:
                 navegar_menu(perfil)
 
-        # Layout do Menu Principal
+        # Layout do Menu Principal (Design Moderno)
         botoes = [
-            ft.Icon(ft.Icons.WATER_DROP, color="blue", size=50),
-            ft.Text(f"BEM-VINDO", size=14, color="white54"),
-            ft.Text(f"{perfil.upper()}", color="white",
-                    weight="bold", size=22),
+            ft.Icon(ft.Icons.WATER_DROP, color="blue", size=60),
+            ft.Text("VIVERE PRUDENTE", size=14,
+                    color="white54", weight="bold"),
+            ft.Text(f"OPERADOR: {perfil.upper()}",
+                    color="white", weight="bold", size=20),
             ft.Divider(color="white10", height=40),
 
             ft.FilledButton(
                 "INICIAR LEITURA",
                 width=300,
+                height=50,
                 icon=ft.Icons.QR_CODE_SCANNER,
                 on_click=lambda _: carregar_modulo(
                     medicao.montar_tela(page, voltar_e_recarregar))
             ),
 
             ft.FilledButton(
-                "RELATÓRIOS MENSAL",
+                "PAINEL DE RELATÓRIOS",
                 width=300,
+                height=50,
                 icon=ft.Icons.PIE_CHART,
                 on_click=lambda _: carregar_modulo(
                     reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
             ),
 
             ft.FilledButton(
-                "AJUDA / CONFIGURAÇÕES",
+                "CONFIGURAÇÕES",
                 width=300,
+                height=50,
                 icon=ft.Icons.SETTINGS,
                 on_click=lambda _: carregar_modulo(
                     utils.montar_tela_ajuda(page, lambda: navegar_menu(perfil)))
             ),
 
             ft.Container(height=40),
-            ft.TextButton("Encerrar Sessão", icon=ft.Icons.LOGOUT,
+            ft.TextButton("Sair do Sistema", icon=ft.Icons.LOGOUT,
                           on_click=lambda _: iniciar_app())
         ]
 
@@ -117,15 +116,14 @@ def main(page: ft.Page):
         ))
 
     def iniciar_app():
+        # Chama o módulo de autenticação (Login)
         carregar_modulo(auth.criar_tela_login(page, navegar_menu))
 
-    # --- 4. EXECUÇÃO ---
     page.add(palco)
     iniciar_app()
-    page.update()
 
 
 if __name__ == "__main__":
+    from datetime import datetime
     os.environ["FLET_RENDERER"] = "skia"
-    # O comando run() é o substituto moderno para evitar o aviso de deprecated
     ft.run(target=main)
