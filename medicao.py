@@ -1,8 +1,30 @@
 import flet as ft
 import database as db
+import leitor_ocr  # Importa o novo módulo
 
 COR_PRIMARIA = "blue"
 COR_ALERTA = "orange"
+
+
+def abrir_camera_ocr(e):
+    leitura = leitor_ocr.capturar_e_ler_hidrometro()
+    if leitura:
+        input_valor.value = leitura
+        page.update()
+        # Chama a lógica de cálculo automaticamente
+        calcular_ao_digitar(None)
+
+
+# No seu layout, adicione o botão:
+ft.Row([
+    input_valor,
+    ft.IconButton(
+        icon=ft.Icons.CAMERA_ALT,
+        icon_color="blue",
+        on_click=abrir_camera_ocr,
+        tooltip="Ler com a câmera"
+    )
+], alignment=ft.MainAxisAlignment.CENTER)
 
 
 def montar_tela(page, voltar_menu):
