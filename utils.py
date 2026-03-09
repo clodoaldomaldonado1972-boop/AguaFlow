@@ -111,7 +111,13 @@ PDFs gerados com histórico de consumo.
 O envio agora é automático ao clicar no botão abaixo.
             """),
             ft.Container(height=20),
-            ft.ElevatedButton(
+            ft.FilledButton("ENVIAR RELATÓRIO E INICIAR NOVO MÊS",
+                icon=ft.Icons.SEND_AND_ARCHIVE,
+                bgcolor="red",
+                color="white",
+                on_click=abrir_alerta,  # AGORA CHAMA A FUNÇÃO CERTA
+                width=400
+            ),
                 "ENVIAR RELATÓRIO E INICIAR NOVO MÊS",
                 icon=ft.Icons.SEND_AND_ARCHIVE,
                 bgcolor="red",
