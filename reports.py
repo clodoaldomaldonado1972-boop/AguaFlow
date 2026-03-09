@@ -40,14 +40,21 @@ def buscar_imagem_qr(unidade):
 
 
 def desenhar_cabecalho(canvas_obj, y_pos):
+    """
+    Atualizado para: Agua Flow - Vivere - [Data Atual]
+    """
+    data_hoje = datetime.now().strftime("%d/%m/%Y")
     canvas_obj.setFont("Helvetica-Bold", 14)
-    canvas_obj.drawString(1.5*cm, y_pos, "Vivere Flow - Relatório de Leituras")
+    # Título solicitado
+    canvas_obj.drawString(1.5*cm, y_pos, f"Agua Flow - Vivere - {data_hoje}")
+
     y_pos -= 0.8*cm
     canvas_obj.setFont("Helvetica-Bold", 9)
     canvas_obj.drawString(1.5*cm, y_pos, "Unidade")
     canvas_obj.drawString(4.0*cm, y_pos, "Leitura Anterior")
     canvas_obj.drawString(10.0*cm, y_pos, "Leitura Atual")
     canvas_obj.drawString(16.0*cm, y_pos, "Consumo")
+
     canvas_obj.line(1.5*cm, y_pos - 0.2*cm, 19.5*cm, y_pos - 0.2*cm)
     return y_pos - 0.6*cm
 

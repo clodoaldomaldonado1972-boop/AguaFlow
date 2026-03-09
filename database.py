@@ -68,18 +68,21 @@ def init_db():
     conn.close()
 
 
+# No database.py, ajuste esta função:
 def buscar_todas_leituras():
     conn = get_connection()
     cursor = conn.cursor()
+    # Ordem: Apartamentos (166 -> 11) e por fim Lazer/Geral
     cursor.execute("""
         SELECT unidade, leitura_atual, leitura_anterior, data_leitura, data_anterior 
         FROM leituras 
-        ORDER BY unidade ASC
+        ORDER BY 
+            CASE WHEN unidade GLOB '[0-9]*' THEN 0 ELSE 1 END, 
+            CAST(unidade AS INTEGER) DESC
     """)
     dados = cursor.fetchall()
     conn.close()
     return dados
-
 
 def registrar_leitura(id_unidade, valor, status="lido"):
     conn = get_connection()
