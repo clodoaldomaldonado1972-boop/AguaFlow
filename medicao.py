@@ -111,8 +111,11 @@ def montar_tela(page, voltar_menu):
         page.update()
 
     # LAYOUT FINAL (Usamos linha_input_ocr em vez de apenas input_valor)
+    # LAYOUT FINAL
     return ft.Container(
-        expand=True, bgcolor="#1A1C1E", padding=30,
+        expand=True, 
+        bgcolor="#1A1C1E", 
+        padding=30,
         content=ft.Column(
             controls=[
                 ft.Text(f"Unidade: {nome_unidade}",
@@ -120,17 +123,34 @@ def montar_tela(page, voltar_menu):
                 ft.Text(f"Anterior: {leitura_anterior:.2f} m³",
                         size=18, color="white70"),
                 ft.Divider(color="white10"),
-                linha_input_ocr,  # <--- A linha com o botão de câmera
+                
+                linha_input_ocr,  # Linha com o campo e o ícone da câmera
                 texto_consumo,
+                
                 ft.Container(height=20),
+                
+                # BOTÕES DE AÇÃO
                 ft.Row([
-                    # Em vez de ft.ElevatedButton, use:
-                    ft.FilledButton("GERAR RELATÓRIO MENSAL", icon=ft.Icons.PICTURE_AS_PDF)
-                    ft.IconButton(icon=ft.Icons.SKIP_NEXT, icon_color="orange",
-                                  on_click=lambda _: abrir_alerta_pular())
+                    # Botão Principal: SALVAR
+                    ft.FilledButton(
+                        "SALVAR LEITURA",
+                        icon=ft.Icons.SAVE,
+                        on_click=salvar_leitura,
+                        width=200
+                    ),
+                    # Botão para Pular
+                    ft.IconButton(
+                        icon=ft.Icons.SKIP_NEXT, 
+                        icon_color="orange",
+                        on_click=lambda _: abrir_alerta_pular(),
+                        tooltip="Pular esta unidade"
+                    ),
                 ], alignment=ft.MainAxisAlignment.CENTER),
-                ft.TextButton("Sair da Medição",
-                              on_click=lambda _: voltar_menu())
+                
+                ft.TextButton(
+                    "Sair da Medição",
+                    on_click=lambda _: voltar_menu()
+                )
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=20
