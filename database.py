@@ -4,6 +4,7 @@ import datetime
 
 def get_connection():
     """Conexão única padronizada para todo o sistema."""
+    # check_same_thread=False é vital para o Flet não travar o banco
     return sqlite3.connect("aguaflow.db", check_same_thread=False)
 
 
@@ -12,7 +13,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 1. Criação das tabelas (Dentro da função)
+    # 1. Tabela de Leituras Atuais
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,6 +26,7 @@ def init_db():
         )
     """)
 
+    # 2. Tabela de Histórico (Backup de meses passados)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS historico_consumo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,22 +37,18 @@ def init_db():
         )
     """)
 
-    # Migração de coluna (Dentro da função)
+    # Migração automática se a coluna data_anterior não existir
     try:
         cursor.execute("ALTER TABLE leituras ADD COLUMN data_anterior TEXT")
     except sqlite3.OperationalError:
         pass
 
-    # --- POPULAÇÃO INICIAL (Lógica Vivere: 166, 165... 11) ---
+    # --- POPULAÇÃO INICIAL (Vivere Prudente: 16º ao 1º andar) ---
     cursor.execute("SELECT COUNT(*) FROM leituras")
-    count = cursor.fetchone()[0]
-
-    if count == 0:
-        print("📁 Banco vazio! Gerando unidades do Vivere (16º ao 1º andar)...")
+    if cursor.fetchone()[0] == 0:
+        print("📁 Banco vazio! Gerando unidades do Vivere (16º ao 1º)...")
         unidades = []
-        # Loop do andar 16 ao 1
         for andar in range(16, 0, -1):
-            # Finais 6 ao 1 (166, 165... 161)
             for final in range(6, 0, -1):
                 nome_unidade = f"{andar}{final}"
                 unidades.append((nome_unidade, 0.0))
@@ -68,11 +66,10 @@ def init_db():
     conn.close()
 
 
-# No database.py, ajuste esta função:
 def buscar_todas_leituras():
+    """Busca dados para o reports.py na ordem lógica de leitura."""
     conn = get_connection()
     cursor = conn.cursor()
-    # Ordem: Apartamentos (166 -> 11) e por fim Lazer/Geral
     cursor.execute("""
         SELECT unidade, leitura_atual, leitura_anterior, data_leitura, data_anterior 
         FROM leituras 
@@ -84,7 +81,9 @@ def buscar_todas_leituras():
     conn.close()
     return dados
 
+
 def registrar_leitura(id_unidade, valor, status="lido"):
+    """Salva a leitura feita pelo usuário ou QR Code."""
     conn = get_connection()
     cursor = conn.cursor()
     agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -98,6 +97,7 @@ def registrar_leitura(id_unidade, valor, status="lido"):
 
 
 def resetar_mes_novo():
+    """Prepara o banco para o próximo mês de leitura."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -119,9 +119,9 @@ def resetar_mes_novo():
 
 
 def buscar_proximo_pendente():
+    """Busca a próxima unidade que o Clodoaldo precisa ler."""
     conn = get_connection()
     cursor = conn.cursor()
-    # Ordem Vivere Prudente: Do andar 16 para o 1, depois áreas comuns
     cursor.execute("""
         SELECT id, unidade, leitura_anterior 
         FROM leituras 

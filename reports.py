@@ -1,12 +1,7 @@
 import os
 import qrcode
-import smtplib
 from datetime import datetime
 import flet as ft
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
@@ -22,7 +17,7 @@ def preparar_caminho_pdf():
     if not os.path.exists(pasta_mensal):
         os.makedirs(pasta_mensal)
     timestamp = datetime.now().strftime("%d_%H%M%S")
-    return os.path.join(pasta_mensal, f"Relatorio_{timestamp}.pdf")
+    return os.path.join(pasta_mensal, f"Relatorio_Vivere_{timestamp}.pdf")
 
 
 def buscar_imagem_qr(unidade):
@@ -40,12 +35,8 @@ def buscar_imagem_qr(unidade):
 
 
 def desenhar_cabecalho(canvas_obj, y_pos):
-    """
-    Atualizado para: Agua Flow - Vivere - [Data Atual]
-    """
     data_hoje = datetime.now().strftime("%d/%m/%Y")
     canvas_obj.setFont("Helvetica-Bold", 14)
-    # Título solicitado
     canvas_obj.drawString(1.5*cm, y_pos, f"Agua Flow - Vivere - {data_hoje}")
 
     y_pos -= 0.8*cm
@@ -73,16 +64,13 @@ def formatar_celula_data(valor, data_bruta, data_referencia):
 
 
 def gerar_pdf_etiquetas(lista_unidades):
-    """Gera o PDF de etiquetas em grade 3x5."""
     nome_pdf = "Etiquetas_QR_Vivere.pdf"
     c = canvas.Canvas(nome_pdf, pagesize=A4)
     width, height = A4
-
     colunas, linhas = 3, 5
     margem_x, margem_y = 1.5 * cm, 2.0 * cm
     espaco_x, espaco_y = 6.2 * cm, 5.2 * cm
     tamanho_qr = 3.5 * cm
-
     x, y = margem_x, height - margem_y - tamanho_qr
     cont_col = 0
 
@@ -90,41 +78,51 @@ def gerar_pdf_etiquetas(lista_unidades):
         img_path = buscar_imagem_qr(unidade)
         c.drawImage(img_path, x + 1.2*cm, y,
                     width=tamanho_qr, height=tamanho_qr)
-
         centro_x = x + 1.2*cm + (tamanho_qr/2)
         c.setFont("Helvetica-Bold", 10)
         c.drawCentredString(centro_x, y - 15, "VIVERE PRUDENTE")
         c.setFont("Helvetica", 9)
         c.drawCentredString(centro_x, y - 28, f"APTO: {unidade}")
-
         cont_col += 1
         x += espaco_x
         if cont_col >= colunas:
             cont_col, x = 0, margem_x
             y -= espaco_y
-
         if y < 2*cm:
             c.showPage()
             y = height - margem_y - tamanho_qr
             x = margem_x
             cont_col = 0
-
     c.save()
     if os.name == 'nt':
         os.startfile(nome_pdf)
     return nome_pdf
 
 
-for row in dados:
+def gerar_relatorio_consumo(dados):
+    """Função que orquestra a criação do relatório mensal."""
+    caminho_pdf = preparar_caminho_pdf()
+    c = canvas.Canvas(caminho_pdf, pagesize=A4)
+    width, height = A4
+    y = desenhar_cabecalho(c, height - 2*cm)
+
+    soma_total = 0
+    cont_unidades = 0
+    ref_data_ant = ""
+    ref_data_atu = ""
+
+    for row in dados:
         unid = str(row[0])
         try:
             atu = float(row[1]) if row[1] is not None else 0.0
             ant = float(row[2]) if row[2] is not None else 0.0
-        except: atu, ant = 0.0, 0.0
+        except:
+            atu, ant = 0.0, 0.0
 
         consumo = max(0, atu - ant)
         soma_total += consumo
-        if row[1] is not None: cont_unidades += 1
+        if row[1] is not None:
+            cont_unidades += 1
 
         txt_col_ant, ref_data_ant = formatar_celula_data(
             ant, row[4], ref_data_ant)
@@ -138,23 +136,25 @@ for row in dados:
         c.setFont("Helvetica-Bold", 9)
         c.drawString(16.0*cm, y, f"{consumo:8.2f} m³")
 
-        # --- AJUSTE AQUI: Controle de espaço mais inteligente ---
         y -= 0.5*cm
-
-        # Só pula página se faltar menos de 2.5cm e NÃO for o final (Lazer/Geral)
-        if y < 2.5*cm and unid not in ['11', '12']:
+        # Controle de página inteligente (Trava no 11, 12 e áreas comuns)
+        if y < 2.5*cm and unid not in ['11', '12', 'LAZER', 'GERAL']:
             c.showPage()
             y = desenhar_cabecalho(c, height - 2*cm)
             ref_data_ant = ref_data_atu = ""
 
-    # --- AJUSTE NO FINAL DO DOCUMENTO ---
-    y -= 0.2*cm # Espaço antes da linha final
-    c.line(1.5*cm, y, 19.5*cm, y) # Linha de fechamento única
-    
+    # Finalização do Documento
+    y -= 0.3*cm
+    c.line(1.5*cm, y, 19.5*cm, y)
     c.setFont("Helvetica-Bold", 10)
     media = soma_total / cont_unidades if cont_unidades > 0 else 0
-    # Posiciona os totais logo abaixo da linha
-    c.drawString(1.5*cm, y - 0.6*cm, f"TOTAL: {soma_total:.2f} m³ | MÉDIA: {media:.2f} m³")
+    c.drawString(1.5*cm, y - 0.6*cm,
+                 f"TOTAL: {soma_total:.2f} m³ | MÉDIA: {media:.2f} m³")
+
+    c.save()
+    if os.name == 'nt':
+        os.startfile(caminho_pdf)
+    return caminho_pdf
 
 # =============================================================================
 # 4. MÓDULO DE INTERFACE (Flet UI)
@@ -162,23 +162,20 @@ for row in dados:
 
 
 def montar_tela_relatorios(page, voltar):
-    estado = {"ultimo_gerado": None}
-
     def btn_gerar_leitura(e):
         leituras = db.buscar_todas_leituras()
         if leituras:
-            estado["ultimo_gerado"] = gerar_relatorio_consumo(leituras)
+            gerar_relatorio_consumo(leituras)
             page.snack_bar = ft.SnackBar(
                 ft.Text("Relatório PDF criado!"), open=True)
             page.update()
 
     def btn_gerar_etiquetas(e):
-        # AQUI ESTAVA O PROBLEMA: AGORA CHAMAMOS A FUNÇÃO DE VERDADE
         unidades = [str(u[0]) for u in db.buscar_todas_leituras()]
         if unidades:
-            caminho = gerar_pdf_etiquetas(unidades)
+            gerar_pdf_etiquetas(unidades)
             page.snack_bar = ft.SnackBar(
-                ft.Text(f"PDF de Etiquetas gerado!"), open=True)
+                ft.Text("PDF de Etiquetas gerado!"), open=True)
             page.update()
 
     return ft.Container(
