@@ -4,7 +4,6 @@ import datetime
 
 def get_connection():
     """Conexão única padronizada para todo o sistema."""
-    # check_same_thread=False é vital para o Flet não travar o banco
     return sqlite3.connect("aguaflow.db", check_same_thread=False)
 
 
@@ -13,7 +12,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 1. Tabela de Leituras Atuais
+    # 1. Tabela de Leituras (NOME PADRONIZADO: leituras)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +25,7 @@ def init_db():
         )
     """)
 
-    # 2. Tabela de Histórico (Backup de meses passados)
+    # 2. Tabela de Histórico
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS historico_consumo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,22 +36,14 @@ def init_db():
         )
     """)
 
-    # Migração automática se a coluna data_anterior não existir
-    try:
-        cursor.execute("ALTER TABLE leituras ADD COLUMN data_anterior TEXT")
-    except sqlite3.OperationalError:
-        pass
-
-    # --- POPULAÇÃO INICIAL (Vivere Prudente: 16º ao 1º andar) ---
+    # População inicial (Vivere Prudente: 16º ao 1º andar)
     cursor.execute("SELECT COUNT(*) FROM leituras")
     if cursor.fetchone()[0] == 0:
-        print("📁 Banco vazio! Gerando unidades do Vivere (16º ao 1º)...")
+        print("📁 Gerando unidades do Vivere (16º ao 1º)...")
         unidades = []
         for andar in range(16, 0, -1):
             for final in range(6, 0, -1):
-                nome_unidade = f"{andar}{final}"
-                unidades.append((nome_unidade, 0.0))
-
+                unidades.append((f"{andar}{final}", 0.0))
         unidades.append(('LAZER', 0.0))
         unidades.append(('GERAL', 0.0))
 
@@ -61,29 +52,28 @@ def init_db():
             unidades
         )
         conn.commit()
-        print(f"✅ {len(unidades)} unidades inseridas com sucesso.")
 
     conn.close()
 
 
-def buscar_todas_leituras():
-    """Busca dados para o reports.py na ordem lógica de leitura."""
+def buscar_proximo_pendente():
+    """Busca a próxima unidade que ainda não foi lida ou pulada."""
     conn = get_connection()
     cursor = conn.cursor()
+    # BUSCA APENAS QUEM ESTÁ COM STATUS 'pendente'
     cursor.execute("""
-        SELECT unidade, leitura_atual, leitura_anterior, data_leitura, data_anterior 
+        SELECT id, unidade, leitura_anterior 
         FROM leituras 
-        ORDER BY 
-            CASE WHEN unidade GLOB '[0-9]*' THEN 0 ELSE 1 END, 
-            CAST(unidade AS INTEGER) DESC
+        WHERE status = 'pendente'
+        ORDER BY id ASC LIMIT 1
     """)
-    dados = cursor.fetchall()
+    res = cursor.fetchone()
     conn.close()
-    return dados
+    return res
 
 
-def registrar_leitura(id_unidade, valor, status="lido"):
-    """Salva a leitura feita pelo usuário ou QR Code."""
+def registrar_leitura(id_unidade, valor, status='concluido'):
+    """Salva a leitura e muda o status para sair da fila de pendentes."""
     conn = get_connection()
     cursor = conn.cursor()
     agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -118,18 +108,11 @@ def resetar_mes_novo():
         return False
 
 
-def buscar_proximo_pendente():
-    """Busca a próxima unidade que o Clodoaldo precisa ler."""
+def buscar_todas_leituras():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT id, unidade, leitura_anterior 
-        FROM leituras 
-        WHERE (leitura_atual IS NULL OR leitura_atual = 0)
-        ORDER BY 
-            CASE WHEN unidade GLOB '[0-9]*' THEN 0 ELSE 1 END, 
-            CAST(unidade AS INTEGER) DESC
-    """)
-    res = cursor.fetchone()
+    cursor.execute(
+        "SELECT unidade, leitura_atual, leitura_anterior, data_leitura, data_anterior FROM leituras")
+    dados = cursor.fetchall()
     conn.close()
-    return res
+    return dados
