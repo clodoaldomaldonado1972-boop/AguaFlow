@@ -1,30 +1,9 @@
 import flet as ft
 import database as db
-import leitor_ocr  # Importa o novo módulo
+import leitor_ocr  # Importa o módulo da câmera
 
 COR_PRIMARIA = "blue"
 COR_ALERTA = "orange"
-
-
-def abrir_camera_ocr(e):
-    leitura = leitor_ocr.capturar_e_ler_hidrometro()
-    if leitura:
-        input_valor.value = leitura
-        page.update()
-        # Chama a lógica de cálculo automaticamente
-        calcular_ao_digitar(None)
-
-
-# No seu layout, adicione o botão:
-ft.Row([
-    input_valor,
-    ft.IconButton(
-        icon=ft.Icons.CAMERA_ALT,
-        icon_color="blue",
-        on_click=abrir_camera_ocr,
-        tooltip="Ler com a câmera"
-    )
-], alignment=ft.MainAxisAlignment.CENTER)
 
 
 def montar_tela(page, voltar_menu):
@@ -44,11 +23,10 @@ def montar_tela(page, voltar_menu):
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 
-    # MAPEAMENTO DE DADOS DA UNIDADE ATUAL
+    # MAPEAMENTO DE DADOS
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
 
-    texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
-                            color=COR_PRIMARIA, weight="bold")
+    # --- FUNÇÕES DE LÓGICA (Dentro do montar_tela) ---
 
     def calcular_ao_digitar(e):
         try:
@@ -65,7 +43,18 @@ def montar_tela(page, voltar_menu):
             texto_consumo.value = "Consumo: ---"
         page.update()
 
-    # CAMPO DE ENTRADA
+    def abrir_camera_ocr(e):
+        leitura = leitor_ocr.capturar_e_ler_hidrometro()
+        if leitura:
+            input_valor.value = leitura
+            calcular_ao_digitar(None)  # Atualiza o cálculo automaticamente
+            page.update()
+
+    # --- CRIAÇÃO DOS COMPONENTES ---
+
+    texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
+                            color=COR_PRIMARIA, weight="bold")
+
     input_valor = ft.TextField(
         label="Leitura Atual (m³)",
         keyboard_type=ft.KeyboardType.NUMBER,
@@ -78,6 +67,17 @@ def montar_tela(page, voltar_menu):
         on_submit=lambda _: salvar_leitura(None)
     )
 
+    # AGORA A LINHA DA CÂMERA FUNCIONA PORQUE input_valor JÁ EXISTE
+    linha_input_ocr = ft.Row([
+        input_valor,
+        ft.IconButton(
+            icon=ft.Icons.CAMERA_ALT,
+            icon_color="blue",
+            on_click=abrir_camera_ocr,
+            tooltip="Ler com a câmera"
+        )
+    ], alignment=ft.MainAxisAlignment.CENTER)
+
     def salvar_leitura(e):
         if not input_valor.value:
             abrir_alerta_pular()
@@ -85,7 +85,6 @@ def montar_tela(page, voltar_menu):
             try:
                 valor = float(input_valor.value.strip().replace(",", "."))
                 db.registrar_leitura(id_db, valor)
-                # Recarrega a tela chamando o voltar_menu com o parâmetro de recarga
                 voltar_menu(recarregar_medicao=True)
             except ValueError:
                 input_valor.error_text = "Número inválido"
@@ -93,14 +92,9 @@ def montar_tela(page, voltar_menu):
 
     def abrir_alerta_pular():
         def confirmar_pulo(e):
-            # FECHA O ALERTA
             dlg.open = False
-            page.update()
-
-            # REGISTRA COMO PULADO NO BANCO (importante para não travar na mesma unidade)
             db.registrar_leitura(id_db, 0.0, status="pulado")
-
-            # RECARREGA A TELA PARA A PRÓXIMA UNIDADE
+            page.update()
             voltar_menu(recarregar_medicao=True)
 
         dlg = ft.AlertDialog(
@@ -116,7 +110,7 @@ def montar_tela(page, voltar_menu):
         dlg.open = True
         page.update()
 
-    # LAYOUT DA TELA
+    # LAYOUT FINAL (Usamos linha_input_ocr em vez de apenas input_valor)
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
@@ -126,7 +120,7 @@ def montar_tela(page, voltar_menu):
                 ft.Text(f"Anterior: {leitura_anterior:.2f} m³",
                         size=18, color="white70"),
                 ft.Divider(color="white10"),
-                input_valor,
+                linha_input_ocr,  # <--- A linha com o botão de câmera
                 texto_consumo,
                 ft.Container(height=20),
                 ft.Row([
