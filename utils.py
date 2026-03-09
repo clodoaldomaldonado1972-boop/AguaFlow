@@ -13,7 +13,7 @@ import flet as ft
 
 def enviar_email_com_pdf(destinatario, caminho_pdf):
     meu_email = "clodoaldomaldonado112@gmail.com"
-    minha_senha = "uhviwhsjjxmcbboh"
+    minha_senha = "uhviwhsjjxmcbboh"  # Senha de App do Google
 
     msg = MIMEMultipart()
     msg['From'] = meu_email
@@ -49,19 +49,17 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
 
 def montar_tela_ajuda(page, voltar):
 
-    # Função que REALMENTE faz o trabalho pesado
     def confirmar_reset(e):
-        dlg.open = False  # Fecha o aviso
+        dlg.open = False
         page.update()
 
-        # Feedback visual imediato
         page.snack_bar = ft.SnackBar(
             ft.Text("Gerando relatório e enviando e-mail..."), open=True)
         page.update()
 
         email_responsavel = "clodoaldomaldonado112@gmail.com"
 
-        # Chama o maestro (gestao_periodos)
+        # Chama a lógica de fechamento de mês
         sucesso = gestao_periodos.finalizar_mes_e_enviar(email_responsavel)
 
         if sucesso:
@@ -69,14 +67,14 @@ def montar_tela_ajuda(page, voltar):
                 ft.Text("Sucesso! Relatório enviado e banco resetado."),
                 bgcolor="green", open=True)
             page.update()
-            voltar()  # Volta para o menu
+            voltar()
         else:
             page.snack_bar = ft.SnackBar(
                 ft.Text("ERRO ao processar. Verifique internet ou permissões."),
                 bgcolor="red", open=True)
             page.update()
 
-    # Criação do Diálogo (AlertDialog)
+    # Diálogo de Confirmação
     dlg = ft.AlertDialog(
         title=ft.Text("Confirmar Reset Mensal?"),
         content=ft.Text("Isso enviará o e-mail e limpará as medições atuais."),
@@ -88,43 +86,47 @@ def montar_tela_ajuda(page, voltar):
         ]
     )
 
-    # Função apenas para abrir o diálogo
-
     def abrir_alerta(e):
-        # Limpa overlays antigos e adiciona o novo diálogo
         page.overlay.append(dlg)
         dlg.open = True
         page.update()
 
+    # Retorno do Container principal da interface
     return ft.Container(
-        expand=True, bgcolor="#1A1C1E", padding=30,
-        content=ft.Column([
-            ft.Text("MANUAL E CONFIGURAÇÕES", size=28,
-                    color="white", weight="bold"),
-            ft.Divider(color="white10"),
-            ft.Markdown("""
+        expand=True,
+        bgcolor="#1A1C1E",
+        padding=30,
+        content=ft.Column(
+            controls=[
+                ft.Text("MANUAL E CONFIGURAÇÕES", size=28,
+                        color="white", weight="bold"),
+                ft.Divider(color="white10"),
+                ft.Markdown("""
 ### 1. Medição
 O sistema segue a ordem do 16º ao 1º andar.
 ### 2. Relatórios
 PDFs gerados com histórico de consumo.
 ### 3. Virada de Mês
 O envio agora é automático ao clicar no botão abaixo.
-            """),
-            ft.Container(height=20),
-            ft.FilledButton("ENVIAR RELATÓRIO E INICIAR NOVO MÊS",
-                icon=ft.Icons.SEND_AND_ARCHIVE,
-                bgcolor="red",
-                color="white",
-                on_click=abrir_alerta,  # AGORA CHAMA A FUNÇÃO CERTA
-                width=400
-            ),
-                "ENVIAR RELATÓRIO E INICIAR NOVO MÊS",
-                icon=ft.Icons.SEND_AND_ARCHIVE,
-                bgcolor="red",
-                color="white",
-                on_click=abrir_alerta,  # AGORA CHAMA A FUNÇÃO CERTA
-                width=400
-            ),
-            ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
-        ], scroll=ft.ScrollMode.AUTO, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+                """),
+                ft.Container(height=20),
+
+                # Botão de Ação Crítica
+                ft.FilledButton(
+                    "ENVIAR RELATÓRIO E INICIAR NOVO MÊS",
+                    icon=ft.Icons.SEND_AND_ARCHIVE,
+                    style=ft.ButtonStyle(bgcolor="red", color="white"),
+                    on_click=abrir_alerta,
+                    width=400
+                ),
+
+                ft.TextButton(
+                    "Voltar ao Menu",
+                    on_click=lambda _: voltar(),
+                    style=ft.ButtonStyle(color="blue")
+                )
+            ],
+            scroll=ft.ScrollMode.AUTO,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        )
     )
