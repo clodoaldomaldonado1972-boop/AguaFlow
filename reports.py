@@ -205,8 +205,13 @@ def montar_tela_relatorios(page, voltar):
                 style=ft.ButtonStyle(bgcolor="blue800", color="white")
             ),
 
-            ft.Container(height=20),
-            ft.TextButton("Sair dos Relatórios",
-                          on_click=lambda _: voltar(), color="white70")
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            # Mude DISSO:
+    ft.TextButton("Sair dos Relatórios",
+                  on_click=lambda _: voltar(), color="white70")
+
+    # Para ISSO (o jeito certo agora):
+    ft.TextButton(
+       "Sair dos Relatórios",
+       on_click=lambda _: voltar(),
+       style=ft.ButtonStyle(color="white70")  # A cor agora vai aqui dentro!
     )
