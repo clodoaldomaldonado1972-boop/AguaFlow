@@ -126,4 +126,4 @@ def main(page: ft.Page):
 if __name__ == "__main__":
     from datetime import datetime
     os.environ["FLET_RENDERER"] = "skia"
-    ft.run(target=main)
+    ft.run(main)  # Apenas remova o "target="
