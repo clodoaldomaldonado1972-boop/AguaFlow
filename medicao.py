@@ -1,16 +1,15 @@
 import flet as ft
 import database as db
 
-# Caso não queira depender do estilos.py, definimos aqui:
 COR_PRIMARIA = "blue"
 COR_ALERTA = "orange"
 
 
 def montar_tela(page, voltar_menu):
-    # 1. BUSCA A PRÓXIMA UNIDADE NO BANCO (Ordem 166 -> 11)
+    # 1. BUSCA A PRÓXIMA UNIDADE NO BANCO
     unidade = db.buscar_proximo_pendente()
 
-    # 2. TELA DE CONCLUSÃO (Se não houver mais nada para ler)
+    # 2. TELA DE CONCLUSÃO
     if not unidade:
         return ft.Container(
             expand=True, bgcolor="#1A1C1E", alignment=ft.Alignment(0, 0),
@@ -23,7 +22,7 @@ def montar_tela(page, voltar_menu):
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 
-    # 3. MAPEAMENTO DE DADOS
+    # MAPEAMENTO DE DADOS DA UNIDADE ATUAL
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
 
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
@@ -33,13 +32,10 @@ def montar_tela(page, voltar_menu):
         try:
             input_valor.error_text = ""
             if input_valor.value:
-                # Aceita ponto ou vírgula
                 val_limpo = input_valor.value.replace(",", ".")
                 atual = float(val_limpo)
                 consumo = atual - leitura_anterior
-
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
-                # Alerta se o consumo for fora do normal
                 texto_consumo.color = COR_ALERTA if consumo > 20 or consumo < 0 else COR_PRIMARIA
             else:
                 texto_consumo.value = "Consumo: 0.00 m³"
@@ -47,14 +43,13 @@ def montar_tela(page, voltar_menu):
             texto_consumo.value = "Consumo: ---"
         page.update()
 
-    # 4. CAMPO DE ENTRADA
+    # CAMPO DE ENTRADA
     input_valor = ft.TextField(
         label="Leitura Atual (m³)",
         keyboard_type=ft.KeyboardType.NUMBER,
         autofocus=True,
-        max_length=9,  # Aumentado para suportar decimais
+        max_length=9,
         color="white",
-        # Regex atualizado para permitir números decimais (ponto ou vírgula)
         input_filter=ft.InputFilter(
             allow=True, regex_string=r"^[0-9]*[.,]?[0-9]*$", replacement_string=""),
         on_change=calcular_ao_digitar,
@@ -68,7 +63,7 @@ def montar_tela(page, voltar_menu):
             try:
                 valor = float(input_valor.value.strip().replace(",", "."))
                 db.registrar_leitura(id_db, valor)
-                # O parâmetro recarregar_medicao=True faz o main.py chamar esta tela de novo
+                # Recarrega a tela chamando o voltar_menu com o parâmetro de recarga
                 voltar_menu(recarregar_medicao=True)
             except ValueError:
                 input_valor.error_text = "Número inválido"
@@ -76,9 +71,14 @@ def montar_tela(page, voltar_menu):
 
     def abrir_alerta_pular():
         def confirmar_pulo(e):
-            db.registrar_leitura(id_db, 0.0, status="pulado")
+            # FECHA O ALERTA
             dlg.open = False
             page.update()
+
+            # REGISTRA COMO PULADO NO BANCO (importante para não travar na mesma unidade)
+            db.registrar_leitura(id_db, 0.0, status="pulado")
+
+            # RECARREGA A TELA PARA A PRÓXIMA UNIDADE
             voltar_menu(recarregar_medicao=True)
 
         dlg = ft.AlertDialog(
@@ -90,11 +90,11 @@ def montar_tela(page, voltar_menu):
                     setattr(dlg, "open", False), page.update()))
             ]
         )
-        page.overlay.append(dlg)  # Recomendado no Flet moderno usar overlay
+        page.overlay.append(dlg)
         dlg.open = True
         page.update()
 
-    # 6. LAYOUT FINAL
+    # LAYOUT DA TELA
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
