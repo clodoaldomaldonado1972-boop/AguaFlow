@@ -115,27 +115,16 @@ def gerar_pdf_etiquetas(lista_unidades):
     return nome_pdf
 
 
-def gerar_relatorio_consumo(dados):
-    caminho_pdf = preparar_caminho_pdf()
-    c = canvas.Canvas(caminho_pdf, pagesize=A4)
-    width, height = A4
-    y = desenhar_cabecalho(c, height - 2*cm)
-    soma_total = 0
-    cont_unidades = 0
-    ref_data_ant = ref_data_atu = ""
-
-    for row in dados:
+for row in dados:
         unid = str(row[0])
         try:
             atu = float(row[1]) if row[1] is not None else 0.0
             ant = float(row[2]) if row[2] is not None else 0.0
-        except:
-            atu, ant = 0.0, 0.0
+        except: atu, ant = 0.0, 0.0
 
         consumo = max(0, atu - ant)
         soma_total += consumo
-        if row[1] is not None:
-            cont_unidades += 1
+        if row[1] is not None: cont_unidades += 1
 
         txt_col_ant, ref_data_ant = formatar_celula_data(
             ant, row[4], ref_data_ant)
@@ -149,21 +138,23 @@ def gerar_relatorio_consumo(dados):
         c.setFont("Helvetica-Bold", 9)
         c.drawString(16.0*cm, y, f"{consumo:8.2f} m³")
 
+        # --- AJUSTE AQUI: Controle de espaço mais inteligente ---
         y -= 0.5*cm
-        if y < 3*cm:
+
+        # Só pula página se faltar menos de 2.5cm e NÃO for o final (Lazer/Geral)
+        if y < 2.5*cm and unid not in ['11', '12']:
             c.showPage()
             y = desenhar_cabecalho(c, height - 2*cm)
             ref_data_ant = ref_data_atu = ""
 
-    c.line(1.5*cm, y + 0.3*cm, 19.5*cm, y + 0.3*cm)
+    # --- AJUSTE NO FINAL DO DOCUMENTO ---
+    y -= 0.2*cm # Espaço antes da linha final
+    c.line(1.5*cm, y, 19.5*cm, y) # Linha de fechamento única
+    
     c.setFont("Helvetica-Bold", 10)
     media = soma_total / cont_unidades if cont_unidades > 0 else 0
-    c.drawString(1.5*cm, y - 0.5*cm,
-                 f"TOTAL: {soma_total:.2f} m³ | MÉDIA: {media:.2f} m³")
-    c.save()
-    if os.name == 'nt':
-        os.startfile(caminho_pdf)
-    return caminho_pdf
+    # Posiciona os totais logo abaixo da linha
+    c.drawString(1.5*cm, y - 0.6*cm, f"TOTAL: {soma_total:.2f} m³ | MÉDIA: {media:.2f} m³")
 
 # =============================================================================
 # 4. MÓDULO DE INTERFACE (Flet UI)
