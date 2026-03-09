@@ -7,9 +7,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import gestao_periodos
 import flet as ft
-import gerador_pdf  # <--- IMPORTANDO O NOVO MÓDULO DE PDF
 
-# --- 1. FUNÇÃO DE E-MAIL ---
+# --- 1. FUNÇÃO DE E-MAIL (SMTP) ---
 
 
 def enviar_email_com_pdf(destinatario, caminho_pdf):
@@ -43,38 +42,53 @@ def enviar_email_com_pdf(destinatario, caminho_pdf):
         print(f"Erro no e-mail: {e}")
         return False
 
-# --- 2. INTERFACE DE AJUDA ---
+# --- 2. INTERFACE DE AJUDA E CONFIGURAÇÕES ---
 
 
 def montar_tela_ajuda(page, voltar):
-    def acao_reset(e):
-        def confirmar_reset(e):
-            email_responsavel = "clodoaldomaldonado112@gmail.com"
-            # O gestao_periodos deve chamar gerador_pdf.gerar_relatorio_consumo internamente
-            sucesso = gestao_periodos.finalizar_mes_e_enviar(email_responsavel)
 
-            if sucesso:
-                dlg.open = False
-                page.snack_bar = ft.SnackBar(ft.Text(
-                    "Sucesso! Relatório enviado e novo mês iniciado."), bgcolor="green", open=True)
-                page.update()
-                voltar()
-            else:
-                page.snack_bar = ft.SnackBar(ft.Text(
-                    "ERRO: Verifique sua senha de e-mail ou internet."), bgcolor="red", open=True)
-                page.update()
+    def confirmar_reset(e):
+        # Fecha o diálogo antes de processar
+        dlg.open = False
+        page.update()
 
-        dlg = ft.AlertDialog(
-            title=ft.Text("Confirmar Reset Mensal?"),
-            content=ft.Text(
-                "O sistema enviará o PDF ao escritório e preparará o novo mês."),
-            actions=[
-                ft.TextButton("Confirmar", on_click=confirmar_reset,
-                              style=ft.ButtonStyle(color="red")),
-                ft.TextButton("Cancelar", on_click=lambda _: (
-                    setattr(dlg, "open", False), page.update()))
-            ]
-        )
+        # Feedback visual de carregamento
+        page.snack_bar = ft.SnackBar(
+            ft.Text("Processando fechamento mensal... Aguarde."), open=True)
+        page.update()
+
+        email_responsavel = "clodoaldomaldonado112@gmail.com"
+
+        # O gestao_periodos orquestra tudo: gera PDF -> envia e-mail -> reseta banco
+        sucesso = gestao_periodos.finalizar_mes_e_enviar(email_responsavel)
+
+        if sucesso:
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Sucesso! Relatório enviado e novo mês iniciado."),
+                bgcolor="green", open=True)
+            page.update()
+            voltar()  # Retorna ao menu principal
+        else:
+            page.snack_bar = ft.SnackBar(
+                ft.Text(
+                    "ERRO: Falha no processo. Verifique internet ou senha de app."),
+                bgcolor="red", open=True)
+            page.update()
+
+    # Criação do Diálogo de Confirmação
+    dlg = ft.AlertDialog(
+        title=ft.Text("Confirmar Reset Mensal?"),
+        content=ft.Text(
+            "O sistema enviará o PDF ao escritório e preparará o novo mês."),
+        actions=[
+            ft.TextButton("Confirmar", on_click=confirmar_reset,
+                          style=ft.ButtonStyle(color="red")),
+            ft.TextButton("Cancelar", on_click=lambda _: (
+                setattr(dlg, "open", False), page.update()))
+        ]
+    )
+
+    def abrir_alerta(e):
         page.dialog = dlg
         dlg.open = True
         page.update()
@@ -99,7 +113,7 @@ O envio agora é automático ao clicar no botão abaixo.
                 icon=ft.Icons.SEND_AND_ARCHIVE,
                 bgcolor="red",
                 color="white",
-                on_click=acao_reset,
+                on_click=abrir_alerta,  # Chama a abertura do diálogo
                 width=400
             ),
             ft.TextButton("Voltar ao Menu", on_click=lambda _: voltar())
