@@ -2,6 +2,14 @@ import database as db
 import utils
 import gerador_pdf
 import utils  # Importa o utils para usar a função de e-mail que você postou
+import backup  # <--- Importa o novo arquivo
+
+
+def finalizar_mes_e_enviar(email):
+    # Antes de qualquer coisa, garante a cópia de segurança
+    if backup.executar_backup_seguranca():
+        # ... aqui continua sua lógica de gerar PDF, enviar e-mail e resetar ...
+        pass
 
 
 def finalizar_mes_e_enviar(email):
