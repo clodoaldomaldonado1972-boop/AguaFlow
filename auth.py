@@ -4,7 +4,7 @@ import flet as ft
 def validar_login(usuario, senha):
     u = usuario.strip().lower()
     s = senha.strip()
-    if u == "admin" and s == "ADMIN123":
+    if u == "admin" and s.upper() == "ADMIN123":
         return "admin"
     if u == "leitor" and s == "1234":
         return "leitor"
