@@ -1,28 +1,23 @@
 import database as db
 import utils
+import gerador_pdf
+import utils  # Importa o utils para usar a função de e-mail que você postou
 
 
-def finalizar_mes_e_enviar(email_destino):
+def finalizar_mes_e_enviar(email):
     try:
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT unidade, leitura_atual, leitura_anterior, data_leitura FROM leituras WHERE status = 'lido'")
-        dados = cursor.fetchall()
-        conn.close()
+        dados = db.buscar_todas_leituras()
+        # Gera o PDF usando o módulo novo
+        caminho = gerador_pdf.gerar_relatorio_consumo(dados)
 
-        if not dados:
-            return False
+        # Envia usando a função que você me mostrou no utils.py
+        enviou = utils.enviar_email_com_pdf(email, caminho)
 
-        # Gera o PDF do relatório
-        pdf = utils.gerar_relatorio_leituras_pdf(dados)
-
-        # Só reseta o banco se o e-mail for enviado
-        if utils.enviar_email_com_pdf(email_destino, pdf):
-            return resetar_banco_para_novo_mes()
+        if enviou:
+            db.resetar_mes_novo()  # Função que limpa 'leituras' e move atual para anterior
+            return True
         return False
-    except Exception as e:
-        print(f"Erro na gestão: {e}")
+    except:
         return False
 
 
