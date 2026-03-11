@@ -8,4 +8,4 @@ print(f"LINK PARA O CELULAR: {url}")
 print("-" * 30)
 
 # Inicia o Flet no modo web na porta 8080
-os.system("flet run --web --port 8080")
+os.system(r".\.venv\Scripts\flet.exe run --web --port 8080")
