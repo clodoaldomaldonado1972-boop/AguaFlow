@@ -7,6 +7,19 @@ import utils
 import medicao
 import database as db
 import asyncio
+import audio_utils
+
+async def main(page: ft.Page):
+    # ... configurações de página ...
+    
+    # Carrega os sons globais
+    som_alerta, som_sucesso = audio_utils.adicionar_sons(page)
+    
+    # Compartilha os objetos de áudio com as telas
+    page.session.set("som_alerta", som_alerta)
+    page.session.set("som_sucesso", som_sucesso)
+    
+    # ... resto do código ...
 
 # 1. INICIALIZAÇÃO SEGURA
 
