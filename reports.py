@@ -13,6 +13,7 @@ import database as db
 
 
 def preparar_caminho_pdf():
+    """Cria a pasta do mês e define o nome do arquivo com timestamp."""
     pasta_mensal = datetime.now().strftime("Relatorios_%Y_%m")
     if not os.path.exists(pasta_mensal):
         os.makedirs(pasta_mensal)
@@ -21,6 +22,7 @@ def preparar_caminho_pdf():
 
 
 def buscar_imagem_qr(unidade):
+    """Gera o QR Code da unidade caso ele ainda não exista."""
     if not os.path.exists("qrcodes"):
         os.makedirs("qrcodes")
     caminho = f"qrcodes/{str(unidade)}.png"
@@ -35,9 +37,11 @@ def buscar_imagem_qr(unidade):
 
 
 def desenhar_cabecalho(canvas_obj, y_pos):
+    """Desenha o título e o cabeçalho da tabela no PDF."""
     data_hoje = datetime.now().strftime("%d/%m/%Y")
     canvas_obj.setFont("Helvetica-Bold", 14)
-    canvas_obj.drawString(1.5*cm, y_pos, f"Agua Flow - Vivere - {data_hoje}")
+    canvas_obj.drawString(
+        1.5*cm, y_pos, f"AguaFlow - Vivere Prudente - {data_hoje}")
 
     y_pos -= 0.8*cm
     canvas_obj.setFont("Helvetica-Bold", 9)
@@ -49,21 +53,13 @@ def desenhar_cabecalho(canvas_obj, y_pos):
     canvas_obj.line(1.5*cm, y_pos - 0.2*cm, 19.5*cm, y_pos - 0.2*cm)
     return y_pos - 0.6*cm
 
-
-def formatar_celula_data(valor, data_bruta, data_referencia):
-    data_limpa = data_bruta[:10] if data_bruta else "--/--/--"
-    texto_formatado = f"{valor:8.2f}"
-    if data_limpa != data_referencia:
-        texto_formatado += f" ({data_limpa})"
-        return texto_formatado, data_limpa
-    return texto_formatado, data_referencia
-
 # =============================================================================
-# 3. MÓDULO DE PROCESSAMENTO (Orquestração)
+# 3. MÓDULO DE PROCESSAMENTO (Orquestração de Dados)
 # =============================================================================
 
 
 def gerar_pdf_etiquetas(lista_unidades):
+    """Gera uma folha A4 com etiquetas QR Code para colagem nos hidrômetros."""
     nome_pdf = "Etiquetas_QR_Vivere.pdf"
     c = canvas.Canvas(nome_pdf, pagesize=A4)
     width, height = A4
@@ -80,9 +76,10 @@ def gerar_pdf_etiquetas(lista_unidades):
                     width=tamanho_qr, height=tamanho_qr)
         centro_x = x + 1.2*cm + (tamanho_qr/2)
         c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(centro_x, y - 15, "VIVERE PRUDENTE")
+        c.drawCentredString(centro_x, y - 15, "AGUAFLOW")
         c.setFont("Helvetica", 9)
         c.drawCentredString(centro_x, y - 28, f"APTO: {unidade}")
+
         cont_col += 1
         x += espaco_x
         if cont_col >= colunas:
@@ -100,7 +97,7 @@ def gerar_pdf_etiquetas(lista_unidades):
 
 
 def gerar_relatorio_consumo(dados):
-    """Função que orquestra a criação do relatório mensal."""
+    """Cria o relatório consolidado de consumo mensal."""
     caminho_pdf = preparar_caminho_pdf()
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     width, height = A4
@@ -108,48 +105,47 @@ def gerar_relatorio_consumo(dados):
 
     soma_total = 0
     cont_unidades = 0
-    ref_data_ant = ""
-    ref_data_atu = ""
 
     for row in dados:
         unid = str(row[0])
-        try:
-            atu = float(row[1]) if row[1] is not None else 0.0
-            ant = float(row[2]) if row[2] is not None else 0.0
-        except:
-            atu, ant = 0.0, 0.0
+        atu = float(row[1]) if row[1] is not None else 0.0
+        ant = float(row[2]) if row[2] is not None else 0.0
+        data_atu = row[3][:10] if row[3] else "---"
 
         consumo = max(0, atu - ant)
         soma_total += consumo
-        if row[1] is not None:
+        if row[1] is not None and row[1] > 0:
             cont_unidades += 1
 
-        txt_col_ant, ref_data_ant = formatar_celula_data(
-            ant, row[4], ref_data_ant)
-        txt_col_atu, ref_data_atu = formatar_celula_data(
-            atu, row[3], ref_data_atu)
-
+        # Lógica visual: Se for 0.0, destaca que não houve leitura (Esquecido/Vazio)
         c.setFont("Helvetica", 9)
+        if atu == 0:
+            c.setFillColorRGB(0.7, 0, 0)  # Texto em vermelho para valor zero
+        else:
+            c.setFillColorRGB(0, 0, 0)
+
         c.drawString(1.5*cm, y, unid)
-        c.drawString(4.0*cm, y, txt_col_ant)
-        c.drawString(10.0*cm, y, txt_col_atu)
+        c.drawString(4.0*cm, y, f"{ant:8.2f}")
+        c.drawString(10.0*cm, y, f"{atu:8.2f} ({data_atu})")
+
         c.setFont("Helvetica-Bold", 9)
         c.drawString(16.0*cm, y, f"{consumo:8.2f} m³")
 
         y -= 0.5*cm
-        # Controle de página inteligente (Trava no 11, 12 e áreas comuns)
-        if y < 2.5*cm and unid not in ['11', '12', 'LAZER', 'GERAL']:
+        # Reseta cor para o próximo
+        c.setFillColorRGB(0, 0, 0)
+
+        if y < 2.5*cm:
             c.showPage()
             y = desenhar_cabecalho(c, height - 2*cm)
-            ref_data_ant = ref_data_atu = ""
 
-    # Finalização do Documento
-    y -= 0.3*cm
+    # Rodapé com Totais
+    y -= 0.5*cm
     c.line(1.5*cm, y, 19.5*cm, y)
     c.setFont("Helvetica-Bold", 10)
     media = soma_total / cont_unidades if cont_unidades > 0 else 0
-    c.drawString(1.5*cm, y - 0.6*cm,
-                 f"TOTAL: {soma_total:.2f} m³ | MÉDIA: {media:.2f} m³")
+    c.drawString(1.5*cm, y - 0.7*cm, f"TOTAL CONSUMO: {soma_total:.2f} m³")
+    c.drawString(10.0*cm, y - 0.7*cm, f"MÉDIA POR UNIDADE: {media:.2f} m³")
 
     c.save()
     if os.name == 'nt':
@@ -171,49 +167,29 @@ def montar_tela_relatorios(page, voltar):
             page.update()
 
     def btn_gerar_etiquetas(e):
-        unidades = [str(u[0]) for u in db.buscar_todas_leituras()]
+        leituras = db.buscar_todas_leituras()
+        unidades = [str(u[0]) for u in leituras]
         if unidades:
             gerar_pdf_etiquetas(unidades)
             page.snack_bar = ft.SnackBar(
-                ft.Text("PDF de Etiquetas gerado!"), open=True)
+                ft.Text("Etiquetas QR geradas!"), open=True)
             page.update()
 
     return ft.Container(
-        expand=True,
-        bgcolor="#1A1C1E",
-        padding=30,
+        expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
             controls=[
+                ft.Icon(ft.Icons.ASSESSMENT, color="blue", size=50),
                 ft.Text("Painel de Relatórios", size=28,
                         color="white", weight="bold"),
                 ft.Divider(color="white10"),
                 ft.Container(height=20),
-
-                # Botão 1: Relatório Mensal
-                ft.FilledButton(
-                    "GERAR RELATÓRIO MENSAL",
-                    icon=ft.Icons.PICTURE_AS_PDF,
-                    on_click=btn_gerar_leitura,
-                    width=350,
-                    height=50
-                ),
-
-                # Botão 2: Etiquetas QR
-                ft.FilledButton(
-                    "GERAR ETIQUETAS QR",
-                    icon=ft.Icons.QR_CODE,
-                    on_click=btn_gerar_etiquetas,
-                    width=350,
-                    height=50,
-                    style=ft.ButtonStyle(color="white")
-                ),
-
-                # Botão Sair (Corrigido com Style)
-                ft.TextButton(
-                    "Sair dos Relatórios",
-                    on_click=lambda _: voltar(),
-                    style=ft.ButtonStyle(color="white70")
-                )
+                ft.FilledButton("GERAR RELATÓRIO MENSAL", icon=ft.Icons.PICTURE_AS_PDF,
+                                on_click=btn_gerar_leitura, width=350, height=50),
+                ft.FilledButton("GERAR ETIQUETAS QR", icon=ft.Icons.QR_CODE,
+                                on_click=btn_gerar_etiquetas, width=350, height=50),
+                ft.TextButton("Sair", on_click=lambda _: voltar(),
+                              style=ft.ButtonStyle(color="white70"))
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=20
