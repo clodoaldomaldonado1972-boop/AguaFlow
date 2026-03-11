@@ -48,9 +48,10 @@ def montar_tela(page, voltar_menu):
 
             page.update()
 
-    # Configura o seletor de arquivos/câmera
-    seletor_foto = ft.FilePicker(on_result=ao_selecionar_arquivo)
-
+    # Mude esta parte no seu medicao.py
+    seletor_foto = ft.FilePicker()
+    seletor_foto.on_result = ao_selecionar_arquivo # Atribuição direta para evitar erro de __init__
+    
     if seletor_foto not in page.overlay:
         page.overlay.append(seletor_foto)
 
