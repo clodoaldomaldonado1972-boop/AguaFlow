@@ -98,10 +98,19 @@ async def montar_tela(page, voltar_menu):
 
     async def abrir_alerta_pular(e):
         async def confirmar_pulo(ev):
+            # 1. Fecha o diálogo visualmente
             dlg.open = False
-            db.registrar_leitura(id_db, 0.0, status="pulado")
             page.update()
-            # ESSENCIAL: O await deve estar aqui dentro, após confirmar
+
+            # 2. Registra no banco
+            db.registrar_leitura(id_db, 0.0, status="pulado")
+
+            # 3. LIMPEZA CRÍTICA: Remove o diálogo do overlay antes de sair
+            if dlg in page.overlay:
+                page.overlay.remove(dlg)
+            page.update()
+
+            # 4. Agora sim, muda de tela com segurança
             await voltar_menu(recarregar_medicao=True)
 
         dlg = ft.AlertDialog(
@@ -109,10 +118,11 @@ async def montar_tela(page, voltar_menu):
             content=ft.Text("Deseja registrar esta unidade como 'pulada'?"),
             actions=[
                 ft.TextButton("Sim", on_click=confirmar_pulo),
-                ft.TextButton("Não", on_click=lambda _: setattr(
-                    dlg, "open", False) or page.update())
+                ft.TextButton("Não", on_click=lambda _: (
+                    setattr(dlg, "open", False), page.update()))
             ]
         )
+
         page.overlay.append(dlg)
         dlg.open = True
         page.update()
