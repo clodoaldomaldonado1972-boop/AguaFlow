@@ -1,4 +1,6 @@
+from datetime import datetime
 import flet as ft
+# ... os outros imports que você já tem (reports, auth, etc.)
 import os
 import auth
 import reports
@@ -124,6 +126,6 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    from datetime import datetime
-    os.environ["FLET_RENDERER"] = "skia"
-    ft.run(main, port=8550, host="0.0.0.0")
+    import flet as ft
+    # Adicionamos o upload_dir apenas se você for salvar fotos temporárias
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080, host="0.0.0.0")
