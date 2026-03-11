@@ -12,7 +12,6 @@ def validar_login(usuario, senha):
 
 
 def criar_tela_login(page, ao_logar_sucesso):
-    # 1. Definição dos campos dentro da função
     user_f = ft.TextField(
         label="Usuário",
         prefix_icon=ft.Icons.PERSON,
@@ -32,19 +31,19 @@ def criar_tela_login(page, ao_logar_sucesso):
         width=300
     )
 
-    # 2. Função de clique interna
-    def entrar_clique(e):
+    # O PULO DO GATO: Transformamos a função de clique em ASYNC
+    async def entrar_clique(e):
         perfil = validar_login(user_f.value, pass_f.value)
         if perfil:
-            # ESTA LINHA É A PONTE: Ela chama o 'navegar_menu' do main.py
-            ao_logar_sucesso(perfil) 
+            # ESSENCIAL: Usamos o 'await' para chamar o navegar_menu do main.py
+            await ao_logar_sucesso(perfil)
         else:
-            # Caso erre a senha, o celular deve mostrar isso:
-            page.snack_bar = ft.SnackBar(ft.Text("Dados incorretos!"), bgcolor="red")
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Dados incorretos!"), bgcolor="red")
             page.snack_bar.open = True
+            # No modo async, o page.update() comum resolve
             page.update()
 
-    # 3. Retorno da interface organizada
     return ft.Container(
         expand=True,
         content=ft.Column(
@@ -58,7 +57,7 @@ def criar_tela_login(page, ao_logar_sucesso):
                 ft.Container(height=10),
                 ft.FilledButton(
                     "ENTRAR NO SISTEMA",
-                    on_click=entrar_clique,
+                    on_click=entrar_clique,  # O Flet gerencia o clique async automaticamente
                     width=300,
                     height=50
                 ),
