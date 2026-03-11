@@ -8,6 +8,8 @@ import medicao
 import database as db
 
 # 1. INICIALIZAÇÃO (Deve vir antes do main para o Python reconhecê-la)
+
+
 def inicializar_sistema():
     """Garante que o banco e pastas existam antes do app carregar."""
     db.init_db()
@@ -17,6 +19,8 @@ def inicializar_sistema():
     print("✅ SISTEMA AGUA FLOW CONECTADO E PRONTO!")
 
 # 2. APP PRINCIPAL (O MAESTRO)
+
+
 async def main(page: ft.Page):
     # Configurações de Interface
     page.title = "Agua Flow - Vivere Prudente"
@@ -26,21 +30,21 @@ async def main(page: ft.Page):
     page.window_width = 450
     page.window_height = 800
     page.window_resizable = False
-    
+
     inicializar_sistema()
 
     # DEFINIÇÃO DO PALCO (Onde as telas aparecem)
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
 
     async def carregar_modulo(conteudo):
-        """Limpa o overlay e troca o conteúdo do palco."""
+        """Troca o conteúdo do palco com suporte assíncrono."""
         page.overlay.clear()
-        palco.content = conteudo 
-        await page.update_async()
+        palco.content = conteudo
+        page.update()  # Remova o _async se der erro, o update simples resolve em funções asynccls
 
     async def navegar_menu(perfil):
         """Gerencia o menu principal após o login."""
-        
+
         async def voltar_e_recarregar(recarregar_medicao=False):
             """Lógica de fluxo contínuo para as medições do Grupo 8."""
             if recarregar_medicao:
@@ -52,13 +56,16 @@ async def main(page: ft.Page):
         # Botões do Menu Principal
         botoes = ft.Column([
             ft.Icon(ft.Icons.WATER_DROP, color="blue", size=60),
-            ft.Text(f"OPERADOR: {perfil.upper()}", color="white", weight="bold"),
+            ft.Text(f"OPERADOR: {perfil.upper()}",
+                    color="white", weight="bold"),
             ft.FilledButton(
-                "INICIAR LEITURA", 
+                "INICIAR LEITURA",
                 icon=ft.Icons.QR_CODE_SCANNER,
-                on_click=lambda _: page.run_task(lambda: voltar_e_recarregar(True))
+                on_click=lambda _: page.run_task(
+                    lambda: voltar_e_recarregar(True))
             ),
-            ft.TextButton("Sair", on_click=lambda _: page.run_task(iniciar_app))
+            ft.TextButton(
+                "Sair", on_click=lambda _: page.run_task(iniciar_app))
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
 
         await carregar_modulo(botoes)
@@ -68,7 +75,7 @@ async def main(page: ft.Page):
         await carregar_modulo(auth.criar_tela_login(page, navegar_menu))
 
     # Adiciona o palco vazio e inicia o login
-    page.add(palco) 
+    page.add(palco)
     await iniciar_app()
 
 # 3. EXECUÇÃO EM MODO SERVIDOR
