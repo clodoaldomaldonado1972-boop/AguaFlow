@@ -23,73 +23,39 @@ async def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
+    # =============================================================================
+# 1. INICIALIZAÇÃO (DEVE VIR ANTES DO MAIN)
+# =============================================================================
+
+
+def inicializar_sistema():
+    """Garante que o banco e pastas existam antes do app carregar."""
+    db.init_db()
+    pasta_mensal = datetime.now().strftime("Relatorios_%Y_%m")
+    if not os.path.exists(pasta_mensal):
+        os.makedirs(pasta_mensal)
+    print("✅ SISTEMA AGUA FLOW CONECTADO E PRONTO!")
+
+# =============================================================================
+# 2. APP PRINCIPAL
+# =============================================================================
+
+
+async def main(page: ft.Page):
+    # ... (todo o seu código da função main aqui dentro) ...
+
+    # Agora chamamos a inicialização que já foi definida acima
     inicializar_sistema()
 
-    palco = ft.Container(expand=True, bgcolor="#1A1C1E")
-
-    # 2. carregar_modulo agora precisa ser ASYNC para suportar o conteúdo vindo da câmera
-    async def carregar_modulo(conteudo):
-        page.overlay.clear()
-        palco.content = ft.Container(
-            content=conteudo,
-            padding=20,
-            expand=True,
-            bgcolor="#1A1C1E",
-            alignment=ft.Alignment(0, -1)
-        )
-        await page.update_async()  # Usamos a versão async do update
-
-    async def navegar_menu(perfil):
-        try:
-            page.clean()
-            page.add(palco)
-
-            # 3. A função de retorno agora aguarda o medicao.montar_tela
-            async def voltar_e_recarregar(recarregar_medicao=False):
-                if recarregar_medicao:
-                    # USAMOS AWAIT AQUI!
-                    await carregar_modulo(await medicao.montar_tela(page, voltar_e_recarregar))
-                else:
-                    await navegar_menu(perfil)
-
-            botoes = [
-                ft.Icon(ft.Icons.WATER_DROP, color="blue", size=60),
-                ft.Text(f"OPERADOR: {perfil.upper()}",
-                        color="white", weight="bold", size=20),
-                ft.Divider(color="white10", height=40),
-
-                ft.FilledButton(
-                    "INICIAR LEITURA",
-                    width=300, height=50,
-                    icon=ft.Icons.QR_CODE_SCANNER,
-                    # Lambda agora chama a versão async
-                    on_click=lambda _: page.run_task(
-                        lambda: carregar_modulo(
-                            medicao.montar_tela(page, voltar_e_recarregar))
-                    )
-                ),
-                # ... outros botões seguem o mesmo padrão ...
-            ]
-
-            # Para simplificar o on_click do botão iniciar:
-            async def ir_para_leitura(e):
-                conteudo = await medicao.montar_tela(page, voltar_e_recarregar)
-                await carregar_modulo(conteudo)
-
-            # Substitua o on_click do INICIAR LEITURA por:
-            botoes[3].on_click = ir_para_leitura
-
-            await carregar_modulo(ft.Column(botoes, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
-
-        except Exception as erro:
-            print(f"❌ ERRO NA TROCA DE TELA: {erro}")
-
-    async def iniciar_app():
-        await carregar_modulo(auth.criar_tela_login(page, navegar_menu))
-
+    # ... (restante do código: palco, carregar_modulo, etc) ...
     page.add(palco)
     await iniciar_app()
 
+# =============================================================================
+# 3. EXECUÇÃO (ATUALIZADA)
+# =============================================================================
+
 if __name__ == "__main__":
-    # Mudança vital: ft.app agora aponta para a função async
+    # Mantemos o ft.app, mas ignore o aviso por enquanto,
+    # ou use ft.app(target=main, ...) se estiver na versão mais nova.
     ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080, host="0.0.0.0")
