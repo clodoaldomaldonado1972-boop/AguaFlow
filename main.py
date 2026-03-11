@@ -1,6 +1,5 @@
 from datetime import datetime
 import flet as ft
-# ... os outros imports que você já tem (reports, auth, etc.)
 import os
 import auth
 import reports
@@ -14,20 +13,19 @@ import database as db
 
 
 def inicializar_sistema():
-    # 1. Garante que o banco e as tabelas existem (Cérebro)
+    """Garante a infraestrutura necessária antes do app rodar."""
+    # 1. Cérebro: Inicializa o SQLite e as tabelas de unidades
     db.init_db()
 
-    # 2. Garante a pasta de saída para os relatórios (Gráfica)
+    # 2. Gráfica: Cria pastas para os relatórios mensais do Vivere Prudente
     pasta_mensal = datetime.now().strftime("Relatorios_%Y_%m")
     if not os.path.exists(pasta_mensal):
         os.makedirs(pasta_mensal)
 
-    # 3. Verificação de QR Codes
-    # Agora usamos a função dentro do REPORTS para manter a modularidade
+    # 3. Modularidade: Verifica se a base de QR Codes está pronta
     if not os.path.exists("qrcodes") or len(os.listdir("qrcodes")) < 10:
         print("🚀 Gerando base de QR Codes inicial via reports.py...")
-        # Se você moveu a lógica de geração em lote para o reports, chame-a aqui
-        # Caso contrário, o reports.py gera individualmente sob demanda.
+        # Lógica de geração em lote integrada ao reports
 
     print("✅ SISTEMA AGUA FLOW CONECTADO E PRONTO!")
 
@@ -37,7 +35,7 @@ def inicializar_sistema():
 
 
 def main(page: ft.Page):
-    # Configurações de Interface
+    # Configurações de Interface otimizadas para o Samsung M14
     page.title = "Agua Flow - Vivere Prudente"
     page.window_bgcolor = "#1A1C1E"
     page.bgcolor = "#1A1C1E"
@@ -50,10 +48,17 @@ def main(page: ft.Page):
 
     inicializar_sistema()
 
-    # Palco Principal para Troca de Telas
+    # Palco Principal: Container onde as telas (módulos) serão trocadas
     palco = ft.Container(expand=True, bgcolor="#1A1C1E")
 
     def carregar_modulo(conteudo):
+        """
+        Limpa o palco e injeta o novo conteúdo.
+        Fundamental para evitar sobreposição de controles antigos (Erro Unknown Control).
+        """
+        # Limpeza crítica do overlay da página antes de trocar de tela
+        page.overlay.clear()
+
         palco.content = ft.Container(
             content=conteudo,
             padding=20,
@@ -64,21 +69,26 @@ def main(page: ft.Page):
         page.update()
 
     def navegar_menu(perfil):
+        """Gerencia o menu principal após a autenticação bem-sucedida."""
         print(f"🚀 LOGIN DETECTADO: Perfil {perfil}")
 
         try:
             page.clean()
             page.add(palco)
 
-            # Precisamos definir a função de volta aqui dentro
+            # FUNÇÃO DE RETORNO: Mantém o fluxo contínuo de medição
             def voltar_e_recarregar(recarregar_medicao=False):
+                """
+                Se 'recarregar_medicao' for True, busca a próxima unidade do prédio.
+                Se False, volta para este menu.
+                """
                 if recarregar_medicao:
                     carregar_modulo(medicao.montar_tela(
                         page, voltar_e_recarregar))
                 else:
                     navegar_menu(perfil)
 
-            # Restaurando os botões que o Python não estava encontrando
+            # Componentes do Menu
             botoes = [
                 ft.Icon(ft.Icons.WATER_DROP, color="blue", size=60),
                 ft.Text(f"OPERADOR: {perfil.upper()}",
@@ -116,14 +126,14 @@ def main(page: ft.Page):
             print(f"❌ ERRO NA TROCA DE TELA: {erro}")
 
     def iniciar_app():
-        # Chama o módulo de autenticação (Login)
+        """Inicia o fluxo pela tela de login (módulo auth)."""
         carregar_modulo(auth.criar_tela_login(page, navegar_menu))
 
-    # Remova as linhas duplicadas e deixe apenas uma vez:
+    # Inicialização da interface
     page.add(palco)
     iniciar_app()
 
 
-# O bloco abaixo deve estar encostado na margem esquerda
+# Execução em modo servidor para acesso externo via IP
 if __name__ == "__main__":
     ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080, host="0.0.0.0")
