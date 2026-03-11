@@ -1,28 +1,38 @@
 import flet as ft
 import database as db
 import camera_utils
+import asyncio
 
 COR_PRIMARIA = "blue"
 COR_ALERTA = "orange"
 
-# Adicione 'async' antes de montar_tela
 
+async def montar_tela(page: ft.Page, voltar_menu):
+    # Variável de controle para evitar cliques duplos e erros de ID
+    processando = False
 
-async def montar_tela(page, voltar_menu):
+    # --- LIMPEZA DE SEGURANÇA NA ENTRADA ---
+    page.overlay.clear()
+    page.update()
+
     unidade = db.buscar_proximo_pendente()
 
+    # 1. TELA DE CONCLUSÃO
     if not unidade:
+        async def finalizar(e):
+            await voltar_menu()
+
         return ft.Container(
             expand=True, bgcolor="#1A1C1E", alignment=ft.Alignment(0, 0),
             content=ft.Column([
                 ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=80),
                 ft.Text("Todas as medições concluídas!",
                         size=24, color="white"),
-                ft.ElevatedButton("Voltar ao Menu",
-                                  on_click=lambda _: voltar_menu())
+                ft.ElevatedButton("Voltar ao Menu", on_click=finalizar)
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 
+    # 2. DADOS DA UNIDADE (Lógica de cima para baixo conforme definido)
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
 
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
@@ -50,9 +60,8 @@ async def montar_tela(page, voltar_menu):
         on_change=calcular_ao_digitar,
     )
 
-    # --- 3. INTEGRAÇÃO COM MÓDULO DE CÂMERA (CORREÇÃO ASYNC) ---
-
-    def ao_concluir_leitura_camera(id_qr, valor_ocr):
+    # 3. CÂMERA E OCR (Ajustado para o novo camera_utils)
+    async def ao_concluir_leitura_camera(id_qr, valor_ocr):
         if id_qr and str(id_qr).strip() != str(nome_unidade).strip():
             input_valor.error_text = f"Aviso: QR Code ({id_qr}) incorreto!"
         if valor_ocr:
@@ -60,57 +69,46 @@ async def montar_tela(page, voltar_menu):
             calcular_ao_digitar(None)
         page.update()
 
-    # Adicionamos 'await' aqui para inicializar o módulo corretamente
     seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_leitura_camera)
 
-    # Adicionamos 'async' e 'await' aqui para abrir o seletor de arquivos
     async def acionar_camera(e):
-        await seletor_camera.pick_files(
-            allow_multiple=False,
-            file_type=ft.FilePickerFileType.IMAGE
-        )
+        await seletor_camera.pick_files(allow_multiple=False, file_type=ft.FilePickerFileType.IMAGE)
 
-    linha_input_ocr = ft.Row([
-        input_valor,
-        ft.IconButton(
-            icon=ft.Icons.CAMERA_ALT,
-            icon_color="blue",
-            on_click=acionar_camera,  # O Flet reconhece funções async no on_click
-            tooltip="Tirar foto do hidrômetro"
-        )
-    ], alignment=ft.MainAxisAlignment.CENTER)
-
-    # --- 4. PERSISTÊNCIA (AJUSTADA PARA ASYNC) ---
+    # 4. PERSISTÊNCIA E NAVEGAÇÃO SEGURA
     async def salvar_leitura(e):
+        nonlocal processando
+        if processando:
+            return
+
         if not input_valor.value:
-            # Passa None se for chamado via botão
             await abrir_alerta_pular(None)
         else:
             try:
+                processando = True
                 valor = float(input_valor.value.strip().replace(",", "."))
                 db.registrar_leitura(id_db, valor)
-                # O PULO DO GATO: await para evitar o erro de Control ID
+
+                # Limpeza antes de sair
+                page.overlay.clear()
                 await voltar_menu(recarregar_medicao=True)
             except Exception as ex:
-                print(f"Erro ao salvar: {ex}")
+                processando = False
                 input_valor.error_text = "Número inválido"
                 page.update()
 
     async def abrir_alerta_pular(e):
         async def confirmar_pulo(ev):
-            # 1. Fecha o diálogo visualmente
+            nonlocal processando
+            if processando:
+                return
+            processando = True
+
             dlg.open = False
-            page.update()
-
-            # 2. Registra no banco
             db.registrar_leitura(id_db, 0.0, status="pulado")
-
-            # 3. LIMPEZA CRÍTICA: Remove o diálogo do overlay antes de sair
-            if dlg in page.overlay:
-                page.overlay.remove(dlg)
+            page.overlay.remove(dlg)
             page.update()
 
-            # 4. Agora sim, muda de tela com segurança
+            await asyncio.sleep(0.1)
             await voltar_menu(recarregar_medicao=True)
 
         dlg = ft.AlertDialog(
@@ -122,12 +120,11 @@ async def montar_tela(page, voltar_menu):
                     setattr(dlg, "open", False), page.update()))
             ]
         )
-
         page.overlay.append(dlg)
         dlg.open = True
         page.update()
 
-    # No retorno do Container, ajuste os on_click:
+    # 5. INTERFACE FINAL
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
@@ -137,13 +134,14 @@ async def montar_tela(page, voltar_menu):
                 ft.Text(f"Anterior: {leitura_anterior:.2f} m³",
                         size=18, color="white70"),
                 ft.Divider(color="white10"),
-                linha_input_ocr,
+                ft.Row([input_valor, ft.IconButton(ft.Icons.CAMERA_ALT, icon_color="blue",
+                       on_click=acionar_camera)], alignment=ft.MainAxisAlignment.CENTER),
                 texto_consumo,
                 ft.Row([
                     ft.FilledButton("SALVAR", icon=ft.Icons.SAVE,
                                     on_click=salvar_leitura, width=150),
                     ft.IconButton(icon=ft.Icons.SKIP_NEXT,
-                                  on_click=abrir_alerta_pular)  # Chamada direta
+                                  on_click=abrir_alerta_pular)
                 ], alignment=ft.MainAxisAlignment.CENTER),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
