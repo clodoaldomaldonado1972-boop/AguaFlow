@@ -1,19 +1,14 @@
 import flet as ft
 import database as db
-import camera_utils  # O novo módulo que isola a lógica da câmera
+import camera_utils
 
-# Configurações de Identidade Visual do AguaFlow
 COR_PRIMARIA = "blue"
 COR_ALERTA = "orange"
 
+# Adicione 'async' antes de montar_tela
 
-def montar_tela(page, voltar_menu):
-    """
-    Constrói a interface de medição.
-    Consome o módulo camera_utils para capturar imagens e processar OCR.
-    """
 
-    # 1. BUSCA DE DADOS: Regra de negócio (Topo para Baixo)
+async def montar_tela(page, voltar_menu):
     unidade = db.buscar_proximo_pendente()
 
     if not unidade:
@@ -30,7 +25,6 @@ def montar_tela(page, voltar_menu):
 
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
 
-    # --- 2. COMPONENTES DE INTERFACE ---
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
                             color=COR_PRIMARIA, weight="bold")
 
@@ -56,37 +50,32 @@ def montar_tela(page, voltar_menu):
         on_change=calcular_ao_digitar,
     )
 
-    # --- 3. INTEGRAÇÃO COM MÓDULO DE CÂMERA (MODULARIZAÇÃO) ---
+    # --- 3. INTEGRAÇÃO COM MÓDULO DE CÂMERA (CORREÇÃO ASYNC) ---
 
     def ao_concluir_leitura_camera(id_qr, valor_ocr):
-        """Função de retorno chamada pelo módulo camera_utils"""
         if id_qr and str(id_qr).strip() != str(nome_unidade).strip():
             input_valor.error_text = f"Aviso: QR Code ({id_qr}) incorreto!"
-
         if valor_ocr:
             input_valor.value = str(valor_ocr).strip()
-            # Dispara o cálculo de consumo automaticamente
             calcular_ao_digitar(None)
         page.update()
 
-    # Inicializa o seletor usando o novo módulo utilitário
-    seletor_camera = camera_utils.inicializar_camera(
-        page, ao_concluir_leitura_camera)
+    # Adicionamos 'await' aqui para inicializar o módulo corretamente
+    seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_leitura_camera)
 
-    def acionar_camera(e):
-        """Aciona o método pick_files do objeto gerenciado pelo camera_utils"""
-        seletor_camera.pick_files(
+    # Adicionamos 'async' e 'await' aqui para abrir o seletor de arquivos
+    async def acionar_camera(e):
+        await seletor_camera.pick_files(
             allow_multiple=False,
             file_type=ft.FilePickerFileType.IMAGE
         )
 
-    # Componente de linha (Input + Botão Câmera)
     linha_input_ocr = ft.Row([
         input_valor,
         ft.IconButton(
             icon=ft.Icons.CAMERA_ALT,
             icon_color="blue",
-            on_click=acionar_camera,
+            on_click=acionar_camera,  # O Flet reconhece funções async no on_click
             tooltip="Tirar foto do hidrômetro"
         )
     ], alignment=ft.MainAxisAlignment.CENTER)
@@ -119,7 +108,6 @@ def montar_tela(page, voltar_menu):
         dlg.open = True
         page.update()
 
-    # --- 5. RENDERIZAÇÃO ---
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
