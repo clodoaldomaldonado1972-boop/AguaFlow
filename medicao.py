@@ -70,19 +70,22 @@ def montar_tela(page, voltar_menu):
         if isinstance(control, ft.FilePicker):
             page.overlay.remove(control)
 
-    seletor_foto = ft.FilePicker(on_result=ao_selecionar_arquivo)
+    # 1. Cria o objeto vazio primeiro para evitar o TypeError
+    seletor_foto = ft.FilePicker()
+    
+    # 2. Atribui a função de resposta manualmente
+    seletor_foto.on_result = ao_selecionar_arquivo
+    
+    # 3. Limpeza de segurança: remove seletores antigos para evitar erros no celular
+    for control in page.overlay[:]:
+        if isinstance(control, ft.FilePicker):
+            page.overlay.remove(control)
+            
+    # 4. Adiciona o novo seletor ao overlay
     page.overlay.append(seletor_foto)
-    page.update()  # Registra o seletor ANTES de montar o resto da tela
-
-    def abrir_camera(e):
-        seletor_foto.pick_files(allow_multiple=False,
-                                file_type=ft.FilePickerFileType.IMAGE)
-
-    linha_input_ocr = ft.Row([
-        input_valor,
-        ft.IconButton(icon=ft.Icons.CAMERA_ALT,
-                      icon_color="blue", on_click=abrir_camera)
-    ], alignment=ft.MainAxisAlignment.CENTER)
+    
+    # 5. Sincroniza com o navegador antes do retorno da tela
+    page.update()
 
     # --- 4. SALVAMENTO E NAVEGAÇÃO ---
     def salvar_leitura(e):
