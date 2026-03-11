@@ -124,8 +124,12 @@ def main(page: ft.Page):
     page.add(palco)
     iniciar_app()
 
+# ... final da sua função main(page: ft.Page)
+    page.add(palco)
+    iniciar_app()
 
+
+# O bloco abaixo deve estar encostado na margem esquerda
 if __name__ == "__main__":
-    import flet as ft
-    # Adicionamos o upload_dir apenas se você for salvar fotos temporárias
+    # O comando abaixo DEVE ter um recuo (Tab) antes dele
     ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080, host="0.0.0.0")

@@ -33,17 +33,22 @@ def montar_tela(page, voltar_menu):
         """Processa a foto assim que o hardware do celular captura a imagem."""
         caminho_foto = e.path
 
+        # Limpa erros anteriores antes de processar a nova foto
+        input_valor.error_text = None
+
         # Chama o cérebro visual (Modularizado)
         id_qr, valor_ocr = processamento.processar_foto_hidrometro(
             caminho_foto)
 
         # Validação de segurança: QR Code vs Unidade Esperada
-        if id_qr and id_qr != nome_unidade:
+        # Convertemos para string para evitar erro de tipo (int vs str)
+        if id_qr and str(id_qr).strip() != str(nome_unidade).strip():
             input_valor.error_text = f"Aviso: QR Code ({id_qr}) não bate com {nome_unidade}!"
 
         # Preenchimento automático via OCR
         if valor_ocr:
-            input_valor.value = valor_ocr
+            input_valor.value = str(valor_ocr).strip()
+            # Dispara o cálculo de consumo automaticamente
             calcular_ao_digitar(None)
 
         camera_mobile.visible = False
@@ -64,13 +69,14 @@ def montar_tela(page, voltar_menu):
     def calcular_ao_digitar(e):
         """Calcula o consumo em tempo real."""
         try:
-            input_valor.error_text = ""
+            input_valor.error_text = None
             if input_valor.value:
                 val_limpo = input_valor.value.replace(",", ".")
                 atual = float(val_limpo)
                 consumo = atual - leitura_anterior
 
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
+                # Alerta de consumo alto (>20) ou erro de leitura (negativo)
                 texto_consumo.color = COR_ALERTA if consumo > 20 or consumo < 0 else COR_PRIMARIA
             else:
                 texto_consumo.value = "Consumo: 0.00 m³"
@@ -115,6 +121,11 @@ def montar_tela(page, voltar_menu):
             abrir_alerta_pular()
         else:
             try:
+                # Se houver erro de QR Code travado na tela, impede o salvamento
+                if input_valor.error_text:
+                    page.update()
+                    return
+
                 valor = float(input_valor.value.strip().replace(",", "."))
                 db.registrar_leitura(id_db, valor)
                 voltar_menu(recarregar_medicao=True)
