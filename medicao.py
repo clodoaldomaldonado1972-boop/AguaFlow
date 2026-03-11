@@ -50,8 +50,9 @@ def montar_tela(page, voltar_menu):
 
     # Mude esta parte no seu medicao.py
     seletor_foto = ft.FilePicker()
-    seletor_foto.on_result = ao_selecionar_arquivo # Atribuição direta para evitar erro de __init__
-    
+    # Atribuição direta para evitar erro de __init__
+    seletor_foto.on_result = ao_selecionar_arquivo
+
     if seletor_foto not in page.overlay:
         page.overlay.append(seletor_foto)
 
@@ -77,22 +78,17 @@ def montar_tela(page, voltar_menu):
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
                             color=COR_PRIMARIA, weight="bold")
 
-    input_valor = ft.TextField(
-        label="Leitura Atual (m³)",
-        keyboard_type=ft.KeyboardType.NUMBER,
-        width=250,
-        color="white",
-        on_change=calcular_ao_digitar,
-    )
+    def abrir_camera(e):
+        # Usamos o page.run_task para rodar a função assíncrona dentro do seu código síncrono
+        page.run_task(seletor_foto.pick_files, allow_multiple=False,
+                      file_type=ft.FilePickerFileType.IMAGE)
 
     linha_input_ocr = ft.Row([
         input_valor,
         ft.IconButton(
             icon=ft.Icons.CAMERA_ALT,
             icon_color="blue",
-            # No celular, isso abre a opção de tirar foto
-            on_click=lambda _: seletor_foto.pick_files(
-                allow_multiple=False, file_type=ft.FilePickerFileType.IMAGE),
+            on_click=abrir_camera,  # Agora chama a função que trata o alerta
             tooltip="Tirar foto do hidrômetro"
         )
     ], alignment=ft.MainAxisAlignment.CENTER)
