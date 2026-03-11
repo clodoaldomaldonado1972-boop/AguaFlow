@@ -61,8 +61,8 @@ async def main(page: ft.Page):
             ft.FilledButton(
                 "INICIAR LEITURA",
                 icon=ft.Icons.QR_CODE_SCANNER,
-                on_click=lambda _: page.run_task(
-                    lambda: voltar_e_recarregar(True))
+                # Remova o run_task e o lambda. Use uma função async direta:
+                on_click=lambda _: voltar_e_recarregar(True)
             ),
             ft.TextButton(
                 "Sair", on_click=lambda _: page.run_task(iniciar_app))
