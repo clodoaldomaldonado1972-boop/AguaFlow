@@ -8,7 +8,7 @@ COR_ALERTA = "orange"
 
 
 def montar_tela(page, voltar_menu):
-    # 1. BUSCA DE DADOS: Procura no banco a próxima unidade pendente
+    # 1. BUSCA DE DADOS
     unidade = db.buscar_proximo_pendente()
 
     # 2. VERIFICAÇÃO DE CONCLUSÃO
@@ -24,72 +24,51 @@ def montar_tela(page, voltar_menu):
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 
-    # MAPEAMENTO: Extrai os dados da unidade atual
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
 
-    # --- LÓGICA DE CAPTURA E PROCESSAMENTO ---
+    # --- NOVO COMPONENTE DE CAPTURA (FILEPICKER) ---
 
-    def ao_capturar_foto(e):
-        """Processa a foto assim que o hardware do celular captura a imagem."""
-        caminho_foto = e.path
+    def ao_selecionar_arquivo(e: ft.FilePickerResultEvent):
+        if e.files:
+            caminho_foto = e.files[0].path
+            input_valor.error_text = None
 
-        # Limpa erros anteriores antes de processar a nova foto
-        input_valor.error_text = None
+            # Chama o processamento (OCR/QR Code)
+            id_qr, valor_ocr = processamento.processar_foto_hidrometro(
+                caminho_foto)
 
-        # Chama o cérebro visual (Modularizado)
-        id_qr, valor_ocr = processamento.processar_foto_hidrometro(
-            caminho_foto)
+            # Validação QR Code
+            if id_qr and str(id_qr).strip() != str(nome_unidade).strip():
+                input_valor.error_text = f"Aviso: QR Code ({id_qr}) não bate com {nome_unidade}!"
 
-        # Validação de segurança: QR Code vs Unidade Esperada
-        # Convertemos para string para evitar erro de tipo (int vs str)
-        if id_qr and str(id_qr).strip() != str(nome_unidade).strip():
-            input_valor.error_text = f"Aviso: QR Code ({id_qr}) não bate com {nome_unidade}!"
+            # Preenchimento automático
+            if valor_ocr:
+                input_valor.value = str(valor_ocr).strip()
+                calcular_ao_digitar(None)
 
-        # Preenchimento automático via OCR
-        if valor_ocr:
-            input_valor.value = str(valor_ocr).strip()
-            # Dispara o cálculo de consumo automaticamente
-            calcular_ao_digitar(None)
+            page.update()
 
-        camera_mobile.visible = False
-        page.update()
+    # Configura o seletor de arquivos/câmera
+    seletor_foto = ft.FilePicker(on_result=ao_selecionar_arquivo)
 
-    # --- COMPONENTE DE CÂMERA ---
-    camera_mobile = ft.Camera(
-        visible=False,
-        on_update=lambda e: print("Hardware de vídeo ativado."),
-        on_capture=ao_capturar_foto
-    )
-
-    if camera_mobile not in page.overlay:
-        page.overlay.append(camera_mobile)
+    if seletor_foto not in page.overlay:
+        page.overlay.append(seletor_foto)
 
     # --- FUNÇÕES DE INTERAÇÃO ---
 
     def calcular_ao_digitar(e):
-        """Calcula o consumo em tempo real."""
         try:
             input_valor.error_text = None
             if input_valor.value:
                 val_limpo = input_valor.value.replace(",", ".")
                 atual = float(val_limpo)
                 consumo = atual - leitura_anterior
-
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
-                # Alerta de consumo alto (>20) ou erro de leitura (negativo)
                 texto_consumo.color = COR_ALERTA if consumo > 20 or consumo < 0 else COR_PRIMARIA
             else:
                 texto_consumo.value = "Consumo: 0.00 m³"
         except ValueError:
             texto_consumo.value = "Consumo: ---"
-        page.update()
-
-    def gerenciar_camera(e):
-        """Ativa a câmera ou tira a foto se já estiver aberta."""
-        if not camera_mobile.visible:
-            camera_mobile.visible = True
-        else:
-            camera_mobile.capture_photo()
         page.update()
 
     # --- COMPONENTES VISUAIS ---
@@ -110,22 +89,21 @@ def montar_tela(page, voltar_menu):
         ft.IconButton(
             icon=ft.Icons.CAMERA_ALT,
             icon_color="blue",
-            on_click=gerenciar_camera,
-            tooltip="Capturar Hidrômetro"
+            # No celular, isso abre a opção de tirar foto
+            on_click=lambda _: seletor_foto.pick_files(
+                allow_multiple=False, file_type=ft.FilePickerFileType.IMAGE),
+            tooltip="Tirar foto do hidrômetro"
         )
     ], alignment=ft.MainAxisAlignment.CENTER)
 
     def salvar_leitura(e):
-        """Grava no banco e chama a próxima unidade."""
         if not input_valor.value:
             abrir_alerta_pular()
         else:
             try:
-                # Se houver erro de QR Code travado na tela, impede o salvamento
                 if input_valor.error_text:
                     page.update()
                     return
-
                 valor = float(input_valor.value.strip().replace(",", "."))
                 db.registrar_leitura(id_db, valor)
                 voltar_menu(recarregar_medicao=True)
