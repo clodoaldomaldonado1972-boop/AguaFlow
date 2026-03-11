@@ -26,7 +26,35 @@ def montar_tela(page, voltar_menu):
 
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
 
-    # --- NOVO COMPONENTE DE CAPTURA (FILEPICKER) ---
+    # --- 3. CRIAÇÃO DOS COMPONENTES DE INTERFACE (Criar antes de usar nas funções) ---
+
+    texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
+                            color=COR_PRIMARIA, weight="bold")
+
+    def calcular_ao_digitar(e):
+        try:
+            input_valor.error_text = None
+            if input_valor.value:
+                val_limpo = input_valor.value.replace(",", ".")
+                atual = float(val_limpo)
+                consumo = atual - leitura_anterior
+                texto_consumo.value = f"Consumo: {consumo:.2f} m³"
+                texto_consumo.color = COR_ALERTA if consumo > 20 or consumo < 0 else COR_PRIMARIA
+            else:
+                texto_consumo.value = "Consumo: 0.00 m³"
+        except ValueError:
+            texto_consumo.value = "Consumo: ---"
+        page.update()
+
+    input_valor = ft.TextField(
+        label="Leitura Atual (m³)",
+        keyboard_type=ft.KeyboardType.NUMBER,
+        width=250,
+        color="white",
+        on_change=calcular_ao_digitar,
+    )
+
+    # --- 4. LÓGICA DE CAPTURA ---
 
     def ao_selecionar_arquivo(e: ft.FilePickerResultEvent):
         if e.files:
@@ -48,38 +76,13 @@ def montar_tela(page, voltar_menu):
 
             page.update()
 
-    # Mude esta parte no seu medicao.py
     seletor_foto = ft.FilePicker()
-    # Atribuição direta para evitar erro de __init__
     seletor_foto.on_result = ao_selecionar_arquivo
 
     if seletor_foto not in page.overlay:
         page.overlay.append(seletor_foto)
 
-    # --- FUNÇÕES DE INTERAÇÃO ---
-
-    def calcular_ao_digitar(e):
-        try:
-            input_valor.error_text = None
-            if input_valor.value:
-                val_limpo = input_valor.value.replace(",", ".")
-                atual = float(val_limpo)
-                consumo = atual - leitura_anterior
-                texto_consumo.value = f"Consumo: {consumo:.2f} m³"
-                texto_consumo.color = COR_ALERTA if consumo > 20 or consumo < 0 else COR_PRIMARIA
-            else:
-                texto_consumo.value = "Consumo: 0.00 m³"
-        except ValueError:
-            texto_consumo.value = "Consumo: ---"
-        page.update()
-
-    # --- COMPONENTES VISUAIS ---
-
-    texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
-                            color=COR_PRIMARIA, weight="bold")
-
     def abrir_camera(e):
-        # Usamos o page.run_task para rodar a função assíncrona dentro do seu código síncrono
         page.run_task(seletor_foto.pick_files, allow_multiple=False,
                       file_type=ft.FilePickerFileType.IMAGE)
 
@@ -88,10 +91,12 @@ def montar_tela(page, voltar_menu):
         ft.IconButton(
             icon=ft.Icons.CAMERA_ALT,
             icon_color="blue",
-            on_click=abrir_camera,  # Agora chama a função que trata o alerta
+            on_click=abrir_camera,
             tooltip="Tirar foto do hidrômetro"
         )
     ], alignment=ft.MainAxisAlignment.CENTER)
+
+    # --- 5. LÓGICA DE SALVAMENTO ---
 
     def salvar_leitura(e):
         if not input_valor.value:
@@ -128,6 +133,7 @@ def montar_tela(page, voltar_menu):
         dlg.open = True
         page.update()
 
+    # --- 6. RETORNO DA INTERFACE ---
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
