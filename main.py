@@ -64,72 +64,66 @@ def main(page: ft.Page):
         page.update()
 
     def navegar_menu(perfil):
-        def voltar_e_recarregar(recarregar_medicao=False):
-            if recarregar_medicao:
-                carregar_modulo(medicao.montar_tela(page, voltar_e_recarregar))
-            else:
-                navegar_menu(perfil)
+        print(f"🚀 LOGIN DETECTADO: Perfil {perfil}")
 
-        # Layout do Menu Principal (Design Moderno)
-        botoes = [
-            ft.Icon(ft.Icons.WATER_DROP, color="blue", size=60),
-            ft.Text("VIVERE PRUDENTE", size=14,
-                    color="white54", weight="bold"),
-            ft.Text(f"OPERADOR: {perfil.upper()}",
-                    color="white", weight="bold", size=20),
-            ft.Divider(color="white10", height=40),
+        try:
+            page.clean()
+            page.add(palco)
 
-            ft.FilledButton(
-                "INICIAR LEITURA",
-                width=300,
-                height=50,
-                icon=ft.Icons.QR_CODE_SCANNER,
-                on_click=lambda _: carregar_modulo(
-                    medicao.montar_tela(page, voltar_e_recarregar))
-            ),
+            # Precisamos definir a função de volta aqui dentro
+            def voltar_e_recarregar(recarregar_medicao=False):
+                if recarregar_medicao:
+                    carregar_modulo(medicao.montar_tela(
+                        page, voltar_e_recarregar))
+                else:
+                    navegar_menu(perfil)
 
-            ft.FilledButton(
-                "PAINEL DE RELATÓRIOS",
-                width=300,
-                height=50,
-                icon=ft.Icons.PIE_CHART,
-                on_click=lambda _: carregar_modulo(
-                    reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
-            ),
+            # Restaurando os botões que o Python não estava encontrando
+            botoes = [
+                ft.Icon(ft.Icons.WATER_DROP, color="blue", size=60),
+                ft.Text(f"OPERADOR: {perfil.upper()}",
+                        color="white", weight="bold", size=20),
+                ft.Divider(color="white10", height=40),
 
-            ft.FilledButton(
-                "CONFIGURAÇÕES",
-                width=300,
-                height=50,
-                icon=ft.Icons.SETTINGS,
-                on_click=lambda _: carregar_modulo(
-                    utils.montar_tela_ajuda(page, lambda: navegar_menu(perfil)))
-            ),
+                ft.FilledButton(
+                    "INICIAR LEITURA",
+                    width=300, height=50,
+                    icon=ft.Icons.QR_CODE_SCANNER,
+                    on_click=lambda _: carregar_modulo(
+                        medicao.montar_tela(page, voltar_e_recarregar))
+                ),
 
-            ft.Container(height=40),
-            ft.TextButton("Sair do Sistema", icon=ft.Icons.LOGOUT,
-                          on_click=lambda _: iniciar_app())
-        ]
+                ft.FilledButton(
+                    "PAINEL DE RELATÓRIOS",
+                    width=300, height=50,
+                    icon=ft.Icons.PIE_CHART,
+                    on_click=lambda _: carregar_modulo(
+                        reports.montar_tela_relatorios(page, lambda: navegar_menu(perfil)))
+                ),
 
-        carregar_modulo(ft.Column(
-            botoes,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=15
-        ))
+                ft.TextButton("Sair do Sistema", icon=ft.Icons.LOGOUT,
+                              on_click=lambda _: iniciar_app())
+            ]
+
+            carregar_modulo(ft.Column(
+                botoes,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=15
+            ))
+            print("✅ Menu carregado com sucesso!")
+
+        except Exception as erro:
+            print(f"❌ ERRO NA TROCA DE TELA: {erro}")
 
     def iniciar_app():
         # Chama o módulo de autenticação (Login)
         carregar_modulo(auth.criar_tela_login(page, navegar_menu))
 
-    page.add(palco)
-    iniciar_app()
-
-# ... final da sua função main(page: ft.Page)
+    # Remova as linhas duplicadas e deixe apenas uma vez:
     page.add(palco)
     iniciar_app()
 
 
 # O bloco abaixo deve estar encostado na margem esquerda
 if __name__ == "__main__":
-    # O comando abaixo DEVE ter um recuo (Tab) antes dele
     ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080, host="0.0.0.0")

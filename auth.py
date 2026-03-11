@@ -36,10 +36,11 @@ def criar_tela_login(page, ao_logar_sucesso):
     def entrar_clique(e):
         perfil = validar_login(user_f.value, pass_f.value)
         if perfil:
-            ao_logar_sucesso(perfil)
+            # ESTA LINHA É A PONTE: Ela chama o 'navegar_menu' do main.py
+            ao_logar_sucesso(perfil) 
         else:
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Usuário ou Senha Inválidos!"), bgcolor="red")
+            # Caso erre a senha, o celular deve mostrar isso:
+            page.snack_bar = ft.SnackBar(ft.Text("Dados incorretos!"), bgcolor="red")
             page.snack_bar.open = True
             page.update()
 
