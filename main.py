@@ -7,27 +7,7 @@ import utils
 import medicao
 import database as db
 
-# ... inicializar_sistema permanece igual ...
-
-# 1. Transformamos o main em ASYNC
-
-
-async def main(page: ft.Page):
-    page.title = "Agua Flow - Vivere Prudente"
-    page.window_bgcolor = "#1A1C1E"
-    page.bgcolor = "#1A1C1E"
-    page.theme_mode = ft.ThemeMode.DARK
-    page.window_width = 450
-    page.window_height = 800
-    page.window_resizable = False
-    page.padding = 0
-    page.spacing = 0
-
-    # =============================================================================
-# 1. INICIALIZAÇÃO (DEVE VIR ANTES DO MAIN)
-# =============================================================================
-
-
+# 1. INICIALIZAÇÃO (Deve vir antes do main para o Python reconhecê-la)
 def inicializar_sistema():
     """Garante que o banco e pastas existam antes do app carregar."""
     db.init_db()
@@ -36,26 +16,61 @@ def inicializar_sistema():
         os.makedirs(pasta_mensal)
     print("✅ SISTEMA AGUA FLOW CONECTADO E PRONTO!")
 
-# =============================================================================
-# 2. APP PRINCIPAL
-# =============================================================================
-
-
+# 2. APP PRINCIPAL (O MAESTRO)
 async def main(page: ft.Page):
-    # ... (todo o seu código da função main aqui dentro) ...
-
-    # Agora chamamos a inicialização que já foi definida acima
+    # Configurações de Interface
+    page.title = "Agua Flow - Vivere Prudente"
+    page.window_bgcolor = "#1A1C1E"
+    page.bgcolor = "#1A1C1E"
+    page.theme_mode = ft.ThemeMode.DARK
+    page.window_width = 450
+    page.window_height = 800
+    page.window_resizable = False
+    
     inicializar_sistema()
 
-    # ... (restante do código: palco, carregar_modulo, etc) ...
-    page.add(palco)
+    # DEFINIÇÃO DO PALCO (Onde as telas aparecem)
+    palco = ft.Container(expand=True, bgcolor="#1A1C1E")
+
+    async def carregar_modulo(conteudo):
+        """Limpa o overlay e troca o conteúdo do palco."""
+        page.overlay.clear()
+        palco.content = conteudo 
+        await page.update_async()
+
+    async def navegar_menu(perfil):
+        """Gerencia o menu principal após o login."""
+        
+        async def voltar_e_recarregar(recarregar_medicao=False):
+            """Lógica de fluxo contínuo para as medições do Grupo 8."""
+            if recarregar_medicao:
+                conteudo = await medicao.montar_tela(page, voltar_e_recarregar)
+                await carregar_modulo(conteudo)
+            else:
+                await navegar_menu(perfil)
+
+        # Botões do Menu Principal
+        botoes = ft.Column([
+            ft.Icon(ft.Icons.WATER_DROP, color="blue", size=60),
+            ft.Text(f"OPERADOR: {perfil.upper()}", color="white", weight="bold"),
+            ft.FilledButton(
+                "INICIAR LEITURA", 
+                icon=ft.Icons.QR_CODE_SCANNER,
+                on_click=lambda _: page.run_task(lambda: voltar_e_recarregar(True))
+            ),
+            ft.TextButton("Sair", on_click=lambda _: page.run_task(iniciar_app))
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
+
+        await carregar_modulo(botoes)
+
+    async def iniciar_app():
+        """Inicia o fluxo pelo módulo de autenticação."""
+        await carregar_modulo(auth.criar_tela_login(page, navegar_menu))
+
+    # Adiciona o palco vazio e inicia o login
+    page.add(palco) 
     await iniciar_app()
 
-# =============================================================================
-# 3. EXECUÇÃO (ATUALIZADA)
-# =============================================================================
-
+# 3. EXECUÇÃO EM MODO SERVIDOR
 if __name__ == "__main__":
-    # Mantemos o ft.app, mas ignore o aviso por enquanto,
-    # ou use ft.app(target=main, ...) se estiver na versão mais nova.
     ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080, host="0.0.0.0")
