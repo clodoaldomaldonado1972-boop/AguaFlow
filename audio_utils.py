@@ -2,21 +2,24 @@ import flet as ft
 
 
 def adicionar_sons(page: ft.Page):
-    """Inicializa e carrega os sons no overlay da página."""
-
-    # Bipe de Alerta (Esquecimento/Erro)
+    """
+    Carrega os bipes de alerta e sucesso no overlay da página.
+    """
+    # URLs de bipes curtos (padrão MP3)
     som_alerta = ft.Audio(
-        src="https://www.soundjay.com/buttons/beep-07a.mp3",
+        src="https://lasonotheque.org/upload/mp3/0034.mp3",
         autoplay=False
     )
 
-    # Som de Sucesso (Conclusão de leitura/OCR)
     som_sucesso = ft.Audio(
-        src="https://www.soundjay.com/buttons/button-37.mp3",
+        src="https://lasonotheque.org/upload/mp3/0504.mp3",
         autoplay=False
     )
 
-    page.overlay.extend([som_alerta, som_sucesso])
+    # Adiciona ao overlay (obrigatório no Flet para áudio funcionar)
+    page.overlay.append(som_alerta)
+    page.overlay.append(som_sucesso)
+
     page.update()
 
     return som_alerta, som_sucesso

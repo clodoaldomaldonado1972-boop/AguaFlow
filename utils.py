@@ -114,7 +114,7 @@ O envio agora é automático ao clicar no botão abaixo.
                 # Botão de Ação Crítica
                 ft.FilledButton(
                     "ENVIAR RELATÓRIO E INICIAR NOVO MÊS",
-                    icon=ft.Icons.SEND_AND_ARCHIVE,
+                    icon=ft.icons.SEND_AND_ARCHIVE,
                     style=ft.ButtonStyle(bgcolor="red", color="white"),
                     on_click=abrir_alerta,
                     width=400
