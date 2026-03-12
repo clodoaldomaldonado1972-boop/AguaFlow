@@ -5,9 +5,9 @@ import asyncio
 
 async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
     """
-    Inicializa o seletor de arquivos e gerencia a lógica de OCR.
+    Gerencia o seletor de arquivos e o processamento OCR de forma isolada.
     """
-    # 1. Limpeza profunda de overlays antigos para evitar conflitos de ID
+    # Limpeza de segurança
     for control in page.overlay[:]:
         if isinstance(control, ft.FilePicker):
             page.overlay.remove(control)
@@ -16,25 +16,29 @@ async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
         if e.files:
             caminho = e.files[0].path
 
-            # 2. Chamada da lógica de OCR (Espera o processamento sem travar a UI)
-            # Como processamento pode ser pesado, rodamos em uma thread ou usamos await se disponível
+            # Feedback visual: Barra de progresso no topo
+            page.splash = ft.ProgressBar()
+            page.update()
+
             try:
-                # Se o seu processamento for síncrono, o ideal é não travar o loop
-                id_qr, valor_ocr = processamento.processar_foto_hidrometro(
-                    caminho)
+                # Roda o processamento pesado fora da thread principal para não travar a UI
+                loop = asyncio.get_event_loop()
+                id_qr, valor_ocr = await loop.run_in_executor(
+                    None, processamento.processar_foto_hidrometro, caminho
+                )
 
-                # 3. Retorna o resultado para a função de callback da medicao.py
-                # Usamos page.run_task para garantir que a atualização da UI seja segura
                 await ao_concluir_ocr(id_qr, valor_ocr)
-
             except Exception as ex:
-                print(f"Erro no processamento de imagem: {ex}")
+                print(f"Erro no OCR: {ex}")
+            finally:
+                page.splash = None  # Remove a barra de progresso
+                page.update()
 
-        page.update()
-
-    # 4. Criação do seletor único para esta instância da tela
     seletor = ft.FilePicker(on_result=resultado_selecao)
     page.overlay.append(seletor)
-    page.update()
+
+    # Vinculo forçado para evitar AssertionError
+    seletor.page = page
+    await page.update_async()
 
     return seletor
