@@ -3,17 +3,25 @@ import database as db
 import camera_utils
 import asyncio
 
+# Constantes para manter o padrão visual do Vivere Prudente
 COR_PRIMARIA = "blue"
 COR_ALERTA = "orange"
 
 
 async def montar_tela(page: ft.Page, voltar_menu):
-    processando = False
-    page.overlay.clear()
-    page.update()
+    """
+    Constrói a interface de leitura e gerencia a lógica de negócio.
+    """
+    processando = False  # Trava para evitar cliques duplos no botão Salvar
 
+    # Limpa a tela anterior para evitar sobreposição de elementos invisíveis (modais/seletores)
+    page.overlay.clear()
+    await page.update_async()
+
+    # Busca no SQLite qual é o próximo hidrômetro na sequência (do topo para baixo)
     unidade = db.buscar_proximo_pendente()
 
+    # Caso todas as unidades tenham sido lidas
     if not unidade:
         return ft.Container(
             expand=True, bgcolor="#1A1C1E", alignment=ft.Alignment(0, 0),
@@ -26,11 +34,15 @@ async def montar_tela(page: ft.Page, voltar_menu):
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 
+    # Desempacota os dados vindos do banco
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
+
+    # Elemento visual que mostrará o consumo calculado em tempo real
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
                             color=COR_PRIMARIA, weight="bold")
 
     def calcular_ao_digitar(e):
+        """Calcula a diferença entre leitura atual e anterior automaticamente."""
         try:
             input_valor.error_text = None
             if input_valor.value:
@@ -38,6 +50,7 @@ async def montar_tela(page: ft.Page, voltar_menu):
                 atual = float(val_limpo)
                 consumo = atual - leitura_anterior
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
+                # Alerta visual se o consumo for negativo ou muito alto (vazamento?)
                 texto_consumo.color = COR_ALERTA if consumo > 20 or consumo < 0 else COR_PRIMARIA
             else:
                 texto_consumo.value = "Consumo: 0.00 m³"
@@ -52,21 +65,49 @@ async def montar_tela(page: ft.Page, voltar_menu):
         on_change=calcular_ao_digitar,
     )
 
-    # Callback disparado pelo camera_utils
     async def ao_concluir_ocr(id_qr, valor_ocr):
+        """
+        Função chamada pelo camera_utils quando a foto termina de ser processada.
+        """
+        # Validação: O QR Code lido é da unidade correta?
         if id_qr and str(id_qr).strip() != str(nome_unidade).strip():
             input_valor.error_text = f"Aviso: QR Code ({id_qr}) não confere!"
+
+        # Preenche o campo de texto com o valor extraído pelo OCR
         if valor_ocr:
             input_valor.value = str(valor_ocr).strip()
             calcular_ao_digitar(None)
-        page.update()
+        await page.update_async()
 
-    # Inicialização simplificada
-    seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
-
+    # Inicializa o FilePicker usando o módulo externo
     async def acionar_camera(e):
-        await seletor_camera.pick_files(allow_multiple=False, file_type=ft.FilePickerFileType.IMAGE)
+        nonlocal seletor_camera
 
+        # 1. Verificação de Segurança: Se for None, tenta inicializar de novo
+        if seletor_camera is None:
+            print("Seletor era None, reinicializando...")
+            seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
+
+        # 2. Garante o vínculo com a página (evita o AssertionError anterior)
+        if seletor_camera not in page.overlay:
+            page.overlay.append(seletor_camera)
+
+        seletor_camera.page = page
+        await page.update_async()
+
+        # 3. Executa o seletor com tratamento de erro para o 'NoneType'
+        try:
+            if seletor_camera:
+                await seletor_camera.pick_files(
+                    allow_multiple=False,
+                    file_type=ft.FilePickerFileType.IMAGE
+                )
+            else:
+                print("Falha crítica: Não foi possível criar o seletor de arquivos.")
+        except Exception as ex:
+            print(f"Erro ao abrir câmera: {ex}")
+
+    # Retorna o layout da tela
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
