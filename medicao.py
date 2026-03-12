@@ -3,25 +3,20 @@ import database as db
 import camera_utils
 import asyncio
 
-# Constantes para manter o padrão visual do Vivere Prudente
-COR_PRIMARIA = "blue"
-COR_ALERTA = "orange"
-
 
 async def montar_tela(page: ft.Page, voltar_menu):
-    """
-    Constrói a interface de leitura e gerencia a lógica de negócio.
-    """
-    processando = False  # Trava para evitar cliques duplos no botão Salvar
+    # EXPLICAÇÃO: Declaramos as variáveis no escopo da função principal para que
+    # as sub-funções possam acessá-las via 'nonlocal'.
+    seletor_camera = None
+    processando = False
 
-    # Limpa a tela anterior para evitar sobreposição de elementos invisíveis (modais/seletores)
+    # Limpeza de overlay garante que seletores antigos não fiquem presos na memória.
     page.overlay.clear()
     await page.update_async()
 
-    # Busca no SQLite qual é o próximo hidrômetro na sequência (do topo para baixo)
+    # LÓGICA DE NEGÓCIO: Busca a próxima unidade conforme a sequência do condomínio.
     unidade = db.buscar_proximo_pendente()
 
-    # Caso todas as unidades tenham sido lidas
     if not unidade:
         return ft.Container(
             expand=True, bgcolor="#1A1C1E", alignment=ft.Alignment(0, 0),
@@ -29,34 +24,31 @@ async def montar_tela(page: ft.Page, voltar_menu):
                 ft.Icon(ft.icons.CHECK_CIRCLE, color="green", size=80),
                 ft.Text("Todas as medições concluídas!",
                         size=24, color="white"),
-                ft.ElevatedButton("Voltar ao Menu",
-                                  on_click=lambda _: voltar_menu())
+                ft.ElevatedButton(
+                    "Voltar ao Menu",
+                    # CORREÇÃO: page.run_task garante que a função rode no loop correto do Flet.
+                    on_click=lambda _: page.run_task(voltar_menu)
+                )
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         )
 
-    # Desempacota os dados vindos do banco
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
-
-    # Elemento visual que mostrará o consumo calculado em tempo real
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
-                            color=COR_PRIMARIA, weight="bold")
+                            color="blue", weight="bold")
 
     def calcular_ao_digitar(e):
-        """Calcula a diferença entre leitura atual e anterior automaticamente."""
+        """Calcula o consumo em tempo real e alerta para anomalias no Vivere Prudente."""
         try:
             input_valor.error_text = None
             if input_valor.value:
                 val_limpo = input_valor.value.replace(",", ".")
-                atual = float(val_limpo)
-                consumo = atual - leitura_anterior
+                consumo = float(val_limpo) - leitura_anterior
                 texto_consumo.value = f"Consumo: {consumo:.2f} m³"
-                # Alerta visual se o consumo for negativo ou muito alto (vazamento?)
-                texto_consumo.color = COR_ALERTA if consumo > 20 or consumo < 0 else COR_PRIMARIA
-            else:
-                texto_consumo.value = "Consumo: 0.00 m³"
-        except ValueError:
-            texto_consumo.value = "Consumo: ---"
-        page.update()
+                # Alerta visual para consumo acima de 20m³ ou negativo.
+                texto_consumo.color = "orange" if consumo > 20 or consumo < 0 else "blue"
+            page.update()
+        except:
+            pass
 
     input_valor = ft.TextField(
         label="Leitura Atual (m³)",
@@ -65,71 +57,85 @@ async def montar_tela(page: ft.Page, voltar_menu):
         on_change=calcular_ao_digitar,
     )
 
-    async def ao_concluir_ocr(id_qr, valor_ocr):
-        """
-        Função chamada pelo camera_utils quando a foto termina de ser processada.
-        """
-        # Validação: O QR Code lido é da unidade correta?
-        if id_qr and str(id_qr).strip() != str(nome_unidade).strip():
-            input_valor.error_text = f"Aviso: QR Code ({id_qr}) não confere!"
+    async def salvar_leitura(e):
+        """Persiste os dados no SQLite e avança para a próxima unidade."""
+        nonlocal processando
+        if processando or not input_valor.value:
+            input_valor.error_text = "Digite um valor"
+            page.update()
+            return
+        try:
+            processando = True
+            valor = float(input_valor.value.replace(",", "."))
+            db.registrar_leitura(id_db, valor)
+            await voltar_menu(recarregar_medicao=True)
+        except Exception as ex:
+            processando = False
+            print(f"Erro ao salvar: {ex}")
 
-        # Preenche o campo de texto com o valor extraído pelo OCR
+    async def ao_concluir_ocr(id_qr, valor_ocr):
+        """Callback acionado após o processamento da imagem (OCR)."""
         if valor_ocr:
-            input_valor.value = str(valor_ocr).strip()
+            input_valor.value = str(valor_ocr)
             calcular_ao_digitar(None)
         await page.update_async()
 
-    # Inicializa o FilePicker usando o módulo externo
-    async def acionar_camera(e):
-        nonlocal seletor_camera
+    # Inicialização preventiva do FilePicker via utilitário de câmera.
+    seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
 
-        # 1. Verificação de Segurança: Se for None, tenta inicializar de novo
+    async def acionar_camera(e):
+        """Gerencia o acionamento da câmera com tratamento de erros."""
+        nonlocal seletor_camera
         if seletor_camera is None:
-            print("Seletor era None, reinicializando...")
             seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
 
-        # 2. Garante o vínculo com a página (evita o AssertionError anterior)
-        if seletor_camera not in page.overlay:
-            page.overlay.append(seletor_camera)
-
-        seletor_camera.page = page
-        await page.update_async()
-
-        # 3. Executa o seletor com tratamento de erro para o 'NoneType'
-        try:
-            if seletor_camera:
+        if seletor_camera is not None:
+            try:
+                if seletor_camera not in page.overlay:
+                    page.overlay.append(seletor_camera)
+                seletor_camera.page = page
+                await page.update_async()
                 await seletor_camera.pick_files(
                     allow_multiple=False,
                     file_type=ft.FilePickerFileType.IMAGE
                 )
-            else:
-                print("Falha crítica: Não foi possível criar o seletor de arquivos.")
-        except Exception as ex:
-            print(f"Erro ao abrir câmera: {ex}")
+            except Exception as ex:
+                print(f"Erro interno no seletor: {ex}")
+        else:
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Erro: Câmera não inicializada."))
+            page.snack_bar.open = True
+            page.update()
 
-    # Retorna o layout da tela
+    # EXPLICAÇÃO: Função interna para tratar o pulo de unidade de forma assíncrona.
+    async def pular_unidade(e):
+        await voltar_menu(recarregar_medicao=True)
+
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
             controls=[
                 ft.Text(f"Unidade: {nome_unidade}",
                         size=28, weight="bold", color="blue"),
-                ft.Text(f"Anterior: {leitura_anterior:.2f} m³",
-                        size=18, color="white70"),
                 ft.Divider(color="white10"),
                 ft.Row([
                     input_valor,
                     ft.IconButton(ft.icons.CAMERA_ALT,
                                   icon_color="blue", on_click=acionar_camera)
-                ], alignment=ft.MainAxisAlignment.CENTER),
+                ], alignment="center"),
                 texto_consumo,
                 ft.Row([
                     ft.FilledButton("SALVAR", icon=ft.icons.SAVE,
-                                    on_click=lambda _: None, width=150),
-                    ft.IconButton(icon=ft.icons.SKIP_NEXT,
-                                  on_click=lambda _: None)
-                ], alignment=ft.MainAxisAlignment.CENTER),
+                                    on_click=salvar_leitura, width=150),
+                    ft.IconButton(
+                        icon=ft.icons.SKIP_NEXT,
+                        icon_color="white54",
+                        tooltip="Pular esta unidade",
+                        # CORREÇÃO: Chamamos a função assíncrona pular_unidade diretamente.
+                        on_click=pular_unidade
+                    )
+                ], alignment="center"),
             ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20
+            horizontal_alignment="center", spacing=20
         )
     )
