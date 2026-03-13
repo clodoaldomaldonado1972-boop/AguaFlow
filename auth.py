@@ -14,7 +14,7 @@ def validar_login(usuario, senha):
 def criar_tela_login(page, ao_logar_sucesso):
     user_f = ft.TextField(
         label="Usuário",
-        prefix_icon=ft.icons.PERSON,  # <-- ADICIONADA A VÍRGULA AQUI
+        prefix_icon=ft.Icons.PERSON,  # <-- ADICIONADA A VÍRGULA AQUI
         color="white",
         border_color="blue",
         focused_border_color="white",
@@ -45,8 +45,8 @@ def criar_tela_login(page, ao_logar_sucesso):
         expand=True,
         content=ft.Column(
             controls=[
-                # CORREÇÃO: Adicionado ft.icons. e aspas no texto
-                ft.Icon(ft.icons.WATER_DROP, size=80, color="blue"),
+                # CORREÇÃO: Adicionado ft.Icons. e aspas no texto
+                ft.Icon(ft.Icons.WATER_DROP, size=80, color="blue"),
                 ft.Text("AGUA FLOW", size=30, weight="bold", color="white"),
                 ft.Text("Vivere Prudente", size=16, color="white54"),
                 ft.Container(height=20),
