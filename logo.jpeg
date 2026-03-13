@@ -1,0 +1,10 @@
+# --- TELA DE LOGIN ---
+    # logo = ft.Image(src="logo.jpeg", width=220, height=220) # COMENTE ESTA LINHA
+    
+    # ... (restante do código)
+
+    page.add(
+        # logo, # COMENTE ESTA LINHA TAMBÉM
+        ft.Text("CONDOMÍNIO EDIF. VIVERE PRUDENTE", weight="bold", color="blue900"),
+        # ...
+    )
