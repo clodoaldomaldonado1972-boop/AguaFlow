@@ -27,11 +27,15 @@ def extrair_dados_fluxo(origem):
         if frame is None:
             return None
 
-        # 2. Redimensionamento inteligente
-        altura_original, largura_original = frame.shape[:2]
-        proporcao = 800 / largura_original
-        frame_res = cv2.resize(
-            frame, (800, int(altura_original * proporcao)), interpolation=cv2.INTER_CUBIC)
+        # No Passo 2, após o redimensionamento, adicione:
+        h, w = frame_res.shape[:2]
+        # Corta 20% das bordas para focar no meio (onde costumam estar os números)
+        margem_h = int(h * 0.25)
+        margem_w = int(w * 0.15)
+        foco = frame_res[margem_h:h-margem_h, margem_w:w-margem_w]
+
+        # Agora continue o processo usando a variável 'foco' em vez de 'frame_res'
+        cinza = cv2.cvtColor(foco, cv2.COLOR_BGR2GRAY)
 
         # 3. Pré-processamento
         cinza = cv2.cvtColor(frame_res, cv2.COLOR_BGR2GRAY)
