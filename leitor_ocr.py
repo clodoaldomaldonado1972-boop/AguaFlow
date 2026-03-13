@@ -33,18 +33,20 @@ def extrair_dados_fluxo(origem):
             frame, (1000, int(h_orig * proporcao)), interpolation=cv2.INTER_CUBIC)
 
         # 3. DETECÇÃO DO QR CODE (Identificação do Apto)
-        # O OpenCV tem um detector de QR Code nativo
+        # Tentamos ler em tons de cinza para aumentar a precisão
+        cinza_total = cv2.cvtColor(frame_res, cv2.COLOR_BGR2GRAY)
         detector = cv2.QRCodeDetector()
-        valor_qr, pts, _ = detector.detectAndDecode(frame_res)
+        valor_qr, pts, _ = detector.detectAndDecode(cinza_total)
+
         if valor_qr:
             unidade_id = valor_qr
-            print(f"📍 Unidade Identificada: {unidade_id}")
+            # print(f"📍 Unidade Identificada: {unidade_id}") # Removido para limpar a tela
 
-        # 4. FOCO NO VISOR (OCR dos 6 dígitos)
-        # Cortamos o centro da imagem para ignorar o QR Code e números de série na hora de ler o consumo
+        # 4. FOCO NO VISOR (ROI MAIS AMPLO)
+        # Aumentamos a área de busca para 20% até 80% da altura
         h, w = frame_res.shape[:2]
-        y1, y2 = int(h * 0.35), int(h * 0.65)  # Foco mais estreito no meio
-        x1, x2 = int(w * 0.2), int(w * 0.8)
+        y1, y2 = int(h * 0.20), int(h * 0.80)
+        x1, x2 = int(w * 0.1), int(w * 0.9)
         foco = frame_res[y1:y2, x1:x2]
 
         # 5. PRÉ-PROCESSAMENTO DO VISOR
