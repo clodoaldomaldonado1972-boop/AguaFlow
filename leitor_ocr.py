@@ -30,10 +30,15 @@ def extrair_dados_fluxo(origem):
         # Filtro para remover ruído mantendo as bordas dos números
         suave = cv2.bilateralFilter(cinza, 9, 75, 75)
 
-        # 4. Binarização (Preto e Branco puro)
-        # Usamos o OTSU para decidir o melhor contraste automaticamente
-        _, binaria = cv2.threshold(
-            suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        ## 4. Binarização e Engrossamento (Morphology)
+        _, binaria = cv2.threshold(suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Cria um "pincel" para engrossar os números se eles forem muito finos
+        kernel = np.ones((2,2), np.uint8)
+        binaria = cv2.erode(binaria, kernel, iterations=1) # Deixa o preto mais forte
+
+        # Salva para você ver se ficou melhor
+        cv2.imwrite("visao_do_robo.png", binaria)
 
         # 5. SALVAR DIAGNÓSTICO (Procure este arquivo em C:\ÁguaFlow)
         cv2.imwrite("visao_do_robo.png", binaria)
