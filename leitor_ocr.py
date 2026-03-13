@@ -3,7 +3,10 @@ import pytesseract
 import numpy as np
 import gc  # Garbage Collector para limpar a RAM
 import os
+import pytesseract
 
+# Este comando avisa ao Python onde o programa que você acabou de instalar está
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 def extrair_dados_fluxo(origem):
     """
