@@ -1,20 +1,14 @@
 import cv2
 import pytesseract
 import numpy as np
-import gc  # Garbage Collector para limpar a RAM
+import gc
 import os
-import pytesseract
 
-# Este comando avisa ao Python onde o programa que você acabou de instalar está
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
+
 def extrair_dados_fluxo(origem):
-    """
-    MODULARIZADO: Agora aceita tanto um frame (matriz) quanto um caminho de arquivo.
-    Explicação: Se 'origem' for um texto (caminho), ele carrega. Se for imagem, processa direto.
-    """
     try:
-        # Verifica se a origem é um caminho de arquivo (string)
         if isinstance(origem, str):
             if not os.path.exists(origem):
                 return None
@@ -22,28 +16,29 @@ def extrair_dados_fluxo(origem):
         else:
             frame = origem
 
-        # 1. Converte para cinza (Reduz 75% do peso da imagem na RAM)
+        # 1. Converte para escala de cinza
         cinza = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # 2. Redimensiona para um tamanho fixo (Leveza para o processador)
-        altura, largura = cinza.shape[:2]
-        proporcao = 600 / largura
-        processavel = cv2.resize(cinza, (600, int(altura * proporcao)))
+        # 2. Aumenta o contraste e remove ruído (Filtro Bilateral)
+        # Isso mantém as bordas dos números nítidas
+        suave = cv2.bilateralFilter(cinza, 9, 75, 75)
 
-        # 3. OCR focado apenas em dígitos
-        # --psm 7: Trata a imagem como uma única linha de texto
-        # whitelist: Ignora letras, foca só em 0-9
+        # 3. Transforma em Preto e Branco puro (Threshold)
+        _, binaria = cv2.threshold(
+            suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # 4. SALVAR TESTE: Cria um arquivo para você ver o que o Python está lendo
+        cv2.imwrite("visao_do_robo.png", binaria)
+
+        # 5. OCR com configuração de "Dígitos Apenas"
         config_ocr = '--psm 7 -c tessedit_char_whitelist=0123456789'
-        leitura = pytesseract.image_to_string(processavel, config=config_ocr)
+        leitura = pytesseract.image_to_string(binaria, config=config_ocr)
 
-        # Limpeza agressiva da memória RAM
-        del cinza
-        del processavel
-        if isinstance(origem, str):
-            del frame
+        # Limpeza de memória
+        del cinza, suave, binaria
         gc.collect()
 
         return leitura.strip()
     except Exception as e:
-        print(f"Erro no processamento de fluxo: {e}")
+        print(f"Erro no OCR: {e}")
         return None
