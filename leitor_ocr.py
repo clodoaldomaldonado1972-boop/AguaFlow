@@ -48,8 +48,11 @@ def extrair_dados_fluxo(origem):
         # 5. Salva diagnóstico (Sempre gera para podermos ver o erro)
         cv2.imwrite("visao_do_robo.png", binaria)
 
-        # 6. OCR
-        config_ocr = '--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789'
+        # 6. CONFIGURAÇÃO OCR (Calibrada para maior sensibilidade)
+        # Trocamos --psm 7 (linha única) por --psm 6 (bloco de texto)
+        # Isso ajuda se a foto não estiver perfeitamente reta.
+        config_ocr = '--psm 6 --oem 3 -c tessedit_char_whitelist=0123456789'
+
         leitura = pytesseract.image_to_string(binaria, config=config_ocr)
 
         return leitura.strip()
