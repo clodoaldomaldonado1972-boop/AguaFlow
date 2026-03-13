@@ -4,69 +4,81 @@ import numpy as np
 import gc
 import os
 
-# Configuração do caminho do Tesseract
+# Configuração do caminho do executável do Tesseract (Motor do OCR)
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 def extrair_dados_fluxo(origem):
-    # Inicializamos as variáveis como None para evitar o erro de "local variable"
+    """
+    Função principal para transformar a imagem do hidrômetro em números digitais.
+    """
     frame_res = None
     cinza = None
     suave = None
     binaria = None
 
     try:
-        # 1. Carrega a imagem
+        # 1. CARREGAMENTO ROBUSTO
+        # Usamos o numpy (np.fromfile) porque o OpenCV padrão falha com acentos (ex: ÁguaFlow)
         if isinstance(origem, str):
             if not os.path.exists(origem):
                 return None
-            frame = cv2.imread(origem)
+            # Lê os bytes brutos do arquivo e decodifica para o formato de imagem
+            img_array = np.fromfile(origem, np.uint8)
+            frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
         else:
             frame = origem
 
+        # Validação: Se a imagem estiver corrompida ou vazia, interrompe aqui
         if frame is None:
+            print("Erro: Não foi possível carregar a imagem.")
             return None
 
-        # No Passo 2, após o redimensionamento, adicione:
-        h, w = frame_res.shape[:2]
-        # Corta 20% das bordas para focar no meio (onde costumam estar os números)
-        margem_h = int(h * 0.25)
-        margem_w = int(w * 0.15)
-        foco = frame_res[margem_h:h-margem_h, margem_w:w-margem_w]
+        # 2. REDIMENSIONAMENTO INTELIGENTE
+        # O Tesseract trabalha melhor com imagens de tamanho padrão (800px de largura).
+        # Mantemos a proporção da altura para não deformar os números.
+        h_orig, w_orig = frame.shape[:2]
+        proporcao = 800 / w_orig
+        frame_res = cv2.resize(
+            frame, (800, int(h_orig * proporcao)), interpolation=cv2.INTER_CUBIC)
 
-        # Agora continue o processo usando a variável 'foco' em vez de 'frame_res'
-        cinza = cv2.cvtColor(foco, cv2.COLOR_BGR2GRAY)
-
-        # 3. Pré-processamento
+        # 3. FILTRAGEM DE RUÍDO (LIMPEZA)
+        # Primeiro, convertemos para tons de cinza para simplificar a análise.
         cinza = cv2.cvtColor(frame_res, cv2.COLOR_BGR2GRAY)
+
+        # O Filtro Bilateral remove a "sujeira" da foto (ruído), mas mantém as bordas
+        # dos números nítidas. Isso evita que os números fiquem borrados.
         suave = cv2.bilateralFilter(cinza, 9, 75, 75)
 
-        # 4. Binarização (Threshold)
+        # 4. BINARIZAÇÃO (O "RAIO-X")
+        # Transforma tudo em Preto (número) e Branco (fundo).
+        # O algoritmo OTSU calcula automaticamente o melhor contraste para a foto.
         _, binaria = cv2.threshold(
             suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        # Engrossar um pouco os números para o Tesseract ler melhor
-        kernel = np.ones((2, 2), np.uint8)
-        binaria = cv2.erode(binaria, kernel, iterations=1)
-
-        # 5. Salva diagnóstico (Sempre gera para podermos ver o erro)
+        # 5. SALVAMENTO DE DIAGNÓSTICO
+        # Cria a "visao_do_robo.png". Se o resultado for ❌, abra este arquivo para ver
+        # se o robô está conseguindo enxergar os números pretos no fundo branco.
         cv2.imwrite("visao_do_robo.png", binaria)
 
-        # 6. CONFIGURAÇÃO OCR (Calibrada para maior sensibilidade)
-        # Trocamos --psm 7 (linha única) por --psm 6 (bloco de texto)
-        # Isso ajuda se a foto não estiver perfeitamente reta.
+        # 6. MOTOR DE RECONHECIMENTO (OCR)
+        # --psm 6: Assume que a imagem é um único bloco de texto (mais flexível para fotos).
+        # --oem 3: Usa o motor de inteligência artificial mais moderno do Tesseract.
+        # whitelist: Diz ao robô para ignorar letras e focar apenas nos números 0-9.
         config_ocr = '--psm 6 --oem 3 -c tessedit_char_whitelist=0123456789'
-
         leitura = pytesseract.image_to_string(binaria, config=config_ocr)
 
+        # Retorna o texto limpo (sem espaços extras nas pontas)
         return leitura.strip()
 
     except Exception as e:
-        print(f"Erro no OCR: {e}")
+        print(f"Erro técnico no processamento do OCR: {e}")
         return None
     finally:
-        # Limpeza segura: Só deleta se a variável realmente existir
-        for var in [frame_res, cinza, suave, binaria]:
-            if var is not None:
-                del var
+        # LIMPEZA DE MEMÓRIA RAM
+        # Garante que as imagens pesadas sejam apagadas da memória após o uso.
+        if frame_res is not None:
+            del frame_res
+        if binaria is not None:
+            del binaria
         gc.collect()
