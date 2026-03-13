@@ -19,5 +19,13 @@ if fotos:
             print(f"✅ LEITURA: {resultado}")
         else:
             print("❌ Falha na leitura.")
-else:
-    print("⚠️ Nenhuma foto encontrada.")
+
+else:  # No loop do teste, mude a forma de exibir o resultado:
+    if resultado and len(resultado) >= 4:  # Ignora leituras muito curtas (ruído)
+        # Remove quebras de linha para o resultado ficar em uma linha só
+        limpo = resultado.replace("\n", " ").strip()
+        print(f"✅ LEITURA: {limpo}")
+    elif resultado:
+        print(f"⚠️ LEITURA DUVIDOSA (Muito curta): {resultado}")
+    else:
+        print("❌ Falha na leitura.")
