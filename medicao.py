@@ -1,16 +1,13 @@
 import flet as ft
 import database as db
-import camera_utils
+import camera_utils  # Mantido para compatibilidade se necessário
 import asyncio
 
 
 async def montar_tela(page: ft.Page, voltar_menu):
-    seletor_camera = None
     processando = False
 
-    page.overlay.clear()
-    page.update()
-
+    # 1. Busca a próxima unidade pendente
     unidade = db.buscar_proximo_pendente()
 
     if not unidade:
@@ -25,12 +22,14 @@ async def montar_tela(page: ft.Page, voltar_menu):
         )
 
     id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
+
     texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
                             color="blue", weight="bold")
+    status_leitura = ft.Text("Aguardando scanner...", color="white54", size=12)
 
+    # Função para calcular o consumo
     def calcular_ao_digitar(e):
         try:
-            input_valor.error_text = None
             if input_valor.value:
                 val_limpo = input_valor.value.replace(",", ".")
                 consumo = float(val_limpo) - leitura_anterior
@@ -47,6 +46,35 @@ async def montar_tela(page: ft.Page, voltar_menu):
         on_change=calcular_ao_digitar,
     )
 
+    # --- NOVO FLUXO: SCANNER EM TEMPO REAL ---
+    async def ao_escanear(e):
+        """
+        Explicação: Esta função é engatilhada pelo sensor de imagem.
+        Ela lê o dado (QR ou Número) e joga direto no campo, sem salvar foto.
+        """
+        if e.data:
+            input_valor.value = str(e.data)
+            status_leitura.value = "Leitura capturada!"
+            status_leitura.color = "green"
+            calcular_ao_digitar(None)
+            page.update()
+
+    # Componente de Scanner (Não consome RAM com arquivos .jpg)
+    scanner = ft.BarcodeScanner(
+        on_result=ao_escanear,
+    )
+
+    # Garante que o scanner esteja no overlay
+    if scanner not in page.overlay:
+        page.overlay.append(scanner)
+
+    async def acionar_scanner_vivo(e):
+        status_leitura.value = "Scanner ativo..."
+        status_leitura.color = "blue"
+        page.update()
+        # Abre a interface de câmera do sistema para leitura direta
+        scanner.get_identifier()
+
     async def salvar_leitura(e):
         nonlocal processando
         if processando or not input_valor.value:
@@ -61,42 +89,11 @@ async def montar_tela(page: ft.Page, voltar_menu):
         except Exception as ex:
             processando = False
             print(f"Erro ao salvar: {ex}")
-            page.update()
-
-    async def ao_concluir_ocr(id_qr, valor_ocr):
-        if valor_ocr:
-            input_valor.value = str(valor_ocr)
-            calcular_ao_digitar(None)
-        page.update()
-
-    # Inicializa o seletor
-    seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
-
-    async def acionar_camera(e):
-        nonlocal seletor_camera
-        try:
-            # 1. Garante que o seletor esteja pronto
-            if seletor_camera is None:
-                seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
-
-            # 2. Garante que esteja na tela
-            if seletor_camera not in page.overlay:
-                page.overlay.append(seletor_camera)
-
-            page.update()
-
-            # 3. A MUDANÇA: Tiramos o 'await' daqui para não dar o erro de NoneType
-            seletor_camera.pick_files()
-
-        except Exception as ex:
-            print(f"Erro ao disparar seletor: {ex}")
 
     async def pular_unidade(e):
-        try:
-            await voltar_menu(recarregar_medicao=True)
-        except Exception as ex:
-            print(f"Erro ao pular: {ex}")
+        await voltar_menu(recarregar_medicao=True)
 
+    # --- INTERFACE ---
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
@@ -105,18 +102,19 @@ async def montar_tela(page: ft.Page, voltar_menu):
                         size=28, weight="bold", color="blue"),
                 ft.Divider(color="white10"),
 
+                # BOTÃO DE SCANNER REALTIME
                 ft.ElevatedButton(
-                    "ESCANEAR HIDRÔMETRO",
-                    icon=ft.Icons.CAMERA_ALT,
-                    on_click=acionar_camera,
+                    "ABRIR SCANNER VIVO",
+                    icon=ft.Icons.QR_CODE_SCANNER,
+                    on_click=acionar_scanner_vivo,
                     style=ft.ButtonStyle(
-                        color="white",
-                        bgcolor="blue",
+                        color="white", bgcolor="blue",
                         shape=ft.RoundedRectangleBorder(radius=10)
                     ),
                     height=60, width=300
                 ),
 
+                status_leitura,
                 ft.Text("OU AJUSTE MANUALMENTE:", size=14, color="white54"),
                 ft.Row([input_valor], alignment="center"),
                 texto_consumo,
@@ -128,6 +126,6 @@ async def montar_tela(page: ft.Page, voltar_menu):
                                   icon_color="white54", on_click=pular_unidade)
                 ], alignment="center"),
             ],
-            horizontal_alignment="center", spacing=25
+            horizontal_alignment="center", spacing=20
         )
     )
