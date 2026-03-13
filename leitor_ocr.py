@@ -4,11 +4,13 @@ import numpy as np
 import gc
 import os
 
+# Configuração do caminho (Verifique se é este mesmo no seu PC)
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 def extrair_dados_fluxo(origem):
     try:
+        # 1. Carrega a imagem
         if isinstance(origem, str):
             if not os.path.exists(origem):
                 return None
@@ -16,26 +18,35 @@ def extrair_dados_fluxo(origem):
         else:
             frame = origem
 
-        # 1. Converte para escala de cinza
-        cinza = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # 2. Redimensionamento: O Tesseract lê melhor se o número tiver cerca de 30-50px de altura
+        altura_original, largura_original = frame.shape[:2]
+        proporcao = 800 / largura_original
+        frame_res = cv2.resize(
+            frame, (800, int(altura_original * proporcao)), interpolation=cv2.INTER_CUBIC)
 
-        # 2. Aumenta o contraste e remove ruído (Filtro Bilateral)
-        # Isso mantém as bordas dos números nítidas
+        # 3. Pré-processamento (Escala de cinza e Nitidez)
+        cinza = cv2.cvtColor(frame_res, cv2.COLOR_BGR2GRAY)
+
+        # Filtro para remover ruído mantendo as bordas dos números
         suave = cv2.bilateralFilter(cinza, 9, 75, 75)
 
-        # 3. Transforma em Preto e Branco puro (Threshold)
+        # 4. Binarização (Preto e Branco puro)
+        # Usamos o OTSU para decidir o melhor contraste automaticamente
         _, binaria = cv2.threshold(
             suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        # 4. SALVAR TESTE: Cria um arquivo para você ver o que o Python está lendo
+        # 5. SALVAR DIAGNÓSTICO (Procure este arquivo em C:\ÁguaFlow)
         cv2.imwrite("visao_do_robo.png", binaria)
 
-        # 5. OCR com configuração de "Dígitos Apenas"
-        config_ocr = '--psm 7 -c tessedit_char_whitelist=0123456789'
+        # 6. CONFIGURAÇÃO OCR (O segredo do sucesso)
+        # --psm 7: Trata a imagem como uma única linha de texto
+        # --oem 3: Usa o motor padrão do Tesseract (LTSM)
+        config_ocr = '--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789'
+
         leitura = pytesseract.image_to_string(binaria, config=config_ocr)
 
-        # Limpeza de memória
-        del cinza, suave, binaria
+        # Limpeza de memória RAM
+        del cinza, suave, binaria, frame_res
         gc.collect()
 
         return leitura.strip()
