@@ -1,5 +1,6 @@
 import flet as ft
 import os
+import leitor_ocr  # Importando o seu módulo de leitura
 
 
 async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
@@ -12,11 +13,17 @@ async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
             caminho_foto = e.files[0].path
             print(f"📷 Foto capturada em: {caminho_foto}")
 
-            # Aqui simulamos o OCR ou chamamos sua função de processamento
-            # Por enquanto, vamos devolver um valor fixo ou processar o ID
-            valor_detectado = 123.45  # Exemplo de leitura detectada
+            # --- A MÁGICA ACONTECE AQUI ---
+            # Chamamos a função do seu arquivo leitor_ocr.py passando a foto
+            valor_detectado = leitor_ocr.processar_leitura_imagem(caminho_foto)
 
-            # Chama o callback que definimos lá no medicao.py
+            # Se o OCR falhar e retornar vazio, podemos tratar aqui ou deixar
+            # o usuário digitar manualmente na tela de medição.
+            if not valor_detectado:
+                print(
+                    "⚠️ OCR não conseguiu ler os números. Aguardando digitação manual.")
+
+            # Chama o callback que definimos lá no medicao.py para preencher o campo
             await ao_concluir_ocr(None, valor_detectado)
         else:
             print("🚫 Seleção cancelada pelo usuário.")
@@ -24,12 +31,11 @@ async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
     # Criação do objeto FilePicker
     seletor = ft.FilePicker(on_result=resultado_selecao)
 
-    # Adicionando na página (overlay é a camada "invisível" para diálogos e arquivos)
+    # Adicionando na página (overlay)
     if seletor not in page.overlay:
         page.overlay.append(seletor)
 
-    # Atualiza a página para o Flet registrar o novo seletor
+    # Atualiza a página para registrar o seletor
     page.update()
 
-    # A LINHA MÁGICA: Devolve o objeto para quem chamou
     return seletor
