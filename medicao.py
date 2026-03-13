@@ -75,19 +75,21 @@ async def montar_tela(page: ft.Page, voltar_menu):
     async def acionar_camera(e):
         nonlocal seletor_camera
         try:
-            # Forçamos o seletor a estar sempre presente no overlay antes de abrir
+            # 1. Garante que o seletor esteja pronto
+            if seletor_camera is None:
+                seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
+
+            # 2. Garante que esteja na tela
             if seletor_camera not in page.overlay:
                 page.overlay.append(seletor_camera)
 
             page.update()
 
-            # REMOVIDO: file_type=ft.FilePickerFileType.IMAGE
-            # Isso faz o Android oferecer a CÂMERA como opção no menu de seleção
-            await seletor_camera.pick_files(
-                allow_multiple=False
-            )
+            # 3. A MUDANÇA: Tiramos o 'await' daqui para não dar o erro de NoneType
+            seletor_camera.pick_files()
+
         except Exception as ex:
-            print(f"Erro ao acionar câmera: {ex}")
+            print(f"Erro ao disparar seletor: {ex}")
 
     async def pular_unidade(e):
         try:

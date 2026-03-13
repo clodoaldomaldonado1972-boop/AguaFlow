@@ -1,49 +1,50 @@
 import cv2
-import pytesseract
-import re
+import pytesseract  # Ou a biblioteca que você estiver usando
 import numpy as np
-import cv2 # Se estiver usando OpenCV
+import os
+
 
 def processar_leitura_imagem(caminho_imagem):
-    # Carrega a imagem
-    img = cv2.imread(caminho_imagem)
-    
-    # REDIMENSIONAR: Diminui a imagem para um tamanho padrão (ex: 800px de largura)
-    # Isso evita o erro de falta de memória!
-    altura, largura = img.shape[:2]
-    proporcao = 800 / largura
-    novo_tamanho = (800, int(altura * proporcao))
-    img_redimensionada = cv2.resize(img, novo_tamanho, interpolation=cv2.INTER_AREA)
-    
-
-def processar_leitura_imagem(caminho_arquivo):
-    """Recebe o caminho de uma foto e extrai os números."""
     try:
-        # 1. Carrega a imagem que o usuário acabou de tirar no celular
-        img = cv2.imread(caminho_arquivo)
+        # 1. Verifica se o arquivo existe para não travar
+        if not os.path.exists(caminho_imagem):
+            print("❌ Erro: Arquivo de imagem não encontrado.")
+            return None
+
+        # 2. Carrega a imagem
+        img = cv2.imread(caminho_imagem)
         if img is None:
-            return ""
+            print("❌ Erro ao carregar a imagem (formato inválido).")
+            return None
 
-        # 2. Processamento (Cinza e Contraste) - Mantendo sua lógica excelente
-        cinza = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # 3. REDIMENSIONAMENTO (O remédio para a falta de memória)
+        # Se a imagem for maior que 1000 pixels, reduzimos para 1000px mantendo a proporção
+        altura, largura = img.shape[:2]
+        if largura > 1000:
+            proporcao = 1000 / largura
+            novo_tamanho = (1000, int(altura * proporcao))
+            img = cv2.resize(img, novo_tamanho, interpolation=cv2.INTER_AREA)
+            print(
+                f"✅ Imagem redimensionada para {novo_tamanho[0]}x{novo_tamanho[1]}")
 
-        # Otimização: Aumentar um pouco a imagem ajuda o Tesseract a ler melhor
-        cinza = cv2.resize(cinza, None, fx=2, fy=2,
-                           interpolation=cv2.INTER_CUBIC)
+        # 4. PRÉ-PROCESSAMENTO (Para ajudar o OCR a ler melhor)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Converte para cinza
+        # Aplica um filtro para aumentar o contraste (ajuda em hidrômetros sujos)
+        _, threshold = cv2.threshold(
+            gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        # Aplicando threshold (ajuste o 150 se a foto sair muito clara/escura)
-        _, threshold = cv2.threshold(cinza, 150, 255, cv2.THRESH_BINARY)
+        # 5. EXECUÇÃO DO OCR (A leitura propriamente dita)
+        # Ajuste o comando abaixo de acordo com sua biblioteca (Tesseract/EasyOCR)
+        # Exemplo com Tesseract:
+        resultado = pytesseract.image_to_string(
+            threshold, config='--psm 7 digits')
 
-        # 3. OCR (Configurado para dígitos)
-        # Usamos psm 6 ou 7 conforme seus testes
-        texto = pytesseract.image_to_string(threshold, config='--psm 7 digits')
+        # Limpa o resultado para pegar apenas números
+        valor_limpo = "".join(filter(str.isdigit, resultado))
 
-        # 4. Limpeza (pega apenas números)
-        leitura_final = "".join(re.findall(r'\d+', texto))
-
-        print(f"🔍 OCR Detectou: {leitura_final}")
-        return leitura_final
+        print(f"🔍 Valor detectado pelo OCR: {valor_limpo}")
+        return valor_limpo if valor_limpo else None
 
     except Exception as e:
-        print(f"❌ Erro no processamento OCR: {e}")
-        return ""
+        print(f"❌ Erro crítico no OCR: {e}")
+        return None
