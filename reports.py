@@ -179,14 +179,14 @@ def montar_tela_relatorios(page, voltar):
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(
             controls=[
-                ft.Icon(ft.icons.ASSESSMENT, color="blue", size=50),
+                ft.Icon(ft.Icons.ASSESSMENT, color="blue", size=50),
                 ft.Text("Painel de Relatórios", size=28,
                         color="white", weight="bold"),
                 ft.Divider(color="white10"),
                 ft.Container(height=20),
-                ft.FilledButton("GERAR RELATÓRIO MENSAL", icon=ft.icons.PICTURE_AS_PDF,
+                ft.FilledButton("GERAR RELATÓRIO MENSAL", icon=ft.Icons.PICTURE_AS_PDF,
                                 on_click=btn_gerar_leitura, width=350, height=50),
-                ft.FilledButton("GERAR ETIQUETAS QR", icon=ft.icons.QR_CODE,
+                ft.FilledButton("GERAR ETIQUETAS QR", icon=ft.Icons.QR_CODE,
                                 on_click=btn_gerar_etiquetas, width=350, height=50),
                 ft.TextButton("Sair", on_click=lambda _: voltar(),
                               style=ft.ButtonStyle(color="white70"))

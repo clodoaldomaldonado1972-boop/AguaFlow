@@ -3,16 +3,14 @@ import database as db
 import camera_utils
 import asyncio
 
+
 async def montar_tela(page: ft.Page, voltar_menu):
-    # Declaramos as variáveis no escopo da função para acesso via 'nonlocal'.
     seletor_camera = None
     processando = False
 
-    # Limpeza garante que seletores antigos não fiquem presos.
     page.overlay.clear()
     page.update()
 
-    # Busca a próxima unidade conforme a sequência do condomínio.
     unidade = db.buscar_proximo_pendente()
 
     if not unidade:
@@ -34,7 +32,6 @@ async def montar_tela(page: ft.Page, voltar_menu):
                             color="blue", weight="bold")
 
     def calcular_ao_digitar(e):
-        """Calcula o consumo em tempo real."""
         try:
             input_valor.error_text = None
             if input_valor.value:
@@ -54,7 +51,6 @@ async def montar_tela(page: ft.Page, voltar_menu):
     )
 
     async def salvar_leitura(e):
-        """Persiste os dados no SQLite."""
         nonlocal processando
         if processando or not input_valor.value:
             input_valor.error_text = "Digite um valor"
@@ -64,23 +60,21 @@ async def montar_tela(page: ft.Page, voltar_menu):
             processando = True
             valor = float(input_valor.value.replace(",", "."))
             db.registrar_leitura(id_db, valor)
-            await voltar_menu(recarregar_medicao=True)
+            # CORREÇÃO: Usar run_task para navegar de volta
+            page.run_task(lambda: voltar_menu(recarregar_medicao=True))
         except Exception as ex:
             processando = False
-            print(f"Erro ao salvar: {ex}")
+            page.update()
 
     async def ao_concluir_ocr(id_qr, valor_ocr):
-        """Callback após o OCR da imagem."""
         if valor_ocr:
             input_valor.value = str(valor_ocr)
             calcular_ao_digitar(None)
-        page.update() # Corrigido: Removido await e _async
+        page.update()
 
-    # Inicialização do FilePicker.
     seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
 
     async def acionar_camera(e):
-        """Gerencia o acionamento da câmera."""
         nonlocal seletor_camera
         if seletor_camera is None:
             seletor_camera = await camera_utils.inicializar_camera(page, ao_concluir_ocr)
@@ -89,20 +83,16 @@ async def montar_tela(page: ft.Page, voltar_menu):
             try:
                 if seletor_camera not in page.overlay:
                     page.overlay.append(seletor_camera)
-                seletor_camera.page = page
-                page.update() # Corrigido: Removido await e _async
+                page.update()
                 await seletor_camera.pick_files(
                     allow_multiple=False,
                     file_type=ft.FilePickerFileType.IMAGE
                 )
             except Exception as ex:
-                print(f"Erro interno no seletor: {ex}")
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("Erro: Câmera não inicializada."))
-            page.snack_bar.open = True
-            page.update()
+                print(f"Erro: {ex}")
 
     async def pular_unidade(e):
+        # CORREÇÃO: Chama o menu com recarregamento de forma segura
         await voltar_menu(recarregar_medicao=True)
 
     return ft.Container(
@@ -114,18 +104,22 @@ async def montar_tela(page: ft.Page, voltar_menu):
                 ft.Divider(color="white10"),
                 ft.Row([
                     input_valor,
-                    ft.IconButton(ft.Icons.CAMERA_ALT, # Corrigido: Icons
-                                  icon_color="blue", on_click=acionar_camera)
+                    ft.IconButton(ft.Icons.CAMERA_ALT,
+                                  icon_color="blue",
+                                  # CORREÇÃO
+                                  on_click=lambda _: page.run_task(acionar_camera))
                 ], alignment="center"),
                 texto_consumo,
                 ft.Row([
-                    ft.FilledButton("SALVAR", icon=ft.Icons.SAVE, # Corrigido: Icons
-                                    on_click=salvar_leitura, width=150),
+                    ft.FilledButton("SALVAR", icon=ft.Icons.SAVE,
+                                    # CORREÇÃO
+                                    on_click=lambda _: page.run_task(salvar_leitura), width=150),
                     ft.IconButton(
-                        icon=ft.Icons.SKIP_NEXT, # Corrigido: Icons
+                        icon=ft.Icons.SKIP_NEXT,
                         icon_color="white54",
                         tooltip="Pular esta unidade",
-                        on_click=pular_unidade
+                        # CORREÇÃO: O segredo para o botão funcionar é o run_task
+                        on_click=lambda _: page.run_task(pular_unidade)
                     )
                 ], alignment="center"),
             ],
