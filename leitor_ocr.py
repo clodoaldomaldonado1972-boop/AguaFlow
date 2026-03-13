@@ -1,22 +1,33 @@
 import cv2
+import pytesseract
 import numpy as np
-import gc  # Coletor de lixo para limpar a memória RAM
+import gc  # Garbage Collector para limpar a RAM
 
 
-def ler_hidrometro_fluxo(frame_da_camera):
+def extrair_dados_fluxo(frame_camera):
+    """
+    Recebe um frame direto da câmera, processa e extrai números.
+    Não salva arquivo no HD, economizando memória e evitando o MemoryError.
+    """
     try:
-        # 1. Converte o frame para escala de cinza (ocupa 3x menos memória)
-        gray = cv2.cvtColor(frame_da_camera, cv2.COLOR_BGR2GRAY)
+        # 1. Converte para cinza (Reduz 75% do peso da imagem na RAM)
+        cinza = cv2.cvtColor(frame_camera, cv2.COLOR_BGR2GRAY)
 
-        # 2. Localiza onde estão os números (Processamento leve)
-        # Aqui entra a sua lógica de OCR (Tesseract ou EasyOCR)
-        valor_detectado = seu_motor_ocr.read(gray)
+        # 2. Redimensiona para um tamanho fixo de processamento leve
+        altura, largura = cinza.shape[:2]
+        proporcao = 600 / largura
+        processavel = cv2.resize(cinza, (600, int(altura * proporcao)))
 
-        # 3. LIMPEZA AGRESSIVA DE MEMÓRIA
-        del gray
-        gc.collect()  # Força o Python a liberar a RAM na hora
+        # 3. OCR focado apenas em dígitos (Aumenta velocidade e precisão)
+        config_ocr = '--psm 7 -c tessedit_char_whitelist=0123456789'
+        leitura = pytesseract.image_to_string(processavel, config=config_ocr)
 
-        return valor_detectado
+        # Limpeza agressiva: remove objetos pesados da memória
+        del cinza
+        del processavel
+        gc.collect()
+
+        return leitura.strip()
     except Exception as e:
-        print(f"Erro no fluxo: {e}")
+        print(f"Erro no processamento de fluxo: {e}")
         return None
