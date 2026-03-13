@@ -1,41 +1,33 @@
 import flet as ft
 import os
-import leitor_ocr  # Importando o seu módulo de leitura
+import leitor_ocr
 
 
 async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
-    # Limpeza preventiva para não acumular seletores na memória do celular
     page.overlay.clear()
-    page.update()
+    page.update()  # Correto: sem await
 
     async def resultado_selecao(e: ft.FilePickerResultEvent):
         if e.files and e.files[0].path:
             caminho_foto = e.files[0].path
             print(f"📷 Foto capturada em: {caminho_foto}")
 
-            # --- A MÁGICA ACONTECE AQUI ---
-            # Chamamos a função do seu arquivo leitor_ocr.py passando a foto
+            # Executa o processamento
             valor_detectado = leitor_ocr.processar_leitura_imagem(caminho_foto)
 
-            # Se o OCR falhar e retornar vazio, podemos tratar aqui ou deixar
-            # o usuário digitar manualmente na tela de medição.
             if not valor_detectado:
-                print(
-                    "⚠️ OCR não conseguiu ler os números. Aguardando digitação manual.")
+                print("⚠️ OCR não detectou números.")
 
-            # Chama o callback que definimos lá no medicao.py para preencher o campo
+            # CHAVE DO SUCESSO: Como ao_concluir_ocr é uma função 'async' lá no medicao.py,
+            # precisamos manter o await aqui para ele atualizar a tela com o valor.
             await ao_concluir_ocr(None, valor_detectado)
         else:
-            print("🚫 Seleção cancelada pelo usuário.")
+            print("🚫 Seleção cancelada.")
 
-    # Criação do objeto FilePicker
     seletor = ft.FilePicker(on_result=resultado_selecao)
 
-    # Adicionando na página (overlay)
     if seletor not in page.overlay:
         page.overlay.append(seletor)
 
-    # Atualiza a página para registrar o seletor
-    page.update()
-
+    page.update()  # Correto: sem await
     return seletor

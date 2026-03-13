@@ -68,7 +68,7 @@ async def main(page: ft.Page):
         # --- INTERFACE DO MENU PRINCIPAL (DASHBOARD) ---
         menu = ft.Column([
             ft.Container(height=60),
-            ft.Icon(ft.icons.WATER_DROP_ROUNDED, color="blue", size=80),
+            ft.Icon(ft.Icons.WATER_DROP_ROUNDED, color="blue", size=80),
             ft.Text("MENU PRINCIPAL", size=24, weight="bold"),
             ft.Text(f"Perfil: {perfil.capitalize()}",
                     size=14, color="white70"),
@@ -77,7 +77,7 @@ async def main(page: ft.Page):
             # Botão de ação primária
             ft.FilledButton(
                 "INICIAR LEITURA",
-                icon=ft.icons.PLAY_ARROW_ROUNDED,
+                icon=ft.Icons.PLAY_ARROW_ROUNDED,
                 width=300, height=60,
                 on_click=ir_para_leitura
             ),
@@ -85,7 +85,7 @@ async def main(page: ft.Page):
             # Botão de ação secundária
             ft.OutlinedButton(
                 "PAINEL DE RELATÓRIOS",
-                icon=ft.icons.ASSESSMENT_ROUNDED,
+                icon=ft.Icons.ASSESSMENT_ROUNDED,
                 width=300, height=60,
                 on_click=ir_para_relatorios,
                 style=ft.ButtonStyle(side={"": ft.BorderSide(1, "blue")})
@@ -94,7 +94,7 @@ async def main(page: ft.Page):
             ft.Container(height=40),
             ft.TextButton(
                 "LOGOUT / ENCERRAR SESSÃO",
-                icon=ft.icons.LOGOUT,
+                icon=ft.Icons.LOGOUT,
                 on_click=sair,
                 icon_color="red"
             )
