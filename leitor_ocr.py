@@ -4,11 +4,17 @@ import numpy as np
 import gc
 import os
 
-# Configuração do caminho (Verifique se é este mesmo no seu PC)
+# Configuração do caminho do Tesseract
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 def extrair_dados_fluxo(origem):
+    # Inicializamos as variáveis como None para evitar o erro de "local variable"
+    frame_res = None
+    cinza = None
+    suave = None
+    binaria = None
+
     try:
         # 1. Carrega a imagem
         if isinstance(origem, str):
@@ -18,43 +24,42 @@ def extrair_dados_fluxo(origem):
         else:
             frame = origem
 
-        # 2. Redimensionamento: O Tesseract lê melhor se o número tiver cerca de 30-50px de altura
+        if frame is None:
+            return None
+
+        # 2. Redimensionamento inteligente
         altura_original, largura_original = frame.shape[:2]
         proporcao = 800 / largura_original
         frame_res = cv2.resize(
             frame, (800, int(altura_original * proporcao)), interpolation=cv2.INTER_CUBIC)
 
-        # 3. Pré-processamento (Escala de cinza e Nitidez)
+        # 3. Pré-processamento
         cinza = cv2.cvtColor(frame_res, cv2.COLOR_BGR2GRAY)
-
-        # Filtro para remover ruído mantendo as bordas dos números
         suave = cv2.bilateralFilter(cinza, 9, 75, 75)
 
-        ## 4. Binarização e Engrossamento (Morphology)
-        _, binaria = cv2.threshold(suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        
-        # Cria um "pincel" para engrossar os números se eles forem muito finos
-        kernel = np.ones((2,2), np.uint8)
-        binaria = cv2.erode(binaria, kernel, iterations=1) # Deixa o preto mais forte
+        # 4. Binarização (Threshold)
+        _, binaria = cv2.threshold(
+            suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        # Salva para você ver se ficou melhor
+        # Engrossar um pouco os números para o Tesseract ler melhor
+        kernel = np.ones((2, 2), np.uint8)
+        binaria = cv2.erode(binaria, kernel, iterations=1)
+
+        # 5. Salva diagnóstico (Sempre gera para podermos ver o erro)
         cv2.imwrite("visao_do_robo.png", binaria)
 
-        # 5. SALVAR DIAGNÓSTICO (Procure este arquivo em C:\ÁguaFlow)
-        cv2.imwrite("visao_do_robo.png", binaria)
-
-        # 6. CONFIGURAÇÃO OCR (O segredo do sucesso)
-        # --psm 7: Trata a imagem como uma única linha de texto
-        # --oem 3: Usa o motor padrão do Tesseract (LTSM)
+        # 6. OCR
         config_ocr = '--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789'
-
         leitura = pytesseract.image_to_string(binaria, config=config_ocr)
 
-        # Limpeza de memória RAM
-        del cinza, suave, binaria, frame_res
-        gc.collect()
-
         return leitura.strip()
+
     except Exception as e:
         print(f"Erro no OCR: {e}")
         return None
+    finally:
+        # Limpeza segura: Só deleta se a variável realmente existir
+        for var in [frame_res, cinza, suave, binaria]:
+            if var is not None:
+                del var
+        gc.collect()
