@@ -1,25 +1,26 @@
 import flet as ft
-import os
 import leitor_ocr
 
 
 async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
-    page.overlay.clear()
-    page.update()
 
-    async def resultado_selecao(e: ft.FilePickerResultEvent):
-    if e.files and e.files[0].path:
-        caminho_foto = e.files[0].path
-        print(f"📷 Foto capturada: {caminho_foto}")
+    # Função síncrona para não gerar conflito de await no Android
+    def resultado_selecao(e: ft.FilePickerResultEvent):
+        if e.files and e.files[0].path:
+            caminho_foto = e.files[0].path
+            print(f"📷 Foto capturada: {caminho_foto}")
 
-        # OCR
-        valor_detectado = leitor_ocr.processar_leitura_imagem(caminho_foto)
+            def processar():
+                # Processa o OCR e envia de volta para a tela
+                valor_detectado = leitor_ocr.processar_leitura_imagem(
+                    caminho_foto)
+                page.run_task(ao_concluir_ocr, None, valor_detectado)
 
-        # MUDANÇA AQUI: Em vez de 'await ao_concluir_ocr(...)', use:
-        page.run_task(ao_concluir_ocr, None, valor_detectado)
-    else:
-        print("🚫 Seleção cancelada.")
-        
+            page.run_task(processar)
+        else:
+            print("🚫 Seleção cancelada.")
+
+    # Criamos o seletor. No Android, isso abre um menu que inclui a Câmera.
     seletor = ft.FilePicker(on_result=resultado_selecao)
 
     if seletor not in page.overlay:
