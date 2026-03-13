@@ -1,22 +1,35 @@
 import flet as ft
+import os
 
 
 async def inicializar_camera(page: ft.Page, ao_concluir_ocr):
-    # ... (seu código de limpeza de overlay aqui) ...
+    # Limpeza preventiva para não acumular seletores na memória do celular
+    page.overlay.clear()
+    page.update()
 
     async def resultado_selecao(e: ft.FilePickerResultEvent):
-        if e.files:
-            # Sua lógica de pegar o caminho do arquivo e mandar pro OCR
-            pass
+        if e.files and e.files[0].path:
+            caminho_foto = e.files[0].path
+            print(f"📷 Foto capturada em: {caminho_foto}")
 
-    # CRIAÇÃO DO OBJETO
+            # Aqui simulamos o OCR ou chamamos sua função de processamento
+            # Por enquanto, vamos devolver um valor fixo ou processar o ID
+            valor_detectado = 123.45  # Exemplo de leitura detectada
+
+            # Chama o callback que definimos lá no medicao.py
+            await ao_concluir_ocr(None, valor_detectado)
+        else:
+            print("🚫 Seleção cancelada pelo usuário.")
+
+    # Criação do objeto FilePicker
     seletor = ft.FilePicker(on_result=resultado_selecao)
 
-    # ADICIONANDO NA PÁGINA
+    # Adicionando na página (overlay é a camada "invisível" para diálogos e arquivos)
     if seletor not in page.overlay:
         page.overlay.append(seletor)
 
-    await page.update_async()
+    # Atualiza a página para o Flet registrar o novo seletor
+    page.update()
 
-    # --- A LINHA QUE ESTÁ FALTANDO NO SEU É ESTA: ---
+    # A LINHA MÁGICA: Devolve o objeto para quem chamou
     return seletor
