@@ -3,17 +3,15 @@ import pytesseract
 import numpy as np
 import gc
 import os
+import re
 
-# Configuração do caminho do executável do Tesseract
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 def extrair_dados_fluxo(origem):
-    """
-    Processa a imagem e retorna o valor formatado com 2 casas decimais (max 6 dígitos).
-    """
     frame_res = None
     binaria = None
+    unidade_id = "Não identificado"
 
     try:
         # 1. CARREGAMENTO
@@ -28,50 +26,59 @@ def extrair_dados_fluxo(origem):
         if frame is None:
             return None
 
-        # 2. REDIMENSIONAMENTO E CINZA
+        # 2. REDIMENSIONAMENTO
         h_orig, w_orig = frame.shape[:2]
-        proporcao = 800 / w_orig
+        proporcao = 1000 / w_orig  # Aumentamos um pouco para ajudar no QR Code
         frame_res = cv2.resize(
-            frame, (800, int(h_orig * proporcao)), interpolation=cv2.INTER_CUBIC)
-        cinza = cv2.cvtColor(frame_res, cv2.COLOR_BGR2GRAY)
-        suave = cv2.bilateralFilter(cinza, 9, 75, 75)
+            frame, (1000, int(h_orig * proporcao)), interpolation=cv2.INTER_CUBIC)
 
-        # 3. BINARIZAÇÃO
+        # 3. DETECÇÃO DO QR CODE (Identificação do Apto)
+        # O OpenCV tem um detector de QR Code nativo
+        detector = cv2.QRCodeDetector()
+        valor_qr, pts, _ = detector.detectAndDecode(frame_res)
+        if valor_qr:
+            unidade_id = valor_qr
+            print(f"📍 Unidade Identificada: {unidade_id}")
+
+        # 4. FOCO NO VISOR (OCR dos 6 dígitos)
+        # Cortamos o centro da imagem para ignorar o QR Code e números de série na hora de ler o consumo
+        h, w = frame_res.shape[:2]
+        y1, y2 = int(h * 0.35), int(h * 0.65)  # Foco mais estreito no meio
+        x1, x2 = int(w * 0.2), int(w * 0.8)
+        foco = frame_res[y1:y2, x1:x2]
+
+        # 5. PRÉ-PROCESSAMENTO DO VISOR
+        cinza = cv2.cvtColor(foco, cv2.COLOR_BGR2GRAY)
+        suave = cv2.bilateralFilter(cinza, 9, 75, 75)
         _, binaria = cv2.threshold(
             suave, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        cv2.imwrite("visao_do_robo.png", binaria)
 
-        # 4. OCR
+        # Salva o que o robô está focando para você conferir
+        cv2.imwrite("visao_do_visor.png", binaria)
+
+        # 6. OCR DO CONSUMO
         config_ocr = '--psm 6 --oem 3 -c tessedit_char_whitelist=0123456789'
         leitura_bruta = pytesseract.image_to_string(binaria, config=config_ocr)
 
-        # 5. FILTRAGEM E REGRA DE NEGÓCIO (6 DÍGITOS + 2 DECIMAIS)
-        numeros = "".join(filter(str.isdigit, leitura_bruta))
-        qtd = len(numeros)
+        # Busca bloco de 4 a 6 dígitos
+        padrao = re.findall(r'\d{4,6}', leitura_bruta)
 
-        if 3 <= qtd <= 6:
-            inteiros = numeros[:-2]
+        if padrao:
+            numeros = padrao[0]
+            qtd = len(numeros)
+            inteiros = numeros[:-2] if qtd > 2 else "0"
             decimais = numeros[-2:]
+            leitura_final = f"{inteiros}.{decimais}"
 
-            if not inteiros:
-                inteiros = "0"
+            # Retorna uma tupla com (ID do Apto, Valor da Leitura)
+            return unidade_id, leitura_final
 
-            return f"{inteiros}.{decimais}"
-
-        elif qtd > 6:
-            print(f"⚠️ Ignorado: {qtd} dígitos (Provável nº série).")
-            return None
-
-        return None
+        return unidade_id, None
 
     except Exception as e:
-        print(f"Erro técnico no OCR: {e}")
-        return None
-
+        print(f"Erro no OCR/QR: {e}")
+        return None, None
     finally:
-        # LIMPEZA DE MEMÓRIA
         if frame_res is not None:
             del frame_res
-        if binaria is not None:
-            del binaria
         gc.collect()
