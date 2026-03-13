@@ -62,23 +62,33 @@ def extrair_dados_fluxo(origem):
         cv2.imwrite("visao_do_robo.png", binaria)
 
         # 6. MOTOR DE RECONHECIMENTO (OCR)
-        # --psm 6: Assume que a imagem é um único bloco de texto (mais flexível para fotos).
-        # --oem 3: Usa o motor de inteligência artificial mais moderno do Tesseract.
-        # whitelist: Diz ao robô para ignorar letras e focar apenas nos números 0-9.
         config_ocr = '--psm 6 --oem 3 -c tessedit_char_whitelist=0123456789'
-        leitura = pytesseract.image_to_string(binaria, config=config_ocr)
+        leitura_bruta = pytesseract.image_to_string(binaria, config=config_ocr)
 
-        # Retorna o texto limpo (sem espaços extras nas pontas)
-        return leitura.strip()
+        # Filtra apenas os números
+        numeros = "".join(filter(str.isdigit, leitura_bruta))
 
-    except Exception as e:
-        print(f"Erro técnico no processamento do OCR: {e}")
-        return None
-    finally:
-        # LIMPEZA DE MEMÓRIA RAM
-        # Garante que as imagens pesadas sejam apagadas da memória após o uso.
-        if frame_res is not None:
-            del frame_res
-        if binaria is not None:
-            del binaria
-        gc.collect()
+        # 7. REGRA DE NEGÓCIO: Visor de 6 campos com 2 decimais
+        qtd = len(numeros)
+
+        if 3 <= qtd <= 6:
+            # Se temos pelo menos 3 dígitos, podemos formatar as 2 últimas casas
+            # Ex: "123456" vira "1234.56" | "123" vira "1.23"
+            inteiros = numeros[:-2]
+            decimais = numeros[-2:]
+
+            # Se a leitura for muito curta (ex: 23), adiciona o 0 na frente: "0.23"
+            if not inteiros:
+                inteiros = "0"
+
+            resultado_final = f"{inteiros}.{decimais}"
+            return resultado_final
+
+        elif qtd > 6:
+            print(
+                f"⚠️ Ignorado: {qtd} dígitos detectados (Provável número de série).")
+            return None
+
+        else:
+            # Se tiver apenas 1 ou 2 dígitos, é ruído visual
+            return None
