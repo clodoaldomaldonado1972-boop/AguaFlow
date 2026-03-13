@@ -60,7 +60,6 @@ async def montar_tela(page: ft.Page, voltar_menu):
             processando = True
             valor = float(input_valor.value.replace(",", "."))
             db.registrar_leitura(id_db, valor)
-            # CORREÇÃO: Usar run_task para navegar de volta
             page.run_task(lambda: voltar_menu(recarregar_medicao=True))
         except Exception as ex:
             processando = False
@@ -92,7 +91,6 @@ async def montar_tela(page: ft.Page, voltar_menu):
                 print(f"Erro: {ex}")
 
     async def pular_unidade(e):
-        # CORREÇÃO: Chama o menu com recarregamento de forma segura
         await voltar_menu(recarregar_medicao=True)
 
     return ft.Container(
@@ -104,22 +102,28 @@ async def montar_tela(page: ft.Page, voltar_menu):
                 ft.Divider(color="white10"),
                 ft.Row([
                     input_valor,
-                    ft.IconButton(ft.Icons.CAMERA_ALT,
-                                  icon_color="blue",
-                                  # CORREÇÃO
-                                  on_click=lambda _: page.run_task(acionar_camera))
-                ], alignment="center"),
+                    ft.IconButton(
+                        ft.Icons.CAMERA_ALT,
+                        icon_color="blue",
+                        on_click=lambda _: page.run_task(
+                            acionar_camera, _)  # CORRIGIDO: repassa o "_"
+                    )
+                ], alignment="center"),  # FECHAMENTO DA ROW CORRIGIDO
                 texto_consumo,
                 ft.Row([
-                    ft.FilledButton("SALVAR", icon=ft.Icons.SAVE,
-                                    # CORREÇÃO
-                                    on_click=lambda _: page.run_task(salvar_leitura), width=150),
+                    ft.FilledButton(
+                        "SALVAR",
+                        icon=ft.Icons.SAVE,
+                        on_click=lambda _: page.run_task(
+                            salvar_leitura, _),  # CORRIGIDO: repassa o "_"
+                        width=150
+                    ),
                     ft.IconButton(
                         icon=ft.Icons.SKIP_NEXT,
                         icon_color="white54",
                         tooltip="Pular esta unidade",
-                        # CORREÇÃO: O segredo para o botão funcionar é o run_task
-                        on_click=lambda _: page.run_task(pular_unidade)
+                        on_click=lambda _: page.run_task(
+                            pular_unidade, _)  # CORRIGIDO: repassa o "_"
                     )
                 ], alignment="center"),
             ],
