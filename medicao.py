@@ -59,10 +59,15 @@ async def montar_tela(page: ft.Page, voltar_menu):
         try:
             processando = True
             valor = float(input_valor.value.replace(",", "."))
+
+            # Registra no banco
             db.registrar_leitura(id_db, valor)
-            page.run_task(lambda: voltar_menu(recarregar_medicao=True))
+
+            # CORREÇÃO: Chamamos o voltar_menu com await diretamente para recarregar a tela
+            await voltar_menu(recarregar_medicao=True)
         except Exception as ex:
             processando = False
+            print(f"Erro ao salvar: {ex}")
             page.update()
 
     async def ao_concluir_ocr(id_qr, valor_ocr):
@@ -105,25 +110,22 @@ async def montar_tela(page: ft.Page, voltar_menu):
                     ft.IconButton(
                         ft.Icons.CAMERA_ALT,
                         icon_color="blue",
-                        on_click=lambda _: page.run_task(
-                            acionar_camera, _)  # CORRIGIDO: repassa o "_"
+                        on_click=lambda _: page.run_task(acionar_camera, _)
                     )
-                ], alignment="center"),  # FECHAMENTO DA ROW CORRIGIDO
+                ], alignment="center"),
                 texto_consumo,
                 ft.Row([
                     ft.FilledButton(
                         "SALVAR",
                         icon=ft.Icons.SAVE,
-                        on_click=lambda _: page.run_task(
-                            salvar_leitura, _),  # CORRIGIDO: repassa o "_"
+                        on_click=lambda _: page.run_task(salvar_leitura, _),
                         width=150
                     ),
                     ft.IconButton(
                         icon=ft.Icons.SKIP_NEXT,
                         icon_color="white54",
                         tooltip="Pular esta unidade",
-                        on_click=lambda _: page.run_task(
-                            pular_unidade, _)  # CORRIGIDO: repassa o "_"
+                        on_click=lambda _: page.run_task(pular_unidade, _)
                     )
                 ], alignment="center"),
             ],
