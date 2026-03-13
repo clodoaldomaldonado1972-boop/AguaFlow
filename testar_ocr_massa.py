@@ -2,6 +2,7 @@ import leitor_ocr
 import os
 import glob
 
+# Busca imagens
 extensoes = ["*.jpg", "*.jpeg", "*.png"]
 fotos = []
 for ext in extensoes:
@@ -9,23 +10,23 @@ for ext in extensoes:
 
 fotos = [f for f in fotos if "visao_do_robo" not in f]
 
-if fotos:
-    print(f"--- 🚀 Iniciando teste em {len(fotos)} imagens ---")
-    for arquivo in fotos:
-        print(f"📸 Analisando: {arquivo}")
-        # Aqui ele chama a função que está lá no outro arquivo
-        resultado = leitor_ocr.extrair_dados_fluxo(arquivo)
-        if resultado:
-            print(f"✅ LEITURA: {resultado}")
-        else:
-            print("❌ Falha na leitura.")
+print(f"\n{'='*50}")
+print(f"🚀 SISTEMA ÁGUA FLOW - TESTE EM MASSA")
+print(f"{'='*50}")
 
-else:  # No loop do teste, mude a forma de exibir o resultado:
-    if resultado and len(resultado) >= 4:  # Ignora leituras muito curtas (ruído)
-        # Remove quebras de linha para o resultado ficar em uma linha só
-        limpo = resultado.replace("\n", " ").strip()
-        print(f"✅ LEITURA: {limpo}")
-    elif resultado:
-        print(f"⚠️ LEITURA DUVIDOSA (Muito curta): {resultado}")
-    else:
-        print("❌ Falha na leitura.")
+if fotos:
+    for arquivo in fotos:
+        print(f"\n🔍 ARQUIVO: {arquivo}")
+        resultado = leitor_ocr.extrair_dados_fluxo(arquivo)
+
+        if resultado:
+            print(f"✅ RESULTADO NA TELA: {resultado} m³")
+        else:
+            # Se o leitor_ocr retornar None, ele caiu na nossa trava de segurança
+            print(f"❌ STATUS: Leitura inválida ou descartada (Ruído/Série)")
+
+    print(f"\n{'='*50}")
+    print(f"✨ Processamento de {len(fotos)} imagens finalizado.")
+    print(f"{'='*50}")
+else:
+    print("⚠️ Nenhuma imagem encontrada para teste.")
