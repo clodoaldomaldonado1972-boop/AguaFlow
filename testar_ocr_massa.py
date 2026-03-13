@@ -2,7 +2,8 @@ import leitor_ocr
 import os
 import glob
 
-# Busca imagens
+
+Busca imagens
 extensoes = ["*.jpg", "*.jpeg", "*.png"]
 fotos = []
 for ext in extensoes:
