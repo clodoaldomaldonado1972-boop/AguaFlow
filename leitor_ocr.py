@@ -2,10 +2,19 @@ import cv2
 import pytesseract
 import re
 import numpy as np
+import cv2 # Se estiver usando OpenCV
 
-# Se o Tesseract não estiver no PATH, descomente e ajuste:
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
+def processar_leitura_imagem(caminho_imagem):
+    # Carrega a imagem
+    img = cv2.imread(caminho_imagem)
+    
+    # REDIMENSIONAR: Diminui a imagem para um tamanho padrão (ex: 800px de largura)
+    # Isso evita o erro de falta de memória!
+    altura, largura = img.shape[:2]
+    proporcao = 800 / largura
+    novo_tamanho = (800, int(altura * proporcao))
+    img_redimensionada = cv2.resize(img, novo_tamanho, interpolation=cv2.INTER_AREA)
+    
 
 def processar_leitura_imagem(caminho_arquivo):
     """Recebe o caminho de uma foto e extrai os números."""
