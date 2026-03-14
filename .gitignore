@@ -6,3 +6,11 @@ qrcodes/
 relatorios_pdf/
 audios/
 *.db
+
+# Bloquear relatórios e imagens de teste
+relatorio_leituras_*.txt
+teste*.jpg
+testar_todos.py
+teste_local.py
+.venv/
+__pycache__/
