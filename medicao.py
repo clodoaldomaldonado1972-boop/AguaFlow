@@ -1,131 +1,113 @@
-import flet as ft
-import database as db
-import camera_utils  # Mantido para compatibilidade se necessário
-import asyncio
+import sqlite3
 
 
-async def montar_tela(page: ft.Page, voltar_menu):
-    processando = False
-
-    # 1. Busca a próxima unidade pendente
-    unidade = db.buscar_proximo_pendente()
-
-    if not unidade:
-        return ft.Container(
-            expand=True, bgcolor="#1A1C1E", alignment=ft.Alignment(0, 0),
-            content=ft.Column([
-                ft.Icon(ft.Icons.CHECK_CIRCLE, color="green", size=80),
-                ft.Text("Todas as medições concluídas!",
-                        size=24, color="white"),
-                ft.ElevatedButton("Voltar ao Menu", on_click=voltar_menu)
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+def init_db():
+    conn = sqlite3.connect('aguaflow.db')
+    cursor = conn.cursor()
+    # Criamos a tabela com o campo 'ordem' para garantir a descida correta
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS leituras (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unidade TEXT NOT NULL,
+            leitura_anterior REAL DEFAULT 0.0,
+            leitura_atual REAL,
+            tipo TEXT DEFAULT 'AGUA',
+            status TEXT DEFAULT 'PENDENTE',
+            ordem INTEGER
         )
+    ''')
+    conn.commit()
+    conn.close()
 
-    id_db, nome_unidade, leitura_anterior = unidade[0], unidade[1], unidade[2]
+# =============================================================================
+# LÓGICA VIVERE PRUDENTE: GERAR LISTA (166 -> 11)
+# =============================================================================
 
-    texto_consumo = ft.Text("Consumo: 0.00 m³", size=18,
-                            color="blue", weight="bold")
-    status_leitura = ft.Text("Aguardando scanner...", color="white54", size=12)
 
-    # Função para calcular o consumo
-    def calcular_ao_digitar(e):
-        try:
-            if input_valor.value:
-                val_limpo = input_valor.value.replace(",", ".")
-                consumo = float(val_limpo) - leitura_anterior
-                texto_consumo.value = f"Consumo: {consumo:.2f} m³"
-                texto_consumo.color = "orange" if consumo > 20 or consumo < 0 else "blue"
-            page.update()
-        except:
-            pass
+def gerar_lista_apartamentos():
+    """
+    Humanizado: Esta função é o GPS. Ela traça a rota começando do 16º andar,
+    passando por todos os 6 aptos de cada andar, até o Geral no Térreo.
+    """
+    lista_final = []
+    ordem_cont = 1
 
-    input_valor = ft.TextField(
-        label="Leitura Atual (m³)",
-        keyboard_type=ft.KeyboardType.NUMBER,
-        width=250, color="white",
-        on_change=calcular_ao_digitar,
-    )
+    # Loop dos andares: do 16 ao 1
+    for andar in range(16, 0, -1):
+        # Loop dos aptos: do 6 ao 1 (Ex: 166, 165, 164, 163, 162, 161)
+        for final in range(6, 0, -1):
+            unidade = f"{andar}{final}"
+            lista_final.append((unidade, 0.0, "AGUA", ordem_cont))
+            ordem_cont += 1
+            # Se quiser Gás também, adicionamos aqui:
+            # lista_final.append((unidade, 0.0, "GAS", ordem_cont))
+            # ordem_cont += 1
 
-    # --- NOVO FLUXO: SCANNER EM TEMPO REAL ---
-    async def ao_escanear(e):
-        """
-        Explicação: Esta função é engatilhada pelo sensor de imagem.
-        Ela lê o dado (QR ou Número) e joga direto no campo, sem salvar foto.
-        """
-        if e.data:
-            input_valor.value = str(e.data)
-            status_leitura.value = "Leitura capturada!"
-            status_leitura.color = "green"
-            calcular_ao_digitar(None)
-            page.update()
+    # Adiciona as unidades especiais do Térreo
+    lista_final.append(("LAZER", 0.0, "AGUA", ordem_cont))
+    lista_final.append(("GERAL", 0.0, "AGUA", ordem_cont + 1))
 
-    # Componente de Scanner (Não consome RAM com arquivos .jpg)
-    scanner = ft.BarcodeScanner(
-        on_result=ao_escanear,
-    )
+    return lista_final
 
-    # Garante que o scanner esteja no overlay
-    if scanner not in page.overlay:
-        page.overlay.append(scanner)
 
-    async def acionar_scanner_vivo(e):
-        status_leitura.value = "Scanner ativo..."
-        status_leitura.color = "blue"
-        page.update()
-        # Abre a interface de câmera do sistema para leitura direta
-        scanner.get_identifier()
+def buscar_proximo_pendente():
+    """
+    Humanizado: Ele olha para a 'ordem' e traz o primeiro que ainda não foi lido.
+    Isso garante que o app sempre abra no apartamento certo (Retomar leitura).
+    """
+    conn = sqlite3.connect('aguaflow.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, unidade, leitura_anterior, tipo 
+        FROM leituras 
+        WHERE status = 'PENDENTE' 
+        ORDER BY ordem ASC LIMIT 1
+    ''')
+    res = cursor.fetchone()
+    conn.close()
+    return res
 
-    async def salvar_leitura(e):
-        nonlocal processando
-        if processando or not input_valor.value:
-            input_valor.error_text = "Digite um valor"
-            page.update()
-            return
-        try:
-            processando = True
-            valor = float(input_valor.value.replace(",", "."))
-            db.registrar_leitura(id_db, valor)
-            await voltar_menu(recarregar_medicao=True)
-        except Exception as ex:
-            processando = False
-            print(f"Erro ao salvar: {ex}")
+# =============================================================================
+# O "GRITO" DO SISTEMA: VALIDAR SEQUÊNCIA
+# =============================================================================
 
-    async def pular_unidade(e):
-        await voltar_menu(recarregar_medicao=True)
 
-    # --- INTERFACE ---
-    return ft.Container(
-        expand=True, bgcolor="#1A1C1E", padding=30,
-        content=ft.Column(
-            controls=[
-                ft.Text(f"Unidade: {nome_unidade}",
-                        size=28, weight="bold", color="blue"),
-                ft.Divider(color="white10"),
+def verificar_esquecimento_andar(unidade_atual):
+    """
+    Humanizado: Esta é a função que faz o bipe tocar.
+    Ela verifica se existe algum apartamento com ordem menor que o atual
+    que ainda está como 'PENDENTE'.
+    """
+    conn = sqlite3.connect('aguaflow.db')
+    cursor = conn.cursor()
 
-                # BOTÃO DE SCANNER REALTIME
-                ft.ElevatedButton(
-                    "ABRIR SCANNER VIVO",
-                    icon=ft.Icons.QR_CODE_SCANNER,
-                    on_click=acionar_scanner_vivo,
-                    style=ft.ButtonStyle(
-                        color="white", bgcolor="blue",
-                        shape=ft.RoundedRectangleBorder(radius=10)
-                    ),
-                    height=60, width=300
-                ),
+    # Busca a ordem da unidade que o leiturista está tentando salvar
+    cursor.execute(
+        "SELECT ordem FROM leituras WHERE unidade = ?", (unidade_atual,))
+    ordem_atual = cursor.fetchone()[0]
 
-                status_leitura,
-                ft.Text("OU AJUSTE MANUALMENTE:", size=14, color="white54"),
-                ft.Row([input_valor], alignment="center"),
-                texto_consumo,
+    # Procura se ficou alguém para trás
+    cursor.execute('''
+        SELECT unidade FROM leituras 
+        WHERE ordem < ? AND status = 'PENDENTE' 
+        ORDER BY ordem DESC LIMIT 1
+    ''', (ordem_atual,))
 
-                ft.Row([
-                    ft.FilledButton("SALVAR LEITURA", icon=ft.Icons.SAVE,
-                                    on_click=salvar_leitura, width=180),
-                    ft.IconButton(icon=ft.Icons.SKIP_NEXT,
-                                  icon_color="white54", on_click=pular_unidade)
-                ], alignment="center"),
-            ],
-            horizontal_alignment="center", spacing=20
-        )
-    )
+    esquecido = cursor.fetchone()
+    conn.close()
+
+    # Retorna o nome da unidade esquecida ou None se estiver tudo ok
+    return esquecido[0] if esquecido else None
+
+
+def registrar_leitura(id_db, valor):
+    conn = sqlite3.connect('aguaflow.db')
+    cursor = conn.cursor()
+    status = 'CONCLUIDO' if valor > 0 else 'VAZIO'
+    cursor.execute('''
+        UPDATE leituras 
+        SET leitura_atual = ?, status = ? 
+        WHERE id = ?
+    ''', (valor, status, id_db))
+    conn.commit()
+    conn.close()
