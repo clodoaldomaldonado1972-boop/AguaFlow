@@ -16,7 +16,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Tabela de Leituras (Espinha dorsal do sistema)
+    # Tabela de Leituras: Adicionamos o campo 'tipo' para Água/Gás
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leituras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,36 +24,28 @@ def init_db():
             leitura_anterior REAL DEFAULT 0.0,
             data_anterior TEXT,
             leitura_atual REAL DEFAULT NULL, 
+            tipo TEXT DEFAULT 'AGUA',
             status TEXT DEFAULT 'pendente',
             data_leitura TEXT
         )
     """)
 
-    # Tabela de Histórico (Para análises futuras e evolução do Projeto Integrador)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS historico_consumo (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            unidade TEXT,
-            mes_referencia TEXT,
-            consumo REAL,
-            leitura_final REAL
-        )
-    """)
-
-    # População inicial (16º ao 1º andar + Áreas Comuns)
+    # População inicial (Garante a ordem física das escadas: 16 -> 1)
     cursor.execute("SELECT COUNT(*) FROM leituras")
     if cursor.fetchone()[0] == 0:
         print("📁 Gerando unidades do Vivere (16º ao 1º)...")
         unidades = []
-        # Ordem decrescente conforme regra de negócio definida pelo grupo
         for andar in range(16, 0, -1):
             for final in range(6, 0, -1):
-                unidades.append((f"{andar}{final}", 0.0))
-        unidades.append(('LAZER', 0.0))
-        unidades.append(('GERAL', 0.0))
+                # Registramos Água e Gás para cada apartamento
+                unidades.append((f"{andar}{final}", 0.0, 'AGUA'))
+                unidades.append((f"{andar}{final}", 0.0, 'GAS'))
+
+        unidades.append(('LAZER', 0.0, 'AGUA'))
+        unidades.append(('GERAL', 0.0, 'AGUA'))
 
         cursor.executemany(
-            "INSERT INTO leituras (unidade, leitura_anterior, status) VALUES (?, ?, 'pendente')",
+            "INSERT INTO leituras (unidade, leitura_anterior, tipo, status) VALUES (?, ?, ?, 'pendente')",
             unidades
         )
         conn.commit()
@@ -65,11 +57,11 @@ def init_db():
 
 
 def buscar_proximo_pendente():
-    """Busca a próxima unidade na fila (Ordem por ID/Andar)."""
+    """Busca a próxima unidade na fila (Ordem por ID que segue a descida)."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, unidade, leitura_anterior 
+        SELECT id, unidade, leitura_anterior, tipo 
         FROM leituras 
         WHERE status = 'pendente'
         ORDER BY id ASC LIMIT 1
@@ -81,8 +73,8 @@ def buscar_proximo_pendente():
 
 def verificar_esquecimento_superior(id_atual):
     """
-    Verifica se existe alguma unidade com ID menor (andar superior) 
-    que ainda está como 'pendente'. Retorna o nome da unidade esquecida.
+    O Coração do Alerta: Se o ID atual é 10, mas o ID 9 está pendente,
+    significa que o leiturista pulou alguém no andar de cima.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -96,111 +88,62 @@ def verificar_esquecimento_superior(id_atual):
     return res[0] if res else None
 
 # =============================================================================
-# 3. MÓDULO DE ESTATÍSTICAS (Cálculo Separado do PDF)
+# 3. PERSISTÊNCIA E REGISTRO
 # =============================================================================
 
 
-def calcular_estatisticas_consumo():
+def registrar_leitura(id_unidade, valor):
     """
-    Calcula totais e médias separando unidades residenciais de globais.
-    Essencial para a modularidade: o relatório apenas pede esses dados.
+    Salva a leitura. Se o valor for 0, marca como 'vazio'.
     """
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT unidade, leitura_atual, leitura_anterior FROM leituras")
-    dados = cursor.fetchall()
-    conn.close()
-
-    total_condominio = 0
-    total_residencial = 0
-    cont_apartamentos = 0
-    unidades_especiais = ['LAZER', 'GERAL']
-
-    for row in dados:
-        atu = float(row[1]) if row[1] is not None else 0.0
-        ant = float(row[2]) if row[2] is not None else 0.0
-        consumo = max(0, atu - ant)
-
-        total_condominio += consumo
-
-        # Filtra para cálculo de média residencial realista
-        if row[0].upper() not in unidades_especiais:
-            total_residencial += consumo
-            if row[1] is not None:  # Só conta se foi lido (mesmo que seja 0.0)
-                cont_apartamentos += 1
-
-    media_res = total_residencial / cont_apartamentos if cont_apartamentos > 0 else 0
-
-    return {
-        "total_condominio": total_condominio,
-        "media_residencial": media_res,
-        "cont_apto": cont_apartamentos
-    }
-
-# =============================================================================
-# 4. PERSISTÊNCIA E MANUTENÇÃO
-# =============================================================================
-
-
-def registrar_leitura(id_unidade, valor, status='concluido'):
-    """Salva a leitura e registra o carimbo de data/hora."""
     conn = get_connection()
     cursor = conn.cursor()
     agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    # Define status inteligente
+    novo_status = 'concluido' if valor > 0 else 'vazio'
+
     cursor.execute("""
         UPDATE leituras 
         SET leitura_atual = ?, status = ?, data_leitura = ? 
         WHERE id = ?
-    """, (valor, status, agora, id_unidade))
+    """, (valor, novo_status, agora, id_unidade))
     conn.commit()
     conn.close()
 
 
-def registrar_leitura_automatica_zero(nome_unidade):
-    """Utilizado pelo alerta de esquecimento para limpar pendências com valor zero."""
+def registrar_pulo_automatico(nome_unidade):
+    """Registra valor zero para unidades ignoradas propositalmente."""
     conn = get_connection()
     cursor = conn.cursor()
     agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     cursor.execute("""
         UPDATE leituras 
-        SET leitura_atual = 0.0, status = 'esquecido', data_leitura = ? 
-        WHERE unidade = ?
+        SET leitura_atual = 0.0, status = 'vazio', data_leitura = ? 
+        WHERE unidade = ? AND status = 'pendente'
     """, (agora, nome_unidade))
     conn.commit()
     conn.close()
 
-
-def resetar_mes_novo():
-    """Realiza o 'fechamento' do mês e prepara o próximo ciclo."""
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE leituras 
-            SET 
-                leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
-                data_anterior = IFNULL(data_leitura, data_anterior),
-                leitura_atual = NULL,
-                status = 'pendente', 
-                data_leitura = NULL
-        """)
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        print(f"❌ Erro no Reset: {e}")
-        return False
+# =============================================================================
+# 4. ESTATÍSTICAS E FECHAMENTO
+# =============================================================================
 
 
-def buscar_todas_leituras():
-    """Retorna o dataset completo para o gerador de relatórios."""
+def calcular_estatisticas_consumo():
+    """Útil para o painel de controle e para o PDF final."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT unidade, leitura_atual, leitura_anterior, data_leitura, data_anterior 
-        FROM leituras
-    """)
+    cursor.execute(
+        "SELECT unidade, leitura_atual, leitura_anterior FROM leituras WHERE status != 'pendente'")
     dados = cursor.fetchall()
     conn.close()
-    return dados
+
+    total = sum([max(0, (row[1] or 0) - (row[2] or 0)) for row in dados])
+    cont = len(dados)
+
+    return {
+        "total_consumo": total,
+        "media": total / cont if cont > 0 else 0,
+        "lidos": cont
+    }

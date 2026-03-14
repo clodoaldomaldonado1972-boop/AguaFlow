@@ -1,1 +1,8 @@
-cls
+venv/
+__pycache__/
+*.png
+*.pdf
+qrcodes/
+relatorios_pdf/
+audios/
+*.db
