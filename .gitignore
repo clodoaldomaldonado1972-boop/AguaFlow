@@ -1,16 +1,92 @@
+# ========== PYTHON ==========
 venv/
-__pycache__/
-*.png
-*.pdf
-qrcodes/
-relatorios_pdf/
-audios/
-*.db
-
-# Bloquear relatórios e imagens de teste
-relatorio_leituras_*.txt
-teste*.jpg
-testar_todos.py
-teste_local.py
 .venv/
+env/
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ========== IDE ==========
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========== AMBIENTE ==========
+.env
+.env.local
+.env.*.local
+.env.prod
+
+# ========== DADOS & ARQUIVOS GRANDES ==========
+*.db                          # Bancos SQLite locais
+aguaflow.db
+medicoes.db
+*.sqlite
+*.sqlite3
+
+# ========== ARQUIVOS GERADOS ==========
+*.pdf                         # PDFs gerados
+*.png                         # Screenshots/imagens
+*.jpg                         # Fotos de teste
+*.jpeg
+test*.png
+test*.jpg
+
+# ========== PASTAS GERADAS ==========
+qrcodes/                      # QR codes gerados
+relatorios_pdf/              # Relatórios em PDF
+audios/                       # Arquivos de áudio
+Backups/                      # Backups do banco
+storage/                      # Storage temporal
+relatorios_2026_*/           # Pastas de relatórios mensais
+
+# ========== TESTES & DEBUG ==========
+relatorio_leituras_*.txt      # Logs de leitura
+teste*.jpg                    # Imagens de teste
+testar_todos.py              # Scripts de teste
+teste_local.py               # Scripts de teste local
+teste_email.py               # Scripts de teste email
+
+# ========== LOGS ==========
+*.log
+logs/
+
+# ========== NODE (se usar Electron/web no futuro) ==========
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ========== CACHE ==========
+*.cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# ========== TEMPORÁRIOS ==========
+*.bak
+*.tmp
+temp/
+tmp/

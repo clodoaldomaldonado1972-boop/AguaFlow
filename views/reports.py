@@ -184,9 +184,9 @@ def montar_tela_relatorios(page, voltar):
                         color="white", weight="bold"),
                 ft.Divider(color="white10"),
                 ft.Container(height=20),
-                ft.FilledButton("GERAR RELATÓRIO MENSAL", icon=ft.Icons.PICTURE_AS_PDF,
+                ft.FilledButton(content=ft.Text("GERAR RELATÓRIO MENSAL"), icon=ft.Icons.PICTURE_AS_PDF,
                                 on_click=btn_gerar_leitura, width=350, height=50),
-                ft.FilledButton("GERAR ETIQUETAS QR", icon=ft.Icons.QR_CODE,
+                ft.FilledButton(content=ft.Text("GERAR ETIQUETAS QR"), icon=ft.Icons.QR_CODE,
                                 on_click=btn_gerar_etiquetas, width=350, height=50),
                 ft.TextButton("Sair", on_click=lambda _: voltar(),
                               style=ft.ButtonStyle(color="white70"))
