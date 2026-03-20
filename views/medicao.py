@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 
 
-async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
+async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None, on_next=None):
     """
     Tela de medição com validação completa, feedback visual e tratamento de erros.
 
@@ -12,33 +12,36 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
     sequencialmente, com validação em tempo real e feedback visual amigável.
     """
 
+    # Inicia a verificação de conexão com a nuvem
     if status_icon is not None:
         status_icon.color = 'gray'
         status_icon.update()
     if status_text is not None:
-        status_text.value = 'Supabase: verificando conexão...'
-        status_text.color = 'gray'
+        status_text.value = 'Sincronizando... 🟡'
+        status_text.color = 'orange'
         status_text.update()
 
     cloud_icon = ft.Icon(ft.icons.Icons.CLOUD_QUEUE, color="gray", size=24)
     try:
         sync_result = db.Database.sync_to_supabase()
+        # Se sincronização funcionou
         if sync_result.get('sucesso'):
             status_icon.color = 'green' if status_icon is not None else None
-            status_text.value = f"Supabase: conectado ({sync_result.get('sincronizados', 0)} sincs)"
+            status_text.value = f"Sincronizado 🟢 ({sync_result.get('sincronizados', 0)} sincs)"
             status_text.color = 'green'
             cloud_icon.color = 'green'
         else:
-            status_icon.color = 'orange' if status_icon is not None else None
-            status_text.value = f"Supabase: erro -> {sync_result.get('mensagem')}"
-            status_text.color = 'orange'
+            status_icon.color = 'red' if status_icon is not None else None
+            status_text.value = f"Aguardando Conexão 🔴  (Erro: {sync_result.get('mensagem')})"
+            status_text.color = 'red'
             cloud_icon.color = 'orange'
     except Exception as e:
+        # Falha de rede fica no modo offline aguardando reconexão
         if status_icon is not None:
-            status_icon.color = 'orange'
+            status_icon.color = 'red'
         if status_text is not None:
-            status_text.value = f"Supabase: falha de rede ({e})"
-            status_text.color = 'orange'
+            status_text.value = f"Aguardando Conexão 🔴 (Falha de rede: {e})"
+            status_text.color = 'red'
         cloud_icon.color = 'orange'
 
     if status_icon is not None:
@@ -125,7 +128,7 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
             txt_valor.error_text = validacao['mensagem']
             mensagem_feedback.update()
             txt_valor.update()
-            txt_valor.focus()
+            await txt_valor.focus()
             return
 
         # Estado: entrando em modo "salvando"
@@ -160,10 +163,13 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
                 # Pequeno delay para o usuário ver o sucesso
                 await ft.asyncio.sleep(0.8)
 
-                # Recarrega para próximo
-                nova_tela = await montar_tela(page, voltar_ao_menu)
+                # Carrega próximo (callback injetado a partir do main)
+                if on_next:
+                    await on_next()
+                    return
 
-                # Limpa página antes de adicionar nova
+                # Fallback: recarrega localmente
+                nova_tela = await montar_tela(page, voltar_ao_menu)
                 page.clean()
                 if nova_tela:
                     page.add(nova_tela)
@@ -181,7 +187,7 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
                 loading_spinner.visible = False
                 btn_salvar.update()
                 loading_spinner.update()
-                txt_valor.focus()
+                await txt_valor.focus()
 
         except Exception as error:
             # Erro inesperado
@@ -196,7 +202,7 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
             loading_spinner.visible = False
             btn_salvar.update()
             loading_spinner.update()
-            txt_valor.focus()
+            await txt_valor.focus()
 
     async def pular(e):
         """Permite pular esta unidade e ir para a próxima (com confirmação)."""
@@ -267,15 +273,15 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
 
             # Informação anterior
             texto_anterior,
-            ft.SizedBox(height=20),
+            ft.Container(height=20),
 
             # Campo de entrada
             txt_valor,
-            ft.SizedBox(height=5),
+            ft.Container(height=5),
 
             # Feedback de validação
             mensagem_feedback,
-            ft.SizedBox(height=20),
+            ft.Container(height=20),
 
             # Spinner + Botão
             ft.Row(
@@ -284,7 +290,7 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None):
                 spacing=15
             ),
 
-            ft.SizedBox(height=20),
+            ft.Container(height=20),
 
             # Botão pular (opcional)
             ft.TextButton(

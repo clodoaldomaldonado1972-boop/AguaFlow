@@ -21,6 +21,7 @@ FLUXO DE USO:
 ================================================================================
 """
 
+import socket
 import views.medicao as medicao
 import database.database as db
 import flet as ft
@@ -45,8 +46,10 @@ async def main(page: ft.Page):
 
     palco = ft.Container(expand=True)
 
+    # Barra de status da conexão com a nuvem
     status_icon = ft.Icon(ft.icons.Icons.CLOUD_QUEUE, color='gray', size=16)
-    status_text = ft.Text('Supabase: desconectado', color='gray')
+    # Estado inicial: aguardando conexão (offline)
+    status_text = ft.Text('Aguardando Conexão 🔴', color='gray')
     status_bar = ft.Row(
         [status_icon, ft.Text(' ', width=8), status_text],
         alignment=ft.MainAxisAlignment.START
@@ -57,7 +60,16 @@ async def main(page: ft.Page):
         page.update()
 
     async def iniciar_leitura(e):
-        tela_med = await medicao.montar_tela(page, voltar_ao_menu, status_icon, status_text)
+        await atualizar_tela_medicao()
+
+    async def atualizar_tela_medicao():
+        tela_med = await medicao.montar_tela(
+            page,
+            voltar_ao_menu,
+            status_icon,
+            status_text,
+            on_next=atualizar_tela_medicao
+        )
         palco.content = tela_med
         page.update()
 
@@ -72,6 +84,21 @@ async def main(page: ft.Page):
     page.add(ft.Column([palco, ft.Divider(height=1), status_bar], expand=True))
     await voltar_ao_menu()
 
-# USANDO FT.RUN QUE É O CORRETO NA VERSÃO 0.82
+
+def find_free_port(start_port=8080, max_port=8090):
+    for port in range(start_port, max_port + 1):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    raise OSError(
+        f"Nenhuma porta livre encontrada entre {start_port} e {max_port}.")
+
+
+# USANDO FT.APP para compatibilidade com flet >= 0.10
 if __name__ == "__main__":
-    ft.run(main, view=ft.AppView.WEB_BROWSER, port=8080, host="0.0.0.0")
+    porta = find_free_port(8080, 8090)
+    print(f"Iniciando AguaFlow em http://0.0.0.0:{porta}")
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=porta, host="0.0.0.0")

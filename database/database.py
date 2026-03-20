@@ -255,10 +255,10 @@ class Database:
 
             # Chama a fila de reenvio sempre que uma leitura é gravada
             try:
-                Database.sync_pending_records()
+                Database.sincronizar_leituras_pendentes()
             except Exception as e:
                 Database.log_sync_error(
-                    f"Erro ao chamar sync_pending_records: {e}")
+                    f"Erro ao chamar sincronizar_leituras_pendentes: {e}")
 
             return {
                 'sucesso': True,
@@ -434,9 +434,15 @@ class Database:
             return {'sucesso': False, 'mensagem': f'Erro sync_to_supabase: {e}'}
 
     @staticmethod
-    def sync_pending_records():
-        """Wrapper para conveniência com nome pedido pelo usuário."""
+    def sincronizar_leituras_pendentes():
+        """Wrapper para conveniência: sincroniza leituras que estão pendentes de envio."""
         return Database.sync_to_supabase()
+
+    # Método legado (compatibilidade, se usado em outros pontos)
+    @staticmethod
+    def sync_pending_records():
+        """Alias legacy para não quebrar quem chama com nome antigo."""
+        return Database.sincronizar_leituras_pendentes()
 
     @staticmethod
     def get_leituras(unidade=None, status=None):
