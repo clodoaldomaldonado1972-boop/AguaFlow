@@ -32,10 +32,15 @@ def criar_tela_login(page, ao_logar_sucesso):
     )
 
     async def entrar_clique(e):
+        # Desativa o botão temporariamente para evitar cliques duplos que travam a sessão
+        e.control.disabled = True
+        page.update()
+
         perfil = validar_login(user_f.value, pass_f.value)
         if perfil:
             await ao_logar_sucesso(perfil)
         else:
+            e.control.disabled = False  # Reativa o botão se errar
             page.snack_bar = ft.SnackBar(
                 ft.Text("Dados incorretos!"), bgcolor="red")
             page.snack_bar.open = True
@@ -54,7 +59,7 @@ def criar_tela_login(page, ao_logar_sucesso):
                 pass_f,
                 ft.Container(height=10),
                 ft.FilledButton(
-                    "ENTRAR NO SISTEMA",
+                    content=ft.Text("ENTRAR NO SISTEMA"),
                     on_click=entrar_clique,
                     width=300,
                     height=50
