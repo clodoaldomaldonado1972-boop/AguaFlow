@@ -245,6 +245,7 @@ class Database:
             supabase_message = ''
 
             # payload definido antes do try para estar disponível no except
+            # O payload está correto e bem posicionado
             payload = {
                 '_id': str(id_unidade),
                 'valor_leitura': valor_float,
@@ -254,11 +255,13 @@ class Database:
 
             try:
                 supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-                supabase_key = os.environ.get(
-                    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
+                supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
+                # Removendo possíveis barras extras na URL
+                base_url = supabase_url.strip('/')
+                
                 response = requests.post(
-                    f"{supabase_url}/rest/v1/leituras",
+                    f"{base_url}/rest/v1/leituras",
                     headers={
                         'apikey': supabase_key,
                         'Authorization': f'Bearer {supabase_key}',
@@ -268,20 +271,24 @@ class Database:
                     json=payload,
                     timeout=10
                 )
+                
                 supabase_synced = response.status_code in (200, 201)
-                supabase_message = '' if supabase_synced else response.text
-
+                
                 if supabase_synced:
                     cursor.execute(
                         "UPDATE leituras SET sincronizado = 1 WHERE id = ?",
                         (id_unidade,)
                     )
                     conn.commit()
+                    print(f"✅ Sucesso Supabase: Unidade {id_unidade}")
                 else:
-                    Database.enqueue_sync(
-                        id_unidade, payload, erro=supabase_message)
-                    Database.log_sync_error(
-                        f"Falha sync imediata leitura {id_unidade}: {supabase_message}")
+                    # ISSO AQUI VAI TE DIZER POR QUE NÃO GRAVA:
+                    print(f"❌ Erro Supabase ({response.status_code}): {response.text}")
+                    Database.enqueue_sync(id_unidade, payload, erro=response.text)
+            
+            except Exception as sup_e:
+                print(f"⚠️ Erro de Conexão: {sup_e}")
+                Database.enqueue_sync(id_unidade, payload, erro=str(sup_e))
 
             except Exception as sup_e:
                 supabase_synced = False
