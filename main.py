@@ -12,7 +12,7 @@ ARQUITETURA DO SISTEMA:
 
 FLUXO DE USO:
   1. Zelador abre app no celular
-  2. Vê a sequência de apartamentos (1601, 1602, ..., 101)
+  2. Vê a sequência de apartamentos (166, 165, ..., 11)
   3. Digita a leitura do medidor
   4. App VALIDA em tempo real (rejeita letras, símbolos, valores inválidos)
   5. Salva no "Cofre Local" (banco SQLite local)

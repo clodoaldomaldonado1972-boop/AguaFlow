@@ -546,5 +546,25 @@ def buscar_proximo_pendente():
     return Database.buscar_proximo_pendente()
 
 
-def registrar_leitura(id_unidade, valor):
-    return Database.registrar_leitura(id_unidade, valor)
+# Dentro da classe Database, na função registrar_leitura:
+
+@classmethod
+def registrar_leitura(cls, id_unidade, valor):
+        # ... código existente do SQLite ...
+        
+        # O SEGREDO: Use a tecla TAB para alinhar com o código acima
+        dados_supabase = {
+            "_id": str(id_unidade),            # Agora o Python reconhece
+            "valor_leitura": float(valor),     
+            "tipo_registro": "AGUA",           
+            "leiturista": "Clodoaldo"          
+        }
+
+# Comando que envia para a nuvem
+try:
+    # Substitua 'leituras' pelo nome real da sua tabela no site
+    response = supabase.table("leituras").insert(dados_supabase).execute()
+    supabase_sync = True
+except Exception as e:
+    print(f"Erro na sincronização: {e}")
+    supabase_sync = False
