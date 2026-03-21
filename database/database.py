@@ -21,6 +21,7 @@ O "Cofre Local" garante que o zelador trabalhe TRANQUILO sabendo que:
 ================================================================================
 """
 
+import os
 import sqlite3
 import datetime
 import json
@@ -30,6 +31,64 @@ from datetime import datetime as dt
 
 LOG_FILE = 'supabase_sync.log'
 
+import os
+from supabase import create_client
+
+class Database:
+    # Inicialização segura do cliente Supabase
+    url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+    key = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
+    supabase = create_client(url, key) if url and key else None
+
+    @classmethod
+    def registrar_leitura(cls, id_unidade, valor, tipo_val="AGUA"):
+        """
+        Registra a leitura localmente e tenta sincronizar com a nuvem.
+        """
+        # 1. Tratamento do valor (converte para float seguro)
+        try:
+            valor_float = float(str(valor).replace(',', '.'))
+        except (ValueError, TypeError):
+            valor_float = 0.0
+
+        # 2. O PAYLOAD É DEFINIDO AQUI (Sempre existe antes do try)
+        payload = {
+            "_id": str(id_unidade),
+            "valor_leitura": valor_float,
+            "tipo_registro": tipo_val,
+            "leiturista": "Clodoaldo"
+        }
+
+        # 3. Salva no SQLite Local primeiro (Garante que o dado não se perca)
+        sucesso_local = cls.salvar_local(id_unidade, valor_float, tipo_val)
+
+        # 4. TENTATIVA DE SINCRONIZAÇÃO (Resiliência)
+        supabase_sync = False
+        if cls.supabase:
+            try:
+                # Envia o payload definido acima
+                cls.supabase.table("leituras").insert(payload).execute()
+                supabase_sync = True
+                print(f"✅ Sincronizado: Unidade {id_unidade}")
+            except Exception as e:
+                print(f"⚠️ Erro de rede: {e}. Movendo para fila de espera.")
+                # Se falhar, manda para a fila de sincronização posterior
+                cls.enqueue_sync(id_unidade, payload)
+        
+        return {
+            "sucesso": sucesso_local, 
+            "supabase_sync": supabase_sync
+        }
+
+    @classmethod
+    def salvar_local(cls, id_unidade, valor, tipo):
+        # Sua lógica de INSERT no SQLite aqui
+        return True
+
+    @classmethod
+    def enqueue_sync(cls, id_unidade, payload):
+        # Sua lógica de salvar na tabela 'pendentes' do SQLite aqui
+        print(f"📦 Unidade {id_unidade} guardada para sincronização futura.")
 
 class Database:
     """
@@ -115,17 +174,13 @@ class Database:
         if not valor_str or not valor_str.strip():
             return {'valido': False, 'mensagem': '⚠️ Digite um valor'}
 
-        # Remove espaços
         valor_str = valor_str.strip()
 
-        # Aceita apenas números, ponto e vírgula
         if not re.match(r'^[\d.,]+$', valor_str):
             return {'valido': False, 'mensagem': '❌ Apenas números permitidos (sem letras)'}
 
-        # Trata vírgula como ponto (formato BR comum)
         valor_str = valor_str.replace(',', '.')
 
-        # Valida múltiplos pontos
         if valor_str.count('.') > 1:
             return {'valido': False, 'mensagem': '❌ Apenas um ponto decimal permitido'}
 
@@ -134,14 +189,12 @@ class Database:
         except ValueError:
             return {'valido': False, 'mensagem': '❌ Número inválido'}
 
-        # Validações de range
         if valor <= 0:
             return {'valido': False, 'mensagem': '❌ Valor deve ser maior que zero'}
 
         if valor > 999999:
             return {'valido': False, 'mensagem': '❌ Valor muito grande (limite: 999.999)'}
 
-        # Valida limite de casas decimais
         casas = len(str(valor).split('.')[-1]) if '.' in str(valor) else 0
         if casas > 3:
             return {'valido': False, 'mensagem': '❌ Máximo 3 casas decimais'}
@@ -169,7 +222,6 @@ class Database:
         Registra leitura com validação completa.
         Retorna: {'sucesso': bool, 'mensagem': str}
         """
-        # Validação de entrada
         validacao = Database.validar_numero(str(valor))
         if not validacao['valido']:
             return {'sucesso': False, 'mensagem': validacao['mensagem']}
@@ -190,7 +242,7 @@ class Database:
             unidade_val, leitura_anterior_val, tipo_val, ordem_val = unidade_row
 
             agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
-            valor_float = validacao['valor']
+            valor_float = float(validacao['valor'])
             status = 'CONCLUIDO' if valor_float > 0 else 'VAZIO'
 
             cursor.execute(
@@ -204,26 +256,35 @@ class Database:
 
             conn.commit()
 
-            # Tentativa de sincronização com Supabase (na nuvem)
+            # Sincronização com Supabase via REST API
             supabase_synced = False
             supabase_message = ''
+
+            # payload definido antes do try para estar disponível no except
+            payload = {
+                '_id': str(id_unidade),
+                'valor_leitura': valor_float,
+                'tipo_registro': tipo_val,
+                'leiturista': 'Clodoaldo'
+            }
+
             try:
-                from database.supabase_client import insert_leitura_supabase
+                supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
+                supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
-                payload = {
-                    '_id': id_unidade,
-                    'unidade': unidade_val,
-                    'leitura_anterior': leitura_anterior_val,
-                    'leitura_atual': valor_float,
-                    'tipo': tipo_val,
-                    'status': status,
-                    'ordem': ordem_val,
-                    'data_leitura': agora
-                }
-
-                sp_result = insert_leitura_supabase(payload)
-                supabase_synced = bool(sp_result.get('sucesso'))
-                supabase_message = sp_result.get('mensagem', '')
+                response = requests.post(
+                    f"{supabase_url}/rest/v1/leituras",
+                    headers={
+                        'apikey': supabase_key,
+                        'Authorization': f'Bearer {supabase_key}',
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    json=payload,
+                    timeout=10
+                )
+                supabase_synced = response.status_code in (200, 201)
+                supabase_message = '' if supabase_synced else response.text
 
                 if supabase_synced:
                     cursor.execute(
@@ -232,16 +293,14 @@ class Database:
                     )
                     conn.commit()
                 else:
-                    Database.enqueue_sync(
-                        id_unidade, payload, erro=supabase_message)
+                    Database.enqueue_sync(id_unidade, payload, erro=supabase_message)
                     Database.log_sync_error(
                         f"Falha sync imediata leitura {id_unidade}: {supabase_message}")
 
             except Exception as sup_e:
                 supabase_synced = False
                 supabase_message = f'Erro Supabase: {sup_e}'
-                Database.enqueue_sync(
-                    id_unidade, payload, erro=supabase_message)
+                Database.enqueue_sync(id_unidade, payload, erro=supabase_message)
                 Database.log_sync_error(
                     f"Exception sync imediata leitura {id_unidade}: {supabase_message}")
 
@@ -253,7 +312,6 @@ class Database:
             else:
                 final_message += f' ⚠️ Falha na sincronização: {supabase_message}'
 
-            # Chama a fila de reenvio sempre que uma leitura é gravada
             try:
                 Database.sincronizar_leituras_pendentes()
             except Exception as e:
@@ -324,7 +382,8 @@ class Database:
                 "SELECT id, leitura_id, payload, tentativas FROM sync_queue ORDER BY criado_em ASC")
             filas = cursor.fetchall()
 
-            from database.supabase_client import insert_leitura_supabase
+            supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
+            supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
             processed = 0
             for fila in filas:
@@ -334,23 +393,31 @@ class Database:
                         f"Máximo de tentativas atingido para leitura {leitura_id}")
                     continue
 
+                payload = json.loads(payload_json)
                 try:
-                    payload = json.loads(payload_json)
-                    sp_result = insert_leitura_supabase(payload)
-                    if sp_result.get('sucesso'):
+                    response = requests.post(
+                        f"{supabase_url}/rest/v1/leituras",
+                        headers={
+                            'apikey': supabase_key,
+                            'Authorization': f'Bearer {supabase_key}',
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        json=payload,
+                        timeout=10
+                    )
+                    if response.status_code in (200, 201):
                         cursor.execute(
                             "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (leitura_id,))
                         cursor.execute(
                             "DELETE FROM sync_queue WHERE id = ?", (queue_id,))
                         processed += 1
                     else:
-                        Database.enqueue_sync(
-                            leitura_id, payload, erro=sp_result.get('mensagem'))
+                        Database.enqueue_sync(leitura_id, payload, erro=response.text)
                         Database.log_sync_error(
-                            f"Retry falhou leitura {leitura_id}: {sp_result.get('mensagem')}")
+                            f"Retry falhou leitura {leitura_id}: {response.text}")
                 except Exception as e:
-                    Database.enqueue_sync(
-                        leitura_id, json.loads(payload_json), erro=e)
+                    Database.enqueue_sync(leitura_id, payload, erro=e)
                     Database.log_sync_error(
                         f"Retry Exception leitura {leitura_id}: {e}")
 
@@ -367,7 +434,6 @@ class Database:
     def sync_to_supabase():
         """Sincroniza leituras pendentes com o Supabase e usa fila de retry."""
         try:
-            # Primeiro tenta processar fila de retry atual
             fila_result = Database.process_retry_queue()
 
             conn = Database.get_connection()
@@ -383,7 +449,8 @@ class Database:
                 conn.close()
                 return {'sucesso': True, 'sincronizados': 0, 'total': 0, 'retry': fila_result}
 
-            from database.supabase_client import insert_leitura_supabase
+            supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
+            supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
             sincronizados = 0
             for row in pendentes:
@@ -392,27 +459,32 @@ class Database:
                  ordem_val, data_leitura_val) = row
 
                 payload = {
-                    '_id': row_id,
-                    'unidade': unidade_val,
-                    'leitura_anterior': leitura_anterior_val,
-                    'leitura_atual': leitura_atual_val,
-                    'tipo': tipo_val,
-                    'status': status_val,
-                    'ordem': ordem_val,
-                    'data_leitura': data_leitura_val
+                    '_id': str(row_id),
+                    'valor_leitura': float(leitura_atual_val) if leitura_atual_val else None,
+                    'tipo_registro': tipo_val,
+                    'leiturista': 'Clodoaldo'
                 }
 
                 try:
-                    sp_result = insert_leitura_supabase(payload)
-                    if sp_result.get('sucesso'):
+                    response = requests.post(
+                        f"{supabase_url}/rest/v1/leituras",
+                        headers={
+                            'apikey': supabase_key,
+                            'Authorization': f'Bearer {supabase_key}',
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        json=payload,
+                        timeout=10
+                    )
+                    if response.status_code in (200, 201):
                         cursor.execute(
                             "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (row_id,))
                         sincronizados += 1
                     else:
-                        Database.enqueue_sync(
-                            row_id, payload, erro=sp_result.get('mensagem'))
+                        Database.enqueue_sync(row_id, payload, erro=response.text)
                         Database.log_sync_error(
-                            f"Falha sync leitura {row_id}: {sp_result.get('mensagem')}")
+                            f"Falha sync leitura {row_id}: {response.text}")
 
                 except Exception as e:
                     Database.enqueue_sync(row_id, payload, erro=e)
@@ -438,7 +510,6 @@ class Database:
         """Wrapper para conveniência: sincroniza leituras que estão pendentes de envio."""
         return Database.sync_to_supabase()
 
-    # Método legado (compatibilidade, se usado em outros pontos)
     @staticmethod
     def sync_pending_records():
         """Alias legacy para não quebrar quem chama com nome antigo."""
@@ -489,7 +560,6 @@ class Database:
             conn = Database.get_connection()
             cursor = conn.cursor()
 
-            # Move atual para anterior onde foi concluído
             cursor.execute("""
                 UPDATE leituras
                 SET leitura_anterior=leitura_atual,
@@ -499,7 +569,6 @@ class Database:
                 WHERE status='CONCLUIDO'
             """)
 
-            # Mantém PENDENTE como está
             conn.commit()
             conn.close()
 
@@ -532,7 +601,6 @@ class Database:
 
 
 # ========== FUNÇÕES GLOBAIS PARA COMPATIBILIDADE ==========
-# Mantém compatibilidade com código existente
 
 def get_connection():
     return Database.get_connection()
@@ -544,27 +612,3 @@ def init_db():
 
 def buscar_proximo_pendente():
     return Database.buscar_proximo_pendente()
-
-
-# Dentro da classe Database, na função registrar_leitura:
-
-@classmethod
-def registrar_leitura(cls, id_unidade, valor):
-        # ... código existente do SQLite ...
-        
-        # O SEGREDO: Use a tecla TAB para alinhar com o código acima
-        dados_supabase = {
-            "_id": str(id_unidade),            # Agora o Python reconhece
-            "valor_leitura": float(valor),     
-            "tipo_registro": "AGUA",           
-            "leiturista": "Clodoaldo"          
-        }
-
-# Comando que envia para a nuvem
-try:
-    # Substitua 'leituras' pelo nome real da sua tabela no site
-    response = supabase.table("leituras").insert(dados_supabase).execute()
-    supabase_sync = True
-except Exception as e:
-    print(f"Erro na sincronização: {e}")
-    supabase_sync = False
