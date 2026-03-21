@@ -2,6 +2,7 @@ import flet as ft
 import database.database as db
 import re
 from datetime import datetime
+import asyncio
 
 
 async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None, on_next=None):
@@ -161,8 +162,7 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None, 
                 mensagem_feedback.update()
 
                 # Pequeno delay para o usuário ver o sucesso
-                await ft.asyncio.sleep(0.8)
-
+                await asyncio.sleep(1)
                 # Carrega próximo (callback injetado a partir do main)
                 if on_next:
                     await on_next()
