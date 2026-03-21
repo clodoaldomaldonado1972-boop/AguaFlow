@@ -20,13 +20,21 @@ O "Cofre Local" garante que o zelador trabalhe TRANQUILO sabendo que:
 
 ================================================================================
 """
-import sqlite3
-from supabase import create_client
+import os  # <-- ESTE É O QUE FALTOU!
 from dotenv import load_dotenv
+from supabase import create_client
+import sqlite3
+import datetime
+import requests
 
-
-# No topo do arquivo
+# Carrega as variáveis do arquivo .env
 load_dotenv()
+
+
+class Database:
+    # Agora o 'os' vai funcionar aqui embaixo:
+    url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+    key = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
 
 
 class Database:
