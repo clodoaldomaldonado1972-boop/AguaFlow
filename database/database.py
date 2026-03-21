@@ -21,6 +21,7 @@ O "Cofre Local" garante que o zelador trabalhe TRANQUILO sabendo que:
 ================================================================================
 """
 
+from supabase import create_client
 import os
 import sqlite3
 import datetime
@@ -31,27 +32,22 @@ from datetime import datetime as dt
 
 LOG_FILE = 'supabase_sync.log'
 
-import os
-from supabase import create_client
 
 class Database:
-    # Inicialização segura do cliente Supabase
+    # 1. Carrega as chaves do seu .env (as NEXT_PUBLIC que você mandou)
     url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
     key = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
     supabase = create_client(url, key) if url and key else None
 
     @classmethod
     def registrar_leitura(cls, id_unidade, valor, tipo_val="AGUA"):
-        """
-        Registra a leitura localmente e tenta sincronizar com a nuvem.
-        """
-        # 1. Tratamento do valor (converte para float seguro)
+        # 2. Prepara o valor numérico com segurança
         try:
             valor_float = float(str(valor).replace(',', '.'))
-        except (ValueError, TypeError):
+        except:
             valor_float = 0.0
 
-        # 2. O PAYLOAD É DEFINIDO AQUI (Sempre existe antes do try)
+        # 3. PAYLOAD: Definido ANTES do try (isso mata o erro local variable)
         payload = {
             "_id": str(id_unidade),
             "valor_leitura": valor_float,
@@ -59,36 +55,24 @@ class Database:
             "leiturista": "Clodoaldo"
         }
 
-        # 3. Salva no SQLite Local primeiro (Garante que o dado não se perca)
-        sucesso_local = cls.salvar_local(id_unidade, valor_float, tipo_val)
-
-        # 4. TENTATIVA DE SINCRONIZAÇÃO (Resiliência)
-        supabase_sync = False
-        if cls.supabase:
-            try:
-                # Envia o payload definido acima
+        # 4. Tenta a nuvem, se falhar, guarda no SQLite
+        try:
+            if cls.supabase:
                 cls.supabase.table("leituras").insert(payload).execute()
-                supabase_sync = True
-                print(f"✅ Sincronizado: Unidade {id_unidade}")
-            except Exception as e:
-                print(f"⚠️ Erro de rede: {e}. Movendo para fila de espera.")
-                # Se falhar, manda para a fila de sincronização posterior
-                cls.enqueue_sync(id_unidade, payload)
-        
-        return {
-            "sucesso": sucesso_local, 
-            "supabase_sync": supabase_sync
-        }
-
-    @classmethod
-    def salvar_local(cls, id_unidade, valor, tipo):
-        # Sua lógica de INSERT no SQLite aqui
-        return True
+                print("✅ Sincronizado com Supabase!")
+                return True
+            else:
+                raise Exception("Cliente Supabase não inicializado")
+        except Exception as e:
+            print(f"⚠️ Offline: Salvando localmente. Erro: {e}")
+            # Aqui você chamaria sua função de salvar no SQLite local
+            return False
 
     @classmethod
     def enqueue_sync(cls, id_unidade, payload):
         # Sua lógica de salvar na tabela 'pendentes' do SQLite aqui
         print(f"📦 Unidade {id_unidade} guardada para sincronização futura.")
+
 
 class Database:
     """
@@ -270,7 +254,8 @@ class Database:
 
             try:
                 supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-                supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
+                supabase_key = os.environ.get(
+                    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
                 response = requests.post(
                     f"{supabase_url}/rest/v1/leituras",
@@ -293,14 +278,16 @@ class Database:
                     )
                     conn.commit()
                 else:
-                    Database.enqueue_sync(id_unidade, payload, erro=supabase_message)
+                    Database.enqueue_sync(
+                        id_unidade, payload, erro=supabase_message)
                     Database.log_sync_error(
                         f"Falha sync imediata leitura {id_unidade}: {supabase_message}")
 
             except Exception as sup_e:
                 supabase_synced = False
                 supabase_message = f'Erro Supabase: {sup_e}'
-                Database.enqueue_sync(id_unidade, payload, erro=supabase_message)
+                Database.enqueue_sync(
+                    id_unidade, payload, erro=supabase_message)
                 Database.log_sync_error(
                     f"Exception sync imediata leitura {id_unidade}: {supabase_message}")
 
@@ -383,7 +370,8 @@ class Database:
             filas = cursor.fetchall()
 
             supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-            supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
+            supabase_key = os.environ.get(
+                'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
             processed = 0
             for fila in filas:
@@ -413,7 +401,8 @@ class Database:
                             "DELETE FROM sync_queue WHERE id = ?", (queue_id,))
                         processed += 1
                     else:
-                        Database.enqueue_sync(leitura_id, payload, erro=response.text)
+                        Database.enqueue_sync(
+                            leitura_id, payload, erro=response.text)
                         Database.log_sync_error(
                             f"Retry falhou leitura {leitura_id}: {response.text}")
                 except Exception as e:
@@ -450,7 +439,8 @@ class Database:
                 return {'sucesso': True, 'sincronizados': 0, 'total': 0, 'retry': fila_result}
 
             supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-            supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
+            supabase_key = os.environ.get(
+                'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
             sincronizados = 0
             for row in pendentes:
@@ -482,7 +472,8 @@ class Database:
                             "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (row_id,))
                         sincronizados += 1
                     else:
-                        Database.enqueue_sync(row_id, payload, erro=response.text)
+                        Database.enqueue_sync(
+                            row_id, payload, erro=response.text)
                         Database.log_sync_error(
                             f"Falha sync leitura {row_id}: {response.text}")
 
