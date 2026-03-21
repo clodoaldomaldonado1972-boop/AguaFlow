@@ -62,10 +62,10 @@ class Database:
 
         # 3. PAYLOAD: Definido ANTES do try (isso mata o erro local variable)
         payload = {
-            "_id": str(id_unidade),
-            "valor_leitura": valor_float,
-            "tipo_registro": tipo_val,
-            "leiturista": "Clodoaldo"
+            'id': str(id_unidade),  # Removi o underline do início
+            'valor_leitura': valor_float,
+            'tipo_registro': tipo_val,
+            'leiturista': 'Clodoaldo'
         }
 
         # 4. Tenta a nuvem, se falhar, guarda no SQLite
