@@ -20,12 +20,15 @@ O "Cofre Local" garante que o zelador trabalhe TRANQUILO sabendo que:
 
 ================================================================================
 """
-import os  # <-- ESTE É O QUE FALTOU!
+import os
+import re  # <-- ADICIONE ESTA LINHA AQUI!
 from dotenv import load_dotenv
 from supabase import create_client
 import sqlite3
 import datetime
 import requests
+
+# ... restante do código
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
