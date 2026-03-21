@@ -20,24 +20,26 @@ O "Cofre Local" garante que o zelador trabalhe TRANQUILO sabendo que:
 
 ================================================================================
 """
-
-from supabase import create_client
-import os
 import sqlite3
-import datetime
-import json
-import re
-import requests
-from datetime import datetime as dt
+from supabase import create_client
+from dotenv import load_dotenv
 
-LOG_FILE = 'supabase_sync.log'
+
+# No topo do arquivo
+load_dotenv()
 
 
 class Database:
-    # 1. Carrega as chaves do seu .env (as NEXT_PUBLIC que você mandou)
+    # Usando as variáveis que você já carregou lá em cima
     url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
     key = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
-    supabase = create_client(url, key) if url and key else None
+
+    # Inicializa o cliente apenas se as chaves existirem
+    if url and key:
+        supabase = create_client(url, key)
+    else:
+        supabase = None
+        print("⚠️ Alerta: Chaves do Supabase não encontradas no .env")
 
     @classmethod
     def registrar_leitura(cls, id_unidade, valor, tipo_val="AGUA"):
@@ -255,11 +257,12 @@ class Database:
 
             try:
                 supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-                supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
+                supabase_key = os.environ.get(
+                    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
                 # Removendo possíveis barras extras na URL
                 base_url = supabase_url.strip('/')
-                
+
                 response = requests.post(
                     f"{base_url}/rest/v1/leituras",
                     headers={
@@ -271,9 +274,9 @@ class Database:
                     json=payload,
                     timeout=10
                 )
-                
+
                 supabase_synced = response.status_code in (200, 201)
-                
+
                 if supabase_synced:
                     cursor.execute(
                         "UPDATE leituras SET sincronizado = 1 WHERE id = ?",
@@ -283,9 +286,11 @@ class Database:
                     print(f"✅ Sucesso Supabase: Unidade {id_unidade}")
                 else:
                     # ISSO AQUI VAI TE DIZER POR QUE NÃO GRAVA:
-                    print(f"❌ Erro Supabase ({response.status_code}): {response.text}")
-                    Database.enqueue_sync(id_unidade, payload, erro=response.text)
-            
+                    print(
+                        f"❌ Erro Supabase ({response.status_code}): {response.text}")
+                    Database.enqueue_sync(
+                        id_unidade, payload, erro=response.text)
+
             except Exception as sup_e:
                 print(f"⚠️ Erro de Conexão: {sup_e}")
                 Database.enqueue_sync(id_unidade, payload, erro=str(sup_e))
