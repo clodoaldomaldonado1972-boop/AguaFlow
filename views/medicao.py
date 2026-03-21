@@ -147,9 +147,10 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None, 
             # Salva no banco usando o database.py unificado
             resultado = db.Database.registrar_leitura(id_db, valor)
 
-            if resultado['sucesso']:
-                # Atualiza ícone nuvem quando sincronizado
-                if resultado.get('supabase_sync'):
+            # Correção: recebe apenas 3 valores em vez de 4
+        id_db, unidade, anterior = registro
+# Define tipo como padrão já que não está sendo retornado pela função
+        if resultado.get('supabase_sync'):
                     cloud_icon.color = 'green'
                 else:
                     cloud_icon.color = 'gray'
@@ -304,3 +305,17 @@ async def montar_tela(page, voltar_ao_menu, status_icon=None, status_text=None, 
             spacing=10
         )
     )
+def process_registro(registro):
+    try:
+        id_db, unidade, anterior = registro
+    except ValueError:
+        id_db = None
+        unidade = None
+        anterior = None
+        print("Erro: Registro não possui valores suficientes")
+
+    # Resto do código que usa as variáveis id_db, unidade e anterior
+
+# Exemplo de uso
+registro = db.Database.buscar_proximo_pendente()
+process_registro(registro)

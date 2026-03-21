@@ -42,7 +42,7 @@ sys.path.insert(0, os.path.join(current_dir, 'views'))
 
 async def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.DARK
-    db.init_db()
+    db.Database.init_db()
 
     palco = ft.Container(expand=True)
 

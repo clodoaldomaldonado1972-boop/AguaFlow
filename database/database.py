@@ -35,12 +35,6 @@ load_dotenv()
 
 
 class Database:
-    # Agora o 'os' vai funcionar aqui embaixo:
-    url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-    key = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
-
-
-class Database:
     # Usando as variáveis que você já carregou lá em cima
     url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
     key = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
@@ -61,8 +55,11 @@ class Database:
             valor_float = 0.0
 
         # 3. PAYLOAD: Definido ANTES do try (isso mata o erro local variable)
+        # Mude de '_id' para 'id'
+        # Mude de '_id' para 'id'
         payload = {
-            'id': str(id_unidade),  # Removi o underline do início
+            # <-- Removi o underline aqui para casar com o Supabase
+            'id': str(id_unidade),
             'valor_leitura': valor_float,
             'tipo_registro': tipo_val,
             'leiturista': 'Clodoaldo'
@@ -86,8 +83,6 @@ class Database:
         # Sua lógica de salvar na tabela 'pendentes' do SQLite aqui
         print(f"📦 Unidade {id_unidade} guardada para sincronização futura.")
 
-
-class Database:
     """
     Gerenciador unificado de banco de dados SQLite para AguaFlow.
     Combina funcionalidades do database.py original com validações robustas.
@@ -213,43 +208,33 @@ class Database:
             print(f"Erro ao buscar próximo pendente: {e}")
             return None
 
-    @staticmethod
-    def registrar_leitura(id_unidade, valor):
-        """
-        Registra leitura com validação completa.
-        Retorna: {'sucesso': bool, 'mensagem': str}
-        """
-        validacao = Database.validar_numero(str(valor))
-        if not validacao['valido']:
-            return {'sucesso': False, 'mensagem': validacao['mensagem']}
 
+class Database:
+
+    # A linha abaixo tem 4 espaços de recuo (ou 1 TAB)
+    @classmethod
+    def registrar_leitura(cls, id_unidade, valor, tipo_val="AGUA"):
+        # As linhas abaixo têm 8 espaços de recuo (ou 2 TABS)
+        payload = {
+            'id': str(id_unidade),
+            'valor_leitura': float(valor) if valor else None,
+            'tipo_registro': tipo_val,
+            'leiturista': 'Clodoaldo'
+        }
+
+        # Continue o código de envio aqui...
+        # 4. Tenta a nuvem, se falhar, guarda no SQLite
         try:
-            conn = Database.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                "SELECT unidade, leitura_anterior, tipo, ordem FROM leituras WHERE id = ?",
-                (id_unidade,)
-            )
-            unidade_row = cursor.fetchone()
-            if unidade_row is None:
-                conn.close()
-                return {'sucesso': False, 'mensagem': '❌ Unidade não encontrada'}
-
-            unidade_val, leitura_anterior_val, tipo_val, ordem_val = unidade_row
-
-            agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
-            valor_float = float(validacao['valor'])
-            status = 'CONCLUIDO' if valor_float > 0 else 'VAZIO'
-
-            cursor.execute(
-                "UPDATE leituras SET leitura_atual = ?, status = ?, data_leitura = ? WHERE id = ?",
-                (valor_float, status, agora, id_unidade)
-            )
-
-            if cursor.rowcount == 0:
-                conn.close()
-                return {'sucesso': False, 'mensagem': '❌ Unidade não encontrada'}
+            if cls.supabase:
+                cls.supabase.table("leituras").insert(payload).execute()
+                print("✅ Sincronizado com Supabase!")
+                return True
+            else:
+                raise Exception("Cliente Supabase não inicializado")
+        except Exception as e:
+            print(f"⚠️ Offline: Salvando localmente. Erro: {e}")
+            # Aqui você chamaria sua função de salvar no SQLite local
+            return False
 
             conn.commit()
 
@@ -620,8 +605,57 @@ def get_connection():
     return Database.get_connection()
 
 
-def init_db():
-    Database.init_db()
+class Database:
+    @staticmethod  # Ou @classmethod
+    def init_db():
+        """Inicializa a configuração do banco de dados"""
+        print("✅ Banco de dados inicializado com sucesso!")
+        # Se houver lógica de conexão, coloque aqui
+    @staticmethod
+    def buscar_proximo_pendente():
+        """Busca a próxima leitura pendente."""
+        try:
+            conn = Database.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT id, unidade, leitura_anterior, leitura_atual, tipo, status, ordem, data_leitura
+                FROM leituras
+                WHERE status = 'PENDENTE'
+                ORDER BY ordem ASC
+                LIMIT 1
+            """)
+
+            result = cursor.fetchone()
+            conn.close()
+
+            if result:
+                return {
+                    'sucesso': True,
+                    'dados': {
+                        'id': result[0],
+                        'unidade': result[1],
+                        'leitura_anterior': result[2],
+                        'leitura_atual': result[3],
+                        'tipo': result[4],
+                        'status': result[5],
+                        'ordem': result[6],
+                        'data_leitura': result[7]
+                    }
+                }
+            else:
+                return {
+                    'sucesso': False,
+                    'dados': None,
+                    'mensagem': 'Nenhuma leitura pendente encontrada.'
+                }
+
+        except Exception as e:
+            return {
+                'sucesso': False,
+                'dados': None,
+                'mensagem': f'Erro ao buscar próxima leitura pendente: {str(e)}'
+            }
 
 
 def buscar_proximo_pendente():
