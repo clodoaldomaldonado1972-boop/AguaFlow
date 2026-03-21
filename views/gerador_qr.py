@@ -1,75 +1,92 @@
 import qrcode
+from fpdf import FPDF
 import os
-from PIL import Image, ImageDraw, ImageFont
+
+# --- CONFIGURAÇÕES DE LAYOUT ---
+COLUNAS = 4
+LINHAS = 5
+NOME_CONDOMINIO = "Vivere Prudente"
 
 
-def gerar_imagem_unidade(unidade, condominio="VIVERE PRUDENTE"):
-    pasta = "qrcodes"
-    if not os.path.exists(pasta):
-        os.makedirs(pasta)
+def gerar_qr_codes(filtro_tipo="AMBOS"):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+    pdf.set_font("helvetica", "B", 8)
 
-    # 1. CRIAR O QR CODE PURO
-    qr = qrcode.QRCode(
-        version=1,
-        # Alta correção para permitir texto
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(str(unidade))
-    qr.make(fit=True)
-    img_qr = qr.make_image(
-        fill_color="black", back_color="white").convert('RGB')
+    # Definição das Unidades
+    aptos = [f"Apto {i}" for i in range(11, 165)]
+    gerais = ["Medidor Geral"]  # Nome que sairá na etiqueta Geral
+    lazer_unico = ["Área de Lazer"]
 
-    # 2. ADICIONAR ESPAÇO PARA O TEXTO (Aumenta a imagem para baixo)
-    largura, altura = img_qr.size
-    nova_altura = altura + 80  # Espaço extra de 80 pixels para o texto
-    img_final = Image.new('RGB', (largura, nova_altura), 'white')
-    img_final.paste(img_qr, (0, 0))
+    lista_impressao = []
 
-    # 3. ESCREVER O NOME E A UNIDADE NA IMAGEM
-    draw = ImageDraw.Draw(img_final)
+    # 1. Lógica para Apartamentos (Água e Gás)
+    for a in aptos:
+        if filtro_tipo in ["AGUA", "AMBOS"]:
+            lista_impressao.append((a, "AGUA"))
+        if filtro_tipo in ["GAS", "AMBOS"]:
+            lista_impressao.append((a, "GAS"))
 
-    # Tenta carregar uma fonte, se não tiver usa a padrão
-    try:
-        font_titulo = ImageFont.truetype("arialbd.ttf", 25)
-        font_unid = ImageFont.truetype("arial.ttf", 22)
-    except:
-        font_titulo = font_unid = ImageFont.load_default()
+    # 2. Lógica para Geral (Somente Água)
+    if filtro_tipo in ["AGUA", "AMBOS"]:
+        for g in gerais:
+            lista_impressao.append((g, "AGUA"))
 
-    # Centralizar e desenhar o texto
-    texto_condo = condominio
-    texto_unid = f"APTO: {unidade}"
+    # 3. Lógica para Lazer (Somente UM medidor de Gás)
+    if filtro_tipo in ["GAS", "AMBOS"]:
+        for l in lazer_unico:
+            lista_impressao.append((l, "GAS"))
 
-    # Calcula posições centrais
-    w_condo = draw.textlength(texto_condo, font=font_titulo)
-    w_unid = draw.textlength(texto_unid, font=font_unid)
+    # Cálculos de Grade
+    largura_util = 190
+    altura_util = 277
+    w_cel = largura_util / COLUNAS
+    h_cel = altura_util / LINHAS
 
-    draw.text(((largura - w_condo) / 2, altura - 5),
-              texto_condo, fill="black", font=font_titulo)
-    draw.text(((largura - w_unid) / 2, altura + 30),
-              texto_unid, fill="black", font=font_unid)
+    for i, (nome, tipo) in enumerate(lista_impressao):
+        # Quebra de página automática a cada 20 etiquetas (4x5)
+        if i > 0 and i % (COLUNAS * LINHAS) == 0:
+            pdf.add_page()
 
-    # 4. SALVAR
-    caminho = os.path.join(pasta, f"{unidade}.png")
-    img_final.save(caminho)
-    return caminho
+        col = (i % (COLUNAS * LINHAS)) % COLUNAS
+        row = (i % (COLUNAS * LINHAS)) // COLUNAS
+        x = 10 + (col * w_cel)
+        y = 10 + (row * h_cel)
 
+        # Dados do QR Code
+        qr_payload = f"CONDO:{NOME_CONDOMINIO}|ID:{nome}|TIPO:{tipo}"
+        qr = qrcode.make(qr_payload)
+        temp_img = f"temp_{i}.png"
+        qr.save(temp_img)
 
-def gerar_todos_vivere():
-    print("🚀 Gerando imagens com Identificação Integrada...")
-    # Áreas comuns
-    comuns = ["Geral", "Lazer"]
-    for item in comuns:
-        gerar_imagem_unidade(item)
+        # Desenho da Etiqueta
+        pdf.rect(x, y, w_cel, h_cel)
 
-    # Apartamentos (16 andares)
-    for andar in range(16, 0, -1):
-        for apto in range(1, 7):
-            unidade = f"{andar}{apto:02}"
-            gerar_imagem_unidade(unidade)
-    print("✅ Todas as imagens foram criadas na pasta /qrcodes")
+        # QR Code - posicionado um pouco mais para cima
+        pdf.image(temp_img, x + (w_cel*0.2), y + 3, w_cel*0.6)
+
+        # Texto: Nome do Condomínio
+        pdf.set_font("helvetica", "B", 7)
+        pdf.set_xy(x, y + h_cel - 11)
+        pdf.cell(w_cel, 4, NOME_CONDOMINIO, align='C')
+
+        # Texto: Unidade e Tipo (Em destaque)
+        pdf.set_font("helvetica", "B", 9)
+        pdf.set_xy(x, y + h_cel - 7)
+        pdf.cell(w_cel, 5, f"{nome} - {tipo}", align='C')
+
+        os.remove(temp_img)
+
+    nome_arquivo = f"QR_Codes_{filtro_tipo}.pdf"
+    pdf.output(nome_arquivo)
+    print(
+        f"✅ Sucesso! Geradas {len(lista_impressao)} etiquetas em '{nome_arquivo}'.")
 
 
 if __name__ == "__main__":
-    gerar_todos_vivere()
+    tipo = input("Gerar: AGUA, GAS ou AMBOS? ").upper()
+    if tipo in ["AGUA", "GAS", "AMBOS"]:
+        gerar_qr_codes(tipo)
+    else:
+        print("Opção inválida! Escolha AGUA, GAS ou AMBOS.")
