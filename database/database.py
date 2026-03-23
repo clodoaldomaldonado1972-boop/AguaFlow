@@ -19,14 +19,17 @@ import os
 import re
 from dotenv import load_dotenv
 from supabase import create_client
+import logging
 import sqlite3
-import datetime
 from datetime import datetime as dt
-import json
-import requests
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
+
+# Silencia os alertas técnicos do terminal para manter a limpeza
+logging.getLogger("httpx").setLevel(logging.ERROR)
+logging.getLogger("httpcore").setLevel(logging.ERROR)
+logging.getLogger("postgrest").setLevel(logging.ERROR)
 
 LOG_FILE = "database/sync_log.json"
 DB_PATH = "aguaflow.db"
@@ -91,23 +94,20 @@ class Database:
             cursor = conn.cursor()
 
             # Criando a tabela com TODAS as colunas necessárias + constraints
+            # 1. Tabela de Leituras (Local)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS leituras (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     unidade TEXT NOT NULL,
-                    leitura_anterior REAL DEFAULT 0.0,
-                    leitura_atual REAL DEFAULT NULL,
-                    tipo TEXT DEFAULT 'AGUA',
-                    status TEXT DEFAULT 'PENDENTE',
-                    ordem INTEGER,
-                    data_leitura TEXT,
-                    sincronizado INTEGER DEFAULT 0,
-                    CHECK(leitura_anterior >= 0),
-                    CHECK(leitura_atual IS NULL OR leitura_atual > 0)
+                    valor_leitura REAL,
+                    tipo_registro TEXT,
+                    leiturista TEXT,
+                    data_hora_coleta TEXT,
+                    sincronizado INTEGER DEFAULT 0
                 )
             """)
 
-            # Tabela de fila de sincronização
+            # 2. Tabela de Fila (Sync) - MANTENHA ESTA TAMBÉM!
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sync_queue (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -254,19 +254,28 @@ class Database:
             """, (valor_float, agora, id_db))
             conn.commit()
 
-            # 4. Tenta Sincronizar com Supabase (fora da transação principal)
+            # 2. Monta o pacote com os nomes EXATOS da sua tabela no Supabase
             payload = {
-                'id_interno': id_db,
-                'unidade': nome_unidade,
-                'valor_leitura': valor_float,
-                'tipo_registro': tipo_registro,
-                'leiturista': 'Clodoaldo',
-                'data_leitura': agora
+                "unidade_id": str(nome_unidade),
+                "valor_leitura": float(valor_float),
+                # "tipo_registro": "Manual",
+                # "leiturista": "Clodoaldo",
+                # "data_hora_coleta": dt.now().isoformat()
             }
-
             try:
                 if cls.supabase:
-                    cls.supabase.table("leituras").insert(payload).execute()
+                    # Estratégia "Tentativa de Insert -> Falha 409 -> Update"
+                    # Isso resolve o problema onde o Update retorna 200 OK mas sem dados (lista vazia),
+                    # o que enganava o sistema fazendo-o tentar inserir duplicado.
+                    try:
+                        cls.supabase.table("leituras").insert(payload).execute()
+                    except Exception as e:
+                        # O erro pode vir como '23505' (Postgres) ou '409' (HTTP)
+                        erro_str = str(e).lower()
+                        if any(k in erro_str for k in ["409", "conflict", "23505", "already exists", "duplicate"]):
+                            cls.supabase.table("leituras").update(payload).eq("unidade_id", str(nome_unidade)).execute()
+                        else:
+                            raise e  # Se for outro erro (ex: internet), relança
 
                     # Se sucesso, marca como sincronizado
                     cursor.execute(
