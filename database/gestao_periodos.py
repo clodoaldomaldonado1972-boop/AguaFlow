@@ -1,7 +1,6 @@
 import database as db
 import utils
 import gerador_pdf
-import utils  # Importa o utils para usar a função de e-mail que você postou
 import backup  # <--- Importa o novo arquivo
 
 
@@ -30,17 +29,26 @@ def finalizar_mes_e_enviar(email):
 
 
 def resetar_banco_para_novo_mes():
+    conn = None
     try:
         conn = db.get_connection()
         cursor = conn.cursor()
-        # Move atual para anterior e limpa o resto
         cursor.execute("""
-            UPDATE leituras SET 
+            UPDATE leituras SET
             leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
-            leitura_atual = NULL, status = 'pendente', data_leitura = NULL
+            leitura_atual = NULL,
+            status = 'PENDENTE',
+            data_leitura = NULL
         """)
         conn.commit()
         conn.close()
+        conn = None
         return True
-    except:
+    except Exception as e:
+        print(f"Erro no reset: {e}")
+        if conn:
+            conn.rollback()
         return False
+    finally:
+        if conn:
+            conn.close()
