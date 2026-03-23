@@ -96,15 +96,19 @@ class Database:
             # Criando a tabela com TODAS as colunas necessárias + constraints
             # 1. Tabela de Leituras (Local)
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS leituras (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    unidade TEXT NOT NULL,
-                    valor_leitura REAL,
-                    tipo_registro TEXT,
-                    leiturista TEXT,
-                    data_hora_coleta TEXT,
-                    sincronizado INTEGER DEFAULT 0
-                )
+               CREATE TABLE IF NOT EXISTS leituras (
+                   id INTEGER PRIMARY KEY,
+                   unidade TEXT NOT NULL,
+                   leitura_anterior REAL,
+                   leitura_atual REAL,
+                   status TEXT DEFAULT 'PENDENTE',
+                   data_leitura TEXT,
+                   tipo TEXT,
+                   ordem INTEGER,
+                   sincronizado INTEGER DEFAULT 0,
+                   leiturista TEXT,
+                   UNIQUE(unidade, tipo)
+               )
             """)
 
             # 2. Tabela de Fila (Sync) - MANTENHA ESTA TAMBÉM!

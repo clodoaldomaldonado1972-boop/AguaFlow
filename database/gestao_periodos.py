@@ -5,26 +5,28 @@ import backup  # <--- Importa o novo arquivo
 
 
 def finalizar_mes_e_enviar(email):
-    # Antes de qualquer coisa, garante a cópia de segurança
-    if backup.executar_backup_seguranca():
-        # ... aqui continua sua lógica de gerar PDF, enviar e-mail e resetar ...
-        pass
-
-
-def finalizar_mes_e_enviar(email):
+    """
+    Executa o backup, gera o relatório do mês, envia por e-mail e
+    reseta o banco de dados para o próximo ciclo de leituras.
+    """
     try:
-        dados = db.buscar_todas_leituras()
-        # Gera o PDF usando o módulo novo
-        caminho = gerador_pdf.gerar_relatorio_consumo(dados)
+        # 1. Garante a cópia de segurança antes de qualquer modificação
+        if not backup.executar_backup_seguranca():
+            # Se o backup falhar, não continua para não arriscar os dados.
+            return False
 
-        # Envia usando a função que você me mostrou no utils.py
+        # 2. Lógica de negócio: gerar PDF e enviar e-mail
+        dados = db.buscar_todas_leituras()
+        caminho = gerador_pdf.gerar_relatorio_consumo(dados)
         enviou = utils.enviar_email_com_pdf(email, caminho)
 
         if enviou:
-            db.resetar_mes_novo()  # Função que limpa 'leituras' e move atual para anterior
+            # 3. Se o envio foi bem-sucedido, reseta o banco para o novo mês.
+            resetar_banco_para_novo_mes()
             return True
         return False
-    except:
+    except Exception as e:
+        print(f"Erro ao finalizar o mês: {e}")
         return False
 
 
