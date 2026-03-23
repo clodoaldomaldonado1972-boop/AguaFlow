@@ -16,6 +16,7 @@ Tudo o que acontece aqui é para PROTEGER OS DADOS do zelador do Vivere Prudente
 ================================================================================
 """
 import os
+import json
 import re
 from dotenv import load_dotenv
 from supabase import create_client
@@ -290,8 +291,7 @@ class Database:
                     msg_erro_sync = "Cliente Supabase não configurado"
             except Exception as e:
                 msg_erro_sync = str(e)
-                # TODO: Enfileirar para sincronização posterior
-                # cls.enqueue_sync(id_db, payload)
+                cls.enqueue_sync(id_db, payload, msg_erro_sync)
 
             conn.close()
             conn = None
@@ -339,6 +339,98 @@ class Database:
         finally:
             if conn:
                 conn.close()
+
+    @classmethod
+    def enqueue_sync(cls, id_leitura, payload, error_message):
+        """Enfileira uma leitura para sincronização posterior (Offline)."""
+        conn = None
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO sync_queue (id_leitura, payload, error_message, ultimo_tentativa)
+                VALUES (?, ?, ?, ?)
+            """, (id_leitura, json.dumps(payload), str(error_message), dt.now().isoformat()))
+            conn.commit()
+        except Exception as e:
+            print(f"❌ Erro ao enfileirar sync: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+    @classmethod
+    def processar_fila(cls):
+        """
+        Processa a fila de sincronização pendente (sync_queue).
+        Faz um POST para o Supabase e, se sucesso (201), deleta o registro local.
+        """
+        if not cls.supabase:
+            return 0
+
+        conn = None
+        processed_count = 0
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            
+            # Busca itens pendentes (limite de 10 por vez para não travar)
+            cursor.execute("SELECT id, id_leitura, payload FROM sync_queue ORDER BY id ASC LIMIT 10")
+            rows = cursor.fetchall()
+            
+            if not rows:
+                return 0
+
+            ids_to_remove = []
+            for row in rows:
+                queue_id, id_leitura, payload_json = row
+                try:
+                    payload = json.loads(payload_json)
+                    # Tenta sincronizar usando a mesma lógica de upsert do registrar_leitura
+                    try:
+                        cls.supabase.table("leituras").insert(payload).execute()
+                    except Exception as e:
+                        if any(k in str(e).lower() for k in ["409", "conflict", "duplicate"]):
+                            cls.supabase.table("leituras").update(payload).eq("unidade_id", payload["unidade_id"]).execute()
+                        else:
+                            raise e
+                    
+                    # Se chegou aqui (status 201/200), deleta da fila local
+                    ids_to_remove.append(queue_id)
+                    cursor.execute("UPDATE leituras SET sincronizado = 1 WHERE id = ?", (id_leitura,))
+                    processed_count += 1
+                except Exception as e:
+                    # Se falhar novamente, atualiza contador e tenta na próxima
+                    cursor.execute("UPDATE sync_queue SET tentativas = tentativas + 1, ultimo_tentativa = ?, error_message = ? WHERE id = ?", 
+                                   (dt.now().isoformat(), str(e), queue_id))
+            
+            if ids_to_remove:
+                placeholders = ','.join('?' * len(ids_to_remove))
+                cursor.execute(f"DELETE FROM sync_queue WHERE id IN ({placeholders})", ids_to_remove)
+                conn.commit()
+                
+        except Exception as e:
+            print(f"❌ Erro no processador de fila: {e}")
+        finally:
+            if conn:
+                conn.close()
+        return processed_count
+
+    @classmethod
+    def contar_fila_pendente(cls):
+        """Retorna o número de itens na fila de sincronização (para UI)."""
+        conn = None
+        count = 0
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM sync_queue")
+            count = cursor.fetchone()[0]
+        except:
+            pass
+        finally:
+            if conn:
+                conn.close()
+        return count
 
 # Wrapper global para compatibilidade
 

@@ -3,90 +3,87 @@ from fpdf import FPDF
 import os
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
-COLUNAS = 4
-LINHAS = 5
+COLUNAS = 5
+LINHAS = 8
 NOME_CONDOMINIO = "Vivere Prudente"
 
-
 def gerar_qr_codes(filtro_tipo="AMBOS"):
+    # 1. CRIAÇÃO DO OBJETO PDF (Define 'pdf' antes de usar)
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=False)
+    pdf.set_auto_page_break(False) # Agora 'pdf' existe, não dará erro
     pdf.add_page()
-    pdf.set_font("helvetica", "B", 8)
-
-    # Definição das Unidades
-    aptos = [f"Apto {i}" for i in range(11, 165)]
-    gerais = ["Medidor Geral"]  # Nome que sairá na etiqueta Geral
-    lazer_unico = ["Área de Lazer"]
-
+    
     lista_impressao = []
 
-    # 1. Lógica para Apartamentos (Água e Gás)
-    for a in aptos:
-        if filtro_tipo in ["AGUA", "AMBOS"]:
-            lista_impressao.append((a, "AGUA"))
-        if filtro_tipo in ["GAS", "AMBOS"]:
-            lista_impressao.append((a, "GAS"))
+    # 2. LÓGICA DE LOOP (16 -> 1)
+    for andar in range(16, 0, -1):
+        for final in range(6, 0, -1):
+            unidade = f"{andar}{final}"
+            if filtro_tipo in ["AGUA", "AMBOS"]:
+                lista_impressao.append({"id": unidade, "tipo": "ÁGUA", "payload": f"{unidade}-AGUA"})
+            if filtro_tipo in ["GAS", "AMBOS"]:
+                lista_impressao.append({"id": unidade, "tipo": "GÁS", "payload": f"{unidade}-GAS"})
 
-    # 2. Lógica para Geral (Somente Água)
-    if filtro_tipo in ["AGUA", "AMBOS"]:
-        for g in gerais:
-            lista_impressao.append((g, "AGUA"))
-
-    # 3. Lógica para Lazer (Somente UM medidor de Gás)
     if filtro_tipo in ["GAS", "AMBOS"]:
-        for l in lazer_unico:
-            lista_impressao.append((l, "GAS"))
+        lista_impressao.append({"id": "LAZER", "tipo": "GÁS", "payload": "LAZER-GAS"})
+    if filtro_tipo in ["AGUA", "AMBOS"]:
+        lista_impressao.append({"id": "GERAL", "tipo": "ÁGUA", "payload": "GERAL-AGUA"})
 
-    # Cálculos de Grade
-    largura_util = 190
-    altura_util = 277
-    w_cel = largura_util / COLUNAS
-    h_cel = altura_util / LINHAS
+    # 3. CÁLCULOS DE MARGENS E GRADE
+    margem_x = 10
+    margem_y = 15
+    w_cel = 190 / COLUNAS
+    h_cel = 267 / LINHAS
 
-    for i, (nome, tipo) in enumerate(lista_impressao):
-        # Quebra de página automática a cada 20 etiquetas (4x5)
+    for i, item in enumerate(lista_impressao):
+        # QUEBRA DE PÁGINA MANUAL (A cada 40 itens)
         if i > 0 and i % (COLUNAS * LINHAS) == 0:
             pdf.add_page()
 
-        col = (i % (COLUNAS * LINHAS)) % COLUNAS
-        row = (i % (COLUNAS * LINHAS)) // COLUNAS
-        x = 10 + (col * w_cel)
-        y = 10 + (row * h_cel)
+        idx_na_pagina = i % (COLUNAS * LINHAS)
+        col = idx_na_pagina % COLUNAS
+        row = idx_na_pagina // COLUNAS
+        
+        x = margem_x + (col * w_cel)
+        y = margem_y + (row * h_cel)
 
-        # Dados do QR Code
-        qr_payload = f"CONDO:{NOME_CONDOMINIO}|ID:{nome}|TIPO:{tipo}"
-        qr = qrcode.make(qr_payload)
+        # GERAR QR TEMPORÁRIO
+        qr = qrcode.QRCode(box_size=10, border=1)
+        qr.add_data(item['payload'])
+        qr.make(fit=True)
+        img_qr = qr.make_image(fill_color="black", back_color="white")
         temp_img = f"temp_{i}.png"
-        qr.save(temp_img)
+        img_qr.save(temp_img)
 
-        # Desenho da Etiqueta
+        # DESENHO DA ETIQUETA
+        pdf.set_draw_color(200, 200, 200) 
         pdf.rect(x, y, w_cel, h_cel)
 
-        # QR Code - posicionado um pouco mais para cima
-        pdf.image(temp_img, x + (w_cel*0.2), y + 3, w_cel*0.6)
+        # Imagem do QR (Centralizada e menor para não encavalar)
+        qr_size = w_cel * 0.55
+        pdf.image(temp_img, x + (w_cel - qr_size)/2, y + 3, qr_size)
 
-        # Texto: Nome do Condomínio
-        pdf.set_font("helvetica", "B", 7)
-        pdf.set_xy(x, y + h_cel - 11)
-        pdf.cell(w_cel, 4, NOME_CONDOMINIO, align='C')
+        # Texto Condomínio
+        pdf.set_text_color(100, 100, 100)
+        pdf.set_font("helvetica", "B", 6)
+        pdf.set_xy(x, y + h_cel - 9) 
+        pdf.cell(w_cel, 3, NOME_CONDOMINIO, align='C')
 
-        # Texto: Unidade e Tipo (Em destaque)
+        # Texto Unidade - Tipo
+        pdf.set_text_color(0, 0, 0)
         pdf.set_font("helvetica", "B", 9)
-        pdf.set_xy(x, y + h_cel - 7)
-        pdf.cell(w_cel, 5, f"{nome} - {tipo}", align='C')
+        pdf.set_xy(x, y + h_cel - 6) 
+        pdf.cell(w_cel, 5, f"{item['id']} - {item['tipo']}", align='C')
 
         os.remove(temp_img)
 
-    nome_arquivo = f"QR_Codes_{filtro_tipo}.pdf"
-    pdf.output(nome_arquivo)
-    print(
-        f"✅ Sucesso! Geradas {len(lista_impressao)} etiquetas em '{nome_arquivo}'.")
-
+    nome_output = f"Etiquetas_Vivere_{filtro_tipo}.pdf"
+    pdf.output(nome_output)
+    print(f"\n✅ PDF Gerado com sucesso: {nome_output}")
 
 if __name__ == "__main__":
-    tipo = input("Gerar: AGUA, GAS ou AMBOS? ").upper()
-    if tipo in ["AGUA", "GAS", "AMBOS"]:
-        gerar_qr_codes(tipo)
+    opcao = input("Gerar: AGUA, GAS ou AMBOS? ").strip().upper()
+    if opcao in ["AGUA", "GAS", "AMBOS"]:
+        gerar_qr_codes(opcao)
     else:
-        print("Opção inválida! Escolha AGUA, GAS ou AMBOS.")
+        print("Opção inválida!")

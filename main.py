@@ -27,6 +27,8 @@ import database.database as db
 import flet as ft
 import sys
 import os
+import threading
+import time
 
 # ========== IMPORTS DINÂMICOS ==========
 # Sistema inteligente para encontrar módulos nas pastas database/ e views/
@@ -43,6 +45,20 @@ sys.path.insert(0, os.path.join(current_dir, 'views'))
 async def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.DARK
     db.Database.init_db()
+
+    # --- ROTINA DE SYNC AUTOMÁTICO (Background) ---
+    def run_auto_sync():
+        """Tenta enviar dados pendentes a cada 5 minutos em background."""
+        while True:
+            try:
+                # Tenta processar a fila (envia se tiver internet)
+                db.Database.processar_fila()
+            except Exception as e:
+                print(f"⚠️ Erro no Auto-Sync: {e}")
+            time.sleep(300)  # Pausa de 5 minutos (300 segundos)
+
+    # Inicia a thread como daemon (morre quando o app fecha)
+    threading.Thread(target=run_auto_sync, daemon=True).start()
 
     palco = ft.Container(expand=True)
 
