@@ -64,10 +64,8 @@ async def main(page: ft.Page):
 
     async def atualizar_tela_medicao():
         tela_med = await medicao.montar_tela(
-            page,
-            voltar_ao_menu,
-            status_icon,
-            status_text,
+            page=page,
+            voltar_ao_menu=voltar_ao_menu,
             on_next=atualizar_tela_medicao
         )
         palco.content = tela_med

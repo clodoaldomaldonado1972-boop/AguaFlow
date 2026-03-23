@@ -13,149 +13,148 @@ Tudo o que acontece aqui é para PROTEGER OS DADOS do zelador do Vivere Prudente
 ✅ Sistema de BACKUP cria cópias diárias
 ✅ Dados são SINCRONIZADOS com Supabase quando Wi-Fi volta
 
-O "Cofre Local" garante que o zelador trabalhe TRANQUILO sabendo que:
-- Seus dados estão seguros
-- Nada é perdido em caso de crash ou falta de internet
-- Tudo funciona PERFEITAMENTE em modo offline
-
 ================================================================================
 """
 import os
-import re  # <-- ADICIONE ESTA LINHA AQUI!
+import re
 from dotenv import load_dotenv
 from supabase import create_client
 import sqlite3
 import datetime
+from datetime import datetime as dt
+import json
 import requests
-
-# ... restante do código
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
 
+LOG_FILE = "database/sync_log.json"
+DB_PATH = "aguaflow.db"
+
+
+from contextlib import contextmanager
 
 class Database:
-    # Usando as variáveis que você já carregou lá em cima
+    # ---------------------------------------------------------
+    # 1. CONFIGURAÇÃO SUPABASE
+    # ---------------------------------------------------------
     url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
     key = os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
 
     # Inicializa o cliente apenas se as chaves existirem
+    supabase = None
     if url and key:
-        supabase = create_client(url, key)
+        try:
+            supabase = create_client(url, key)
+        except Exception as e:
+            print(f"⚠️ Alerta: Falha ao iniciar cliente Supabase: {e}")
     else:
-        supabase = None
         print("⚠️ Alerta: Chaves do Supabase não encontradas no .env")
 
-    @classmethod
-    def registrar_leitura(cls, id_unidade, valor, tipo_val="AGUA"):
-        # 2. Prepara o valor numérico com segurança
-        try:
-            valor_float = float(str(valor).replace(',', '.'))
-        except:
-            valor_float = 0.0
-
-        # 3. PAYLOAD: Definido ANTES do try (isso mata o erro local variable)
-        # Mude de '_id' para 'id'
-        # Mude de '_id' para 'id'
-        payload = {
-            # <-- Removi o underline aqui para casar com o Supabase
-            'id': str(id_unidade),
-            'valor_leitura': valor_float,
-            'tipo_registro': tipo_val,
-            'leiturista': 'Clodoaldo'
-        }
-
-        # 4. Tenta a nuvem, se falhar, guarda no SQLite
-        try:
-            if cls.supabase:
-                cls.supabase.table("leituras").insert(payload).execute()
-                print("✅ Sincronizado com Supabase!")
-                return True
-            else:
-                raise Exception("Cliente Supabase não inicializado")
-        except Exception as e:
-            print(f"⚠️ Offline: Salvando localmente. Erro: {e}")
-            # Aqui você chamaria sua função de salvar no SQLite local
-            return False
-
-    @classmethod
-    def enqueue_sync(cls, id_unidade, payload):
-        # Sua lógica de salvar na tabela 'pendentes' do SQLite aqui
-        print(f"📦 Unidade {id_unidade} guardada para sincronização futura.")
-
-    """
-    Gerenciador unificado de banco de dados SQLite para AguaFlow.
-    Combina funcionalidades do database.py original com validações robustas.
-    """
-
-    DB_PATH = "aguaflow.db"
-
+    # ---------------------------------------------------------
+    # 2. GERENCIAMENTO LOCAL (SQLite)
+    # ---------------------------------------------------------
     @staticmethod
     def get_connection():
         """Retorna conexão com banco de dados."""
-        return sqlite3.connect(Database.DB_PATH, check_same_thread=False)
+        return sqlite3.connect(DB_PATH, check_same_thread=False)
+
+    @classmethod
+    @contextmanager
+    def get_connection_safe(cls):
+        """
+        Context manager que garante:
+        - Conexão sempre fechada (finally)
+        - Rollback automático em caso de erro
+        - Commit explícito apenas quando sucesso
+        """
+        conn = None
+        try:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            conn.execute("PRAGMA journal_mode=WAL")
+            yield conn
+            conn.commit()
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            raise e
+        finally:
+            if conn:
+                conn.close()
 
     @staticmethod
     def init_db():
         """Inicializa banco com tabela e unidades do Vivere Prudente."""
-        conn = Database.get_connection()
-        cursor = conn.cursor()
+        conn = None
+        try:
+            conn = Database.get_connection()
+            cursor = conn.cursor()
 
-        # Criando a tabela com TODAS as colunas necessárias + constraints
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS leituras (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                unidade TEXT NOT NULL,
-                leitura_anterior REAL DEFAULT 0.0,
-                leitura_atual REAL DEFAULT NULL,
-                tipo TEXT DEFAULT 'AGUA',
-                status TEXT DEFAULT 'PENDENTE',
-                ordem INTEGER,
-                data_leitura TEXT,
-                sincronizado INTEGER DEFAULT 0,
-                CHECK(leitura_anterior >= 0),
-                CHECK(leitura_atual IS NULL OR leitura_atual > 0)
-            )
-        """)
+            # Criando a tabela com TODAS as colunas necessárias + constraints
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS leituras (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    unidade TEXT NOT NULL,
+                    leitura_anterior REAL DEFAULT 0.0,
+                    leitura_atual REAL DEFAULT NULL,
+                    tipo TEXT DEFAULT 'AGUA',
+                    status TEXT DEFAULT 'PENDENTE',
+                    ordem INTEGER,
+                    data_leitura TEXT,
+                    sincronizado INTEGER DEFAULT 0,
+                    CHECK(leitura_anterior >= 0),
+                    CHECK(leitura_atual IS NULL OR leitura_atual > 0)
+                )
+            """)
 
-        cursor.execute("SELECT COUNT(*) FROM leituras")
-        if cursor.fetchone()[0] == 0:
-            print("📁 Gerando unidades do Vivere Prudente...")
-            unidades = []
-            ordem_cont = 1
-            for andar in range(16, 0, -1):
-                for final in range(6, 0, -1):
-                    unidades.append(
-                        (f"{andar}{final}", 0.0, 'AGUA', ordem_cont))
-                    ordem_cont += 1
-                    unidades.append(
-                        (f"{andar}{final}", 0.0, 'GAS', ordem_cont))
-                    ordem_cont += 1
+            # Tabela de fila de sincronização
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sync_queue (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_leitura INTEGER,
+                    payload TEXT,
+                    error_message TEXT,
+                    tentativas INTEGER DEFAULT 0,
+                    ultimo_tentativa TEXT
+                )
+            """)
 
-            unidades.append(('LAZER', 0.0, 'AGUA', ordem_cont))
-            ordem_cont += 1
-            unidades.append(('GERAL', 0.0, 'AGUA', ordem_cont))
+            cursor.execute("SELECT COUNT(*) FROM leituras")
+            if cursor.fetchone()[0] == 0:
+                print("📁 Gerando unidades do Vivere Prudente...")
+                unidades = []
+                ordem_cont = 1
+                for andar in range(16, 0, -1):
+                    for final in range(6, 0, -1):
+                        unidades.append(
+                            (f"{andar}{final}", 0.0, 'AGUA', ordem_cont))
+                        ordem_cont += 1
+                        unidades.append(
+                            (f"{andar}{final}", 0.0, 'GAS', ordem_cont))
+                        ordem_cont += 1
 
-            cursor.executemany(
-                "INSERT INTO leituras (unidade, leitura_anterior, tipo, ordem) VALUES (?, ?, ?, ?)",
-                unidades
-            )
+                unidades.append(('LAZER', 0.0, 'AGUA', ordem_cont))
+                ordem_cont += 1
+                unidades.append(('GERAL', 0.0, 'AGUA', ordem_cont))
+
+                cursor.executemany(
+                    "INSERT INTO leituras (unidade, leitura_anterior, tipo, ordem) VALUES (?, ?, ?, ?)",
+                    unidades
+                )
+
             conn.commit()
+            conn.close()
+            conn = None
+            print("✅ Banco de dados inicializado com sucesso!")
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sync_queue (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                leitura_id INTEGER NOT NULL,
-                payload TEXT NOT NULL,
-                tentativas INTEGER DEFAULT 0,
-                ultimo_erro TEXT,
-                criado_em TEXT,
-                atualizado_em TEXT
-            )
-        """)
-
-        conn.commit()
-        conn.close()
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            print(f"❌ Erro ao inicializar banco: {e}")
+            raise
+        finally:
+            if conn:
+                conn.close()
 
     @staticmethod
     def validar_numero(valor_str):
@@ -168,6 +167,7 @@ class Database:
 
         valor_str = valor_str.strip()
 
+        # Permite apenas dígitos, ponto e vírgula
         if not re.match(r'^[\d.,]+$', valor_str):
             return {'valido': False, 'mensagem': '❌ Apenas números permitidos (sem letras)'}
 
@@ -187,476 +187,148 @@ class Database:
         if valor > 999999:
             return {'valido': False, 'mensagem': '❌ Valor muito grande (limite: 999.999)'}
 
-        casas = len(str(valor).split('.')[-1]) if '.' in str(valor) else 0
-        if casas > 3:
-            return {'valido': False, 'mensagem': '❌ Máximo 3 casas decimais'}
-
         return {'valido': True, 'mensagem': '', 'valor': valor}
 
     @staticmethod
     def buscar_proximo_pendente():
-        """Busca próxima unidade pendente para leitura."""
+        """
+        Busca próxima unidade pendente para leitura.
+        Retorna tupla: (id, unidade, leitura_anterior) para desempacotamento na View.
+        """
+        conn = None
         try:
             conn = Database.get_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, unidade, leitura_anterior, tipo FROM leituras WHERE status = 'PENDENTE' ORDER BY ordem ASC LIMIT 1")
+                "SELECT id, unidade, leitura_anterior FROM leituras WHERE status = 'PENDENTE' ORDER BY ordem ASC LIMIT 1"
+            )
             res = cursor.fetchone()
-            conn.close()
             return res
         except Exception as e:
             print(f"Erro ao buscar próximo pendente: {e}")
             return None
+        finally:
+            if conn:
+                conn.close()
 
-
-class Database:
-
-    # A linha abaixo tem 4 espaços de recuo (ou 1 TAB)
+    # ---------------------------------------------------------
+    # 3. OPERAÇÕES PRINCIPAIS (SALVAR + SYNC)
+    # ---------------------------------------------------------
     @classmethod
-    def registrar_leitura(cls, id_unidade, valor, tipo_val="AGUA"):
-        # As linhas abaixo têm 8 espaços de recuo (ou 2 TABS)
-        payload = {
-            'id': str(id_unidade),
-            'valor_leitura': float(valor) if valor else None,
-            'tipo_registro': tipo_val,
-            'leiturista': 'Clodoaldo'
-        }
+    def registrar_leitura(cls, id_db, valor, tipo_val="AGUA"):
+        """Salva a leitura localmente e tenta sincronizar."""
 
-        # Continue o código de envio aqui...
-        # 4. Tenta a nuvem, se falhar, guarda no SQLite
+        # 1. Prepara o valor
         try:
-            if cls.supabase:
-                cls.supabase.table("leituras").insert(payload).execute()
-                print("✅ Sincronizado com Supabase!")
-                return True
-            else:
-                raise Exception("Cliente Supabase não inicializado")
-        except Exception as e:
-            print(f"⚠️ Offline: Salvando localmente. Erro: {e}")
-            # Aqui você chamaria sua função de salvar no SQLite local
-            return False
+            valor_float = float(str(valor).replace(',', '.'))
+        except:
+            return {'sucesso': False, 'mensagem': 'Valor inválido.'}
 
+        supabase_synced = False
+        msg_erro_sync = ""
+        conn = None
+
+        try:
+            conn = Database.get_connection()
+            cursor = conn.cursor()
+
+            # 2. Busca dados da unidade para o payload
+            cursor.execute(
+                "SELECT unidade, tipo FROM leituras WHERE id = ?", (id_db,))
+            dados_unidade = cursor.fetchone()
+            if not dados_unidade:
+                return {'sucesso': False, 'mensagem': 'Unidade não encontrada'}
+
+            nome_unidade = dados_unidade[0]
+            tipo_registro = dados_unidade[1] or tipo_val
+
+            # 3. Salva no SQLite (Cofre Local) - COMMIT ÚNICO
+            agora = dt.now().isoformat()
+            cursor.execute("""
+                UPDATE leituras
+                SET leitura_atual = ?,
+                    status = 'CONCLUIDO',
+                    data_leitura = ?,
+                    sincronizado = 0
+                WHERE id = ?
+            """, (valor_float, agora, id_db))
             conn.commit()
 
-            # Sincronização com Supabase via REST API
-            supabase_synced = False
-            supabase_message = ''
-
-            # payload definido antes do try para estar disponível no except
-            # O payload está correto e bem posicionado
+            # 4. Tenta Sincronizar com Supabase (fora da transação principal)
             payload = {
-                '_id': str(id_unidade),
+                'id_interno': id_db,
+                'unidade': nome_unidade,
                 'valor_leitura': valor_float,
-                'tipo_registro': tipo_val,
-                'leiturista': 'Clodoaldo'
+                'tipo_registro': tipo_registro,
+                'leiturista': 'Clodoaldo',
+                'data_leitura': agora
             }
 
             try:
-                supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-                supabase_key = os.environ.get(
-                    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
+                if cls.supabase:
+                    cls.supabase.table("leituras").insert(payload).execute()
 
-                # Removendo possíveis barras extras na URL
-                base_url = supabase_url.strip('/')
-
-                response = requests.post(
-                    f"{base_url}/rest/v1/leituras",
-                    headers={
-                        'apikey': supabase_key,
-                        'Authorization': f'Bearer {supabase_key}',
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    json=payload,
-                    timeout=10
-                )
-
-                supabase_synced = response.status_code in (200, 201)
-
-                if supabase_synced:
+                    # Se sucesso, marca como sincronizado
                     cursor.execute(
-                        "UPDATE leituras SET sincronizado = 1 WHERE id = ?",
-                        (id_unidade,)
-                    )
+                        "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (id_db,))
                     conn.commit()
-                    print(f"✅ Sucesso Supabase: Unidade {id_unidade}")
+                    supabase_synced = True
                 else:
-                    # ISSO AQUI VAI TE DIZER POR QUE NÃO GRAVA:
-                    print(
-                        f"❌ Erro Supabase ({response.status_code}): {response.text}")
-                    Database.enqueue_sync(
-                        id_unidade, payload, erro=response.text)
-
-            except Exception as sup_e:
-                print(f"⚠️ Erro de Conexão: {sup_e}")
-                Database.enqueue_sync(id_unidade, payload, erro=str(sup_e))
-
-            except Exception as sup_e:
-                supabase_synced = False
-                supabase_message = f'Erro Supabase: {sup_e}'
-                Database.enqueue_sync(
-                    id_unidade, payload, erro=supabase_message)
-                Database.log_sync_error(
-                    f"Exception sync imediata leitura {id_unidade}: {supabase_message}")
+                    msg_erro_sync = "Cliente Supabase não configurado"
+            except Exception as e:
+                msg_erro_sync = str(e)
+                # TODO: Enfileirar para sincronização posterior
+                # cls.enqueue_sync(id_db, payload)
 
             conn.close()
+            conn = None
 
-            final_message = f'✓ Leitura de {valor_float} m³ salva com sucesso!'
+            final_msg = "Leitura salva localmente."
             if supabase_synced:
-                final_message += ' ✅ Sincronizada com Supabase.'
-            else:
-                final_message += f' ⚠️ Falha na sincronização: {supabase_message}'
-
-            try:
-                Database.sincronizar_leituras_pendentes()
-            except Exception as e:
-                Database.log_sync_error(
-                    f"Erro ao chamar sincronizar_leituras_pendentes: {e}")
+                final_msg = "✅ Salvo e Sincronizado!"
+            elif msg_erro_sync:
+                final_msg = f"⚠️ Salvo localmente (Offline: {msg_erro_sync})"
 
             return {
                 'sucesso': True,
-                'mensagem': final_message,
+                'mensagem': final_msg,
                 'supabase_sync': supabase_synced
             }
 
         except Exception as e:
-            return {'sucesso': False, 'mensagem': f'❌ Erro ao salvar: {str(e)}'}
-
-    @staticmethod
-    def log_sync_error(text):
-        """Grava log simples de falhas de rede/Sync."""
-        try:
-            with open(LOG_FILE, 'a', encoding='utf-8') as f:
-                agora = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                f.write(f"[{agora}] {text}\n")
-        except Exception:
-            pass
-
-    @staticmethod
-    def enqueue_sync(leitura_id, payload, erro=None):
-        """Adiciona ou atualiza fila de retry para leitura."""
-        try:
-            conn = Database.get_connection()
-            cursor = conn.cursor()
-
-            now = datetime.datetime.now().isoformat()
-            payload_json = json.dumps(payload, default=str, ensure_ascii=False)
-
-            cursor.execute(
-                "SELECT id, tentativas FROM sync_queue WHERE leitura_id = ?",
-                (leitura_id,)
-            )
-            existing = cursor.fetchone()
-            if existing:
-                queue_id, tentativas = existing
-                tentativas += 1
-                cursor.execute(
-                    "UPDATE sync_queue SET tentativas = ?, ultimo_erro = ?, atualizado_em = ? WHERE id = ?",
-                    (tentativas, str(erro), now, queue_id)
-                )
-            else:
-                cursor.execute(
-                    "INSERT INTO sync_queue (leitura_id, payload, tentativas, ultimo_erro, criado_em, atualizado_em) VALUES (?, ?, 1, ?, ?, ?)",
-                    (leitura_id, payload_json, str(erro), now, now)
-                )
-
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            Database.log_sync_error(
-                f"Falha ao enfileirar leitura {leitura_id}: {e}")
-
-    @staticmethod
-    def process_retry_queue(max_attempts=5):
-        """Tenta reprocessar leituras falhadas com Supabase."""
-        try:
-            conn = Database.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                "SELECT id, leitura_id, payload, tentativas FROM sync_queue ORDER BY criado_em ASC")
-            filas = cursor.fetchall()
-
-            supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-            supabase_key = os.environ.get(
-                'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
-
-            processed = 0
-            for fila in filas:
-                queue_id, leitura_id, payload_json, tentativas = fila
-                if tentativas >= max_attempts:
-                    Database.log_sync_error(
-                        f"Máximo de tentativas atingido para leitura {leitura_id}")
-                    continue
-
-                payload = json.loads(payload_json)
-                try:
-                    response = requests.post(
-                        f"{supabase_url}/rest/v1/leituras",
-                        headers={
-                            'apikey': supabase_key,
-                            'Authorization': f'Bearer {supabase_key}',
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=minimal'
-                        },
-                        json=payload,
-                        timeout=10
-                    )
-                    if response.status_code in (200, 201):
-                        cursor.execute(
-                            "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (leitura_id,))
-                        cursor.execute(
-                            "DELETE FROM sync_queue WHERE id = ?", (queue_id,))
-                        processed += 1
-                    else:
-                        Database.enqueue_sync(
-                            leitura_id, payload, erro=response.text)
-                        Database.log_sync_error(
-                            f"Retry falhou leitura {leitura_id}: {response.text}")
-                except Exception as e:
-                    Database.enqueue_sync(leitura_id, payload, erro=e)
-                    Database.log_sync_error(
-                        f"Retry Exception leitura {leitura_id}: {e}")
-
-            conn.commit()
-            conn.close()
-
-            return {'sucesso': True, 'processados': processed, 'pendentes': len(filas)}
-
-        except Exception as e:
-            Database.log_sync_error(f"Erro process_retry_queue: {e}")
-            return {'sucesso': False, 'mensagem': str(e)}
-
-    @staticmethod
-    def sync_to_supabase():
-        """Sincroniza leituras pendentes com o Supabase e usa fila de retry."""
-        try:
-            fila_result = Database.process_retry_queue()
-
-            conn = Database.get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT id, unidade, leitura_anterior, leitura_atual, tipo, status, ordem, data_leitura "
-                "FROM leituras WHERE (sincronizado IS NULL OR sincronizado = 0) "
-                "AND leitura_atual IS NOT NULL"
-            )
-            pendentes = cursor.fetchall()
-
-            if not pendentes:
+            return {'sucesso': False, 'mensagem': f"Erro crítico: {str(e)}"}
+        finally:
+            if conn:
                 conn.close()
-                return {'sucesso': True, 'sincronizados': 0, 'total': 0, 'retry': fila_result}
-
-            supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
-            supabase_key = os.environ.get(
-                'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
-
-            sincronizados = 0
-            for row in pendentes:
-                (row_id, unidade_val, leitura_anterior_val,
-                 leitura_atual_val, tipo_val, status_val,
-                 ordem_val, data_leitura_val) = row
-
-                payload = {
-                    '_id': str(row_id),
-                    'valor_leitura': float(leitura_atual_val) if leitura_atual_val else None,
-                    'tipo_registro': tipo_val,
-                    'leiturista': 'Clodoaldo'
-                }
-
-                try:
-                    response = requests.post(
-                        f"{supabase_url}/rest/v1/leituras",
-                        headers={
-                            'apikey': supabase_key,
-                            'Authorization': f'Bearer {supabase_key}',
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=minimal'
-                        },
-                        json=payload,
-                        timeout=10
-                    )
-                    if response.status_code in (200, 201):
-                        cursor.execute(
-                            "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (row_id,))
-                        sincronizados += 1
-                    else:
-                        Database.enqueue_sync(
-                            row_id, payload, erro=response.text)
-                        Database.log_sync_error(
-                            f"Falha sync leitura {row_id}: {response.text}")
-
-                except Exception as e:
-                    Database.enqueue_sync(row_id, payload, erro=e)
-                    Database.log_sync_error(
-                        f"Falha conx supabase leitura {row_id}: {e}")
-
-            conn.commit()
-            conn.close()
-
-            return {
-                'sucesso': True,
-                'sincronizados': sincronizados,
-                'total': len(pendentes),
-                'retry': fila_result
-            }
-
-        except Exception as e:
-            Database.log_sync_error(f"Erro sync_to_supabase: {e}")
-            return {'sucesso': False, 'mensagem': f'Erro sync_to_supabase: {e}'}
-
-    @staticmethod
-    def sincronizar_leituras_pendentes():
-        """Wrapper para conveniência: sincroniza leituras que estão pendentes de envio."""
-        return Database.sync_to_supabase()
-
-    @staticmethod
-    def sync_pending_records():
-        """Alias legacy para não quebrar quem chama com nome antigo."""
-        return Database.sincronizar_leituras_pendentes()
 
     @staticmethod
     def get_leituras(unidade=None, status=None):
-        """Retorna leituras com filtros opcionais."""
+        """Retorna lista de leituras para relatórios."""
+        conn = None
         try:
             conn = Database.get_connection()
             cursor = conn.cursor()
-
             query = "SELECT * FROM leituras WHERE 1=1"
             params = []
-
             if unidade:
                 query += " AND unidade = ?"
                 params.append(unidade)
-
             if status:
                 query += " AND status = ?"
                 params.append(status)
 
             query += " ORDER BY ordem ASC"
-
             cursor.execute(query, params)
             rows = cursor.fetchall()
-            conn.close()
-
-            return {
-                'sucesso': True,
-                'dados': rows,
-                'total': len(rows)
-            }
-
+            return {'sucesso': True, 'dados': rows}
         except Exception as e:
-            return {
-                'sucesso': False,
-                'dados': [],
-                'total': 0,
-                'mensagem': str(e)
-            }
+            return {'sucesso': False, 'mensagem': str(e)}
+        finally:
+            if conn:
+                conn.close()
 
-    @staticmethod
-    def resetar_mes():
-        """Move leitura_atual para leitura_anterior e reseta status."""
-        try:
-            conn = Database.get_connection()
-            cursor = conn.cursor()
+# Wrapper global para compatibilidade
 
-            cursor.execute("""
-                UPDATE leituras
-                SET leitura_anterior=leitura_atual,
-                    leitura_atual=NULL,
-                    status='PENDENTE',
-                    data_leitura=NULL
-                WHERE status='CONCLUIDO'
-            """)
-
-            conn.commit()
-            conn.close()
-
-            return {'sucesso': True, 'mensagem': '✓ Mês resetado com sucesso'}
-
-        except Exception as e:
-            return {'sucesso': False, 'mensagem': f'❌ Erro ao resetar mês: {str(e)}'}
-
-    @staticmethod
-    def verificar_duplicata_hoje(unidade):
-        """Verifica se unidade já foi lida hoje."""
-        try:
-            conn = Database.get_connection()
-            cursor = conn.cursor()
-            hoje = dt.now().date().isoformat()
-
-            cursor.execute("""
-                SELECT COUNT(*) FROM leituras
-                WHERE unidade=? AND date(data_leitura)=?
-            """, (unidade, hoje))
-
-            count = cursor.fetchone()[0]
-            conn.close()
-
-            return count > 0
-
-        except Exception as e:
-            print(f'Erro ao verificar duplicata: {e}')
-            return False
-
-
-# ========== FUNÇÕES GLOBAIS PARA COMPATIBILIDADE ==========
 
 def get_connection():
     return Database.get_connection()
-
-
-class Database:
-    @staticmethod  # Ou @classmethod
-    def init_db():
-        """Inicializa a configuração do banco de dados"""
-        print("✅ Banco de dados inicializado com sucesso!")
-        # Se houver lógica de conexão, coloque aqui
-    @staticmethod
-    def buscar_proximo_pendente():
-        """Busca a próxima leitura pendente."""
-        try:
-            conn = Database.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                SELECT id, unidade, leitura_anterior, leitura_atual, tipo, status, ordem, data_leitura
-                FROM leituras
-                WHERE status = 'PENDENTE'
-                ORDER BY ordem ASC
-                LIMIT 1
-            """)
-
-            result = cursor.fetchone()
-            conn.close()
-
-            if result:
-                return {
-                    'sucesso': True,
-                    'dados': {
-                        'id': result[0],
-                        'unidade': result[1],
-                        'leitura_anterior': result[2],
-                        'leitura_atual': result[3],
-                        'tipo': result[4],
-                        'status': result[5],
-                        'ordem': result[6],
-                        'data_leitura': result[7]
-                    }
-                }
-            else:
-                return {
-                    'sucesso': False,
-                    'dados': None,
-                    'mensagem': 'Nenhuma leitura pendente encontrada.'
-                }
-
-        except Exception as e:
-            return {
-                'sucesso': False,
-                'dados': None,
-                'mensagem': f'Erro ao buscar próxima leitura pendente: {str(e)}'
-            }
-
-
-def buscar_proximo_pendente():
-    return Database.buscar_proximo_pendente()
