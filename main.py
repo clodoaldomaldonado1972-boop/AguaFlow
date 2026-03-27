@@ -10,13 +10,13 @@ from views import auth, menu_principal, medicao, relatorios, configuracoes
 from views.utils import gerador_qr, gerador_pdf, mailer
 
 async def main(page: ft.Page):
-    # Configurações Iniciais
+    # --- CONFIGURAÇÃO DE TEMA (FUNDO ESCURO) ---
     page.title = "AguaFlow - Vivere Prudente"
-    page.theme_mode = ft.ThemeMode.LIGHT
-    Database.init_db() 
+    page.theme_mode = ft.ThemeMode.DARK # Mudado para DARK
+    page.dark_theme = ft.Theme(color_scheme_seed="blue") # Semente azul como na imagem
     
+    Database.init_db()
     palco = ft.Container(expand=True)
-
     # --- FUNÇÕES DE NAVEGAÇÃO ---
 
     async def ir_para_home(perfil=None):
@@ -32,13 +32,12 @@ async def main(page: ft.Page):
         page.update()
 
     async def ir_para_relatorios(e=None):
-        # Passamos 'ir_para_gerar_e_enviar' para o botão de PDF
+        # CORREÇÃO: Removido 'gerar_pdf' que causava o TypeError
         palco.content = relatorios.montar_tela_relatorios(
             page, 
             voltar=ir_para_home, 
             sync_nuvem=ir_para_sync, 
-            gerar_pdf=ir_para_gerar_e_enviar, 
-            gerar_qr=ir_para_qr
+            gerar_qr=ir_para_qr # Deixe apenas os argumentos que o arquivo relatorios.py aceita
         )
         page.update()
 

@@ -32,3 +32,10 @@ def montar_tela_configs(page, voltar):
             ft.ElevatedButton("VOLTAR AO MENU", on_click=voltar, width=320, bgcolor="blue", color="white")
         ], horizontal_alignment="center")
     )
+# Crie a função de fechar
+def fechar_dialogo(e):
+    dialogo.open = False
+    page.update()
+
+# No botão do diálogo:
+actions=[ft.TextButton("Entendi", on_click=fechar_dialogo)]    
