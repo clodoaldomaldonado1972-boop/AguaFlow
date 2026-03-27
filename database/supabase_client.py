@@ -1,32 +1,43 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
-load_dotenv()
+# Força a busca do .env na raiz C:\ÁguaFlow\
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_API_KEY = os.getenv('SUPABASE_API_KEY')
+# Ajustado para os nomes que estão no seu arquivo .env
+SUPABASE_URL = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+SUPABASE_API_KEY = os.getenv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
 if not SUPABASE_URL or not SUPABASE_API_KEY:
-    raise RuntimeError('Supabase URL/API key not set. Check .env file.')
+    # Log de depuração para você saber o que está vazio
+    print(f"DEBUG: URL encontrada: {bool(SUPABASE_URL)}")
+    print(f"DEBUG: KEY encontrada: {bool(SUPABASE_API_KEY)}")
+    raise RuntimeError('Erro: As chaves do Supabase não foram encontradas no .env. Verifique os nomes das variáveis.')
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_API_KEY)
-
 
 def get_supabase_client() -> Client:
     return supabase
 
-
-def insert_leitura_supabase(leituras_obj: dict):
-    """Insere/atualiza leitura na tabela leituras do Supabase."""
+def insert_leitura_supabase(id_qrcode, valor, tipo_registro="MISTO", leiturista="Zelador"):
+    """Insere leitura usando o nome de coluna exato: id"""
     try:
-        # Usamos upsert para permitir reenvio de leituras já existentes, key _id
-        result = supabase.table('leituras').upsert(
-            leituras_obj, on_conflict='_id').execute()
-        if hasattr(result, 'error') and result.error:
-            return {'sucesso': False, 'mensagem': str(result.error), 'data': None}
+        leituras_obj = {
+            "id": str(id_qrcode),             # <-- Nome exato da coluna no seu Supabase
+            "valor_leitura": float(valor),    # <-- Nome da coluna de valor
+            "tipo_registro": tipo_registro,
+            "leiturista": leiturista
+        }
 
-        return {'sucesso': True, 'mensagem': 'Sincronizado com Supabase', 'data': getattr(result, 'data', None)}
+        # O on_conflict deve ser 'id' pois é a sua chave primária/única na tabela
+        result = supabase.table('leituras').upsert(
+            leituras_obj, on_conflict='id' 
+        ).execute()
+
+        return {'sucesso': True, 'mensagem': 'Sincronizado!', 'data': result.data}
 
     except Exception as e:
-        return {'sucesso': False, 'mensagem': f'❌ Erro Supabase: {e}', 'data': None}
+        return {'sucesso': False, 'mensagem': f'❌ Erro: {e}'}
