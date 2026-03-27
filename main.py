@@ -1,118 +1,108 @@
-"""
-================================================================================
-🌊 AGUAFLOW - SISTEMA DE LEITURA DE HIDRÔMETROS
-================================================================================
-Projeto: Condomínio Vivere Prudente
-Função: Capturar leituras de água/gás de forma sequencial e offline
-
-ARQUITETURA DO SISTEMA:
-  📁 database/  → "COFRE LOCAL" (dados seguros, validados, offline-first)
-  📁 views/     → "VITRINE" (interface amigável para o zelador)
-  📄 main.py    → Orquestrador principal
-
-FLUXO DE USO:
-  1. Zelador abre app no celular
-  2. Vê a sequência de apartamentos (166, 165, ..., 11)
-  3. Digita a leitura do medidor
-  4. App VALIDA em tempo real (rejeita letras, símbolos, valores inválidos)
-  5. Salva no "Cofre Local" (banco SQLite local)
-  6. Quando Wi-Fi volta, sincroniza com Supabase automaticamente
-
-================================================================================
-"""
-
-import socket
-import views.medicao as medicao
-import database.database as db
 import flet as ft
-import sys
-import os
-import threading
-import time
+import asyncio
+from database.database import Database
+from database.sync_engine import SyncEngine
 
-# ========== IMPORTS DINÂMICOS ==========
-# Sistema inteligente para encontrar módulos nas pastas database/ e views/
-# Funciona independente da localização do projeto
+# Importação organizada das telas
+from views import auth, menu_principal, medicao, relatorios, configuracoes
 
-# Adiciona pastas ao path do Python
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(current_dir, 'database'))
-sys.path.insert(0, os.path.join(current_dir, 'views'))
-
-# Importa módulos das pastas organizadas
-
+# Importação dos utilitários (Agora todos dentro da pasta views/utils)
+from views.utils import gerador_qr, gerador_pdf, mailer
 
 async def main(page: ft.Page):
-    page.theme_mode = ft.ThemeMode.DARK
-    db.Database.init_db()
-
-    # --- ROTINA DE SYNC AUTOMÁTICO (Background) ---
-    def run_auto_sync():
-        """Tenta enviar dados pendentes a cada 5 minutos em background."""
-        while True:
-            try:
-                # Tenta processar a fila (envia se tiver internet)
-                db.Database.processar_fila()
-            except Exception as e:
-                print(f"⚠️ Erro no Auto-Sync: {e}")
-            time.sleep(300)  # Pausa de 5 minutos (300 segundos)
-
-    # Inicia a thread como daemon (morre quando o app fecha)
-    threading.Thread(target=run_auto_sync, daemon=True).start()
-
+    # Configurações Iniciais
+    page.title = "AguaFlow - Vivere Prudente"
+    page.theme_mode = ft.ThemeMode.LIGHT
+    Database.init_db() 
+    
     palco = ft.Container(expand=True)
 
-    # Barra de status da conexão com a nuvem
-    status_icon = ft.Icon(ft.icons.Icons.CLOUD_QUEUE, color='gray', size=16)
-    # Estado inicial: aguardando conexão (offline)
-    status_text = ft.Text('Aguardando Conexão 🔴', color='gray')
-    status_bar = ft.Row(
-        [status_icon, ft.Text(' ', width=8), status_text],
-        alignment=ft.MainAxisAlignment.START
-    )
+    # --- FUNÇÕES DE NAVEGAÇÃO ---
 
-    async def voltar_ao_menu():
-        palco.content = menu_principal
-        page.update()
-
-    async def iniciar_leitura(e):
-        await atualizar_tela_medicao()
-
-    async def atualizar_tela_medicao():
-        tela_med = await medicao.montar_tela(
-            page=page,
-            voltar_ao_menu=voltar_ao_menu,
-            on_next=atualizar_tela_medicao
+    async def ir_para_home(perfil=None):
+        if perfil: 
+            page.session.set("perfil", perfil)
+        palco.content = menu_principal.montar_menu(
+            page, ir_para_medicao, ir_para_relatorios, ir_para_configs
         )
-        palco.content = tela_med
         page.update()
 
-    menu_principal = ft.Column([
-        ft.Container(height=50),
-        ft.Icon(ft.Icons.WATER_DROP, size=100, color="blue"),
-        ft.Text("AGUA FLOW", size=30, weight="bold"),
-        ft.FilledButton(content=ft.Text("INICIAR LEITURAS"),
-                        on_click=iniciar_leitura, width=250, height=50),
-    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    async def ir_para_medicao(e=None):
+        palco.content = await medicao.montar_tela(page, ir_para_home, on_next=ir_para_medicao)
+        page.update()
 
-    page.add(ft.Column([palco, ft.Divider(height=1), status_bar], expand=True))
-    await voltar_ao_menu()
+    async def ir_para_relatorios(e=None):
+        # Passamos 'ir_para_gerar_e_enviar' para o botão de PDF
+        palco.content = relatorios.montar_tela_relatorios(
+            page, 
+            voltar=ir_para_home, 
+            sync_nuvem=ir_para_sync, 
+            gerar_pdf=ir_para_gerar_e_enviar, 
+            gerar_qr=ir_para_qr
+        )
+        page.update()
 
+    async def ir_para_configs(e=None):
+        palco.content = configuracoes.montar_tela_configs(page, voltar=ir_para_home)
+        page.update()
 
-def find_free_port(start_port=8080, max_port=8090):
-    for port in range(start_port, max_port + 1):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("0.0.0.0", port))
-                return port
-            except OSError:
-                continue
-    raise OSError(
-        f"Nenhuma porta livre encontrada entre {start_port} e {max_port}.")
+    # --- LÓGICA DE NEGÓCIO (PDF, EMAIL E SYNC) ---
 
+    async def ir_para_gerar_e_enviar(e=None):
+        """Busca dados, gera PDF e envia por e-mail"""
+        page.snack_bar = ft.SnackBar(ft.Text("📊 Processando relatório..."))
+        page.snack_bar.open = True
+        page.update()
 
-# USANDO FT.APP para compatibilidade com flet >= 0.10
+        try:
+            # 1. Busca dados do banco (ajuste o nome do método se necessário)
+            dados = Database.buscar_ultimas_leituras(limite=96)
+            
+            # 2. Gera o PDF usando seu módulo na pasta views/utils
+            # O gerador_pdf.py deve retornar o caminho do arquivo criado
+            caminho_pdf = gerador_pdf.gerar_pdf_relatorio(dados) 
+            
+            # 3. Envia por e-mail (usando sua senha de app)
+            sucesso = await asyncio.to_thread(
+                mailer.enviar_email_com_pdf, 
+                "clodoaldomaldonado112@gmail.com", 
+                caminho_pdf
+            )
+            
+            if sucesso:
+                page.snack_bar = ft.SnackBar(ft.Text("✅ Relatório enviado com sucesso!"), bgcolor="green")
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("❌ Erro no envio do e-mail."), bgcolor="red")
+        except Exception as err:
+            page.snack_bar = ft.SnackBar(ft.Text(f"⚠️ Erro: {err}"), bgcolor="orange")
+        
+        page.update()
+
+    async def ir_para_sync(e=None):
+        page.snack_bar = ft.SnackBar(ft.Text("🔄 Sincronizando..."))
+        page.snack_bar.open = True
+        page.update()
+        await asyncio.to_thread(SyncEngine.sincronizar_tudo)
+        page.snack_bar = ft.SnackBar(ft.Text("✅ Sincronizado!"), bgcolor="green")
+        page.update()
+
+    async def ir_para_qr(e=None):
+        gerador_qr.gerar_qr_codes("AMBOS") 
+        page.snack_bar = ft.SnackBar(ft.Text("✅ Etiquetas geradas!"), bgcolor="blue")
+        page.snack_bar.open = True
+        page.update()
+
+    # --- INICIALIZAÇÃO ---
+    palco.content = auth.criar_tela_login(page, ao_logar_sucesso=ir_para_home)
+    page.add(palco)
+
+    async def background_sync():
+        while True:
+            await asyncio.sleep(60)
+            try: await asyncio.to_thread(SyncEngine.sincronizar_tudo)
+            except: pass
+
+    page.run_task(background_sync)
+
 if __name__ == "__main__":
-    porta = find_free_port(8080, 8090)
-    print(f"Iniciando AguaFlow em http://0.0.0.0:{porta}")
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=porta, host="0.0.0.0")
+    ft.app(target=main, assets_dir="assets")

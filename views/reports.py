@@ -157,23 +157,14 @@ def gerar_relatorio_consumo(dados):
 # =============================================================================
 
 
-def montar_tela_relatorios(page, voltar):
-    def btn_gerar_leitura(e):
+        def btn_gerar_leitura(e):
         leituras = db.buscar_todas_leituras()
         if leituras:
             gerar_relatorio_consumo(leituras)
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Relatório PDF criado!"), open=True)
-            page.update()
 
     def btn_gerar_etiquetas(e):
         leituras = db.buscar_todas_leituras()
         unidades = [str(u[0]) for u in leituras]
-        if unidades:
-            gerar_pdf_etiquetas(unidades)
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Etiquetas QR geradas!"), open=True)
-            page.update()
 
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,

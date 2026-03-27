@@ -1,7 +1,7 @@
-import database as db
-import utils
-import gerador_pdf
-import backup  # <--- Importa o novo arquivo
+from database.database import Database
+from database.backup import executar_backup_seguranca
+from views.gerador_pdf import gerar_relatorio_consumo
+from views.utils.email_service import enviar_relatorio_por_email
 
 
 def finalizar_mes_e_enviar(email):
@@ -11,14 +11,21 @@ def finalizar_mes_e_enviar(email):
     """
     try:
         # 1. Garante a cópia de segurança antes de qualquer modificação
-        if not backup.executar_backup_seguranca():
+        if not executar_backup_seguranca():
             # Se o backup falhar, não continua para não arriscar os dados.
             return False
 
         # 2. Lógica de negócio: gerar PDF e enviar e-mail
-        dados = db.buscar_todas_leituras()
-        caminho = gerador_pdf.gerar_relatorio_consumo(dados)
-        enviou = utils.enviar_email_com_pdf(email, caminho)
+        dados_resp = Database.get_leituras(status="CONCLUIDO")
+        if not dados_resp.get("sucesso"):
+            return False
+
+        dados = dados_resp.get("dados") or []
+        caminho = gerar_relatorio_consumo(dados)
+
+        # 'email' mantido por compatibilidade de assinatura;
+        # o destinatário é lido do .env no email_service.py.
+        enviou = enviar_relatorio_por_email(caminho)
 
         if enviou:
             # 3. Se o envio foi bem-sucedido, reseta o banco para o novo mês.
@@ -33,7 +40,7 @@ def finalizar_mes_e_enviar(email):
 def resetar_banco_para_novo_mes():
     conn = None
     try:
-        conn = db.get_connection()
+        conn = Database.get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE leituras SET
@@ -43,8 +50,6 @@ def resetar_banco_para_novo_mes():
             data_leitura = NULL
         """)
         conn.commit()
-        conn.close()
-        conn = None
         return True
     except Exception as e:
         print(f"Erro no reset: {e}")

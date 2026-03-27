@@ -28,6 +28,7 @@ MANIFEST
 
 # ========== IDE ==========
 .vscode/
+.cursor/
 .idea/
 *.swp
 *.swo
