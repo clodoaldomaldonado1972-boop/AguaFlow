@@ -1,0 +1,20 @@
+# --- GUI & Framework ---
+flet>=0.21.0
+
+# --- Visão Computacional & Imagem ---
+opencv-python>=4.9.0.80
+pytesseract>=0.3.10
+Pillow>=10.2.0
+qrcode>=7.4.2
+
+# --- Banco de Dados & Cloud ---
+supabase>=2.4.0
+postgrest>=0.16.0
+gotrue>=2.4.0
+
+# --- Relatórios & Documentação ---
+reportlab>=4.1.0
+
+# --- Utilidades ---
+python-dotenv>=1.0.1
+requests>=2.31.0
