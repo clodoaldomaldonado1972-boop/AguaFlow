@@ -6,7 +6,6 @@ from datetime import datetime as dt
 from contextlib import contextmanager
 from dotenv import load_dotenv
 from supabase import create_client
-from datetime import datetime
 
 load_dotenv()
 logging.getLogger("httpx").setLevel(logging.ERROR)
@@ -26,7 +25,7 @@ class Database:
     @classmethod
     @contextmanager
     def get_db(cls):
-        """Gerencia conexão para evitar travamentos (Database is locked)."""
+        """Gerencia conexão para evitar travamentos."""
         conn = sqlite3.connect("aguaflow.db", check_same_thread=False)
         try:
             yield conn
@@ -35,12 +34,10 @@ class Database:
 
     @classmethod
     def init_db(cls):
-        """Inicializa o banco, gera as 98 unidades e cria a fila de sincronização."""
+        """Inicializa o banco e gera as 98 unidades do Vivere Prudente."""
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                
-                # 1. Tabela de Leituras (Cofre Local)
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS leituras (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,9 +49,6 @@ class Database:
                         sincronizado INTEGER DEFAULT 0
                     )
                 """)
-
-                # 2. Tabela de Fila de Sincronização (Motor de Sync - Seção 2.3)
-                # Esta tabela garante que nenhuma leitura se perca se o sinal cair
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS sync_queue (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,43 +58,43 @@ class Database:
                         FOREIGN KEY (leitura_id) REFERENCES leituras (id)
                     )
                 """)
-                
-                # 3. Populando as unidades (16 andares x 6 aptos + 2 áreas comuns)
                 cursor.execute("SELECT COUNT(*) FROM leituras")
                 if cursor.fetchone()[0] == 0:
-                    print("📦 Gerando lista Vivere Prudente (16º ao 1º)...")
+                    print("📦 Gerando lista Vivere Prudente...")
                     unidades = []
-                    # Gerar do 166 ao 11
                     for andar in range(16, 0, -1):
                         for apto in range(6, 0, -1):
                             unidades.append((f"{andar}{apto}", 'MISTO'))
-                    
-                    # Áreas comuns
                     unidades.append(("LAZER", "GAS_SOMENTE"))
                     unidades.append(("GERAL", "AGUA_SOMENTE"))
-                    
-                    cursor.executemany(
-                        "INSERT INTO leituras (unidade, tipo) VALUES (?, ?)", 
-                        unidades
-                    )
-                
+                    cursor.executemany("INSERT INTO leituras (unidade, tipo) VALUES (?, ?)", unidades)
                 conn.commit()
-            print("✅ Banco de dados e Fila de Sync prontos.")
-            
+            print("✅ Banco de dados pronto.")
         except Exception as e:
-            print(f"❌ Erro ao inicializar banco (Seção 1.7): {e}")
+            print(f"❌ Erro ao inicializar banco: {e}")
+
+    @staticmethod
+    def limpar_valor_leitura(valor_str):
+        """Transforma '123,456' em 123.456 e remove caracteres estranhos."""
+        if not valor_str: return 0.0
+        s = str(valor_str).replace(',', '.')
+        valor_limpo = "".join(c for c in s if c.isdigit() or c == '.')
+        try:
+            return float(valor_limpo)
+        except ValueError:
+            return 0.0
 
     @classmethod
     def validar_valor(cls, valor_str):
-        """Barreira dos 7 dígitos (Ex: 00000,00)."""
-        if not valor_str: return {'valido': False, 'mensagem': '❌ Campo vazio'}
-        valor_limpo = str(valor_str).replace(',', '.')
-        try:
-            v = float(valor_limpo)
-            if 0 <= v <= 99999.99:
-                return {'valido': True, 'valor': round(v, 2)}
-            return {'valido': False, 'mensagem': '❌ Máximo 7 dígitos (99999,99)'}
-        except: return {'valido': False, 'mensagem': '❌ Valor inválido'}
+        """Barreira para aceitar vírgula/ponto e manter as 7 casas decimais."""
+        if not valor_str: 
+            return {'valido': False, 'mensagem': '❌ Campo vazio'}
+        
+        v = cls.limpar_valor_leitura(valor_str)
+        
+        if 0 <= v <= 9999999.9999999: 
+            return {'valido': True, 'valor': round(v, 7)} 
+        return {'valido': False, 'mensagem': '❌ Valor fora do limite (Máx 7 dígitos)'}
 
     @classmethod
     def buscar_proximo_pendente(cls):
@@ -119,27 +113,19 @@ class Database:
             try:
                 cursor = conn.cursor()
                 agora = dt.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                # 1. Atualiza a leitura local
-                # Note: sincronizado = 0 garante que o app saiba que este dado é novo
                 cursor.execute("""
                     UPDATE leituras 
                     SET leitura_atual = ?, status = 'CONCLUIDO', data_leitura = ?, sincronizado = 0
                     WHERE id = ?
                 """, (validacao['valor'], agora, id_db))
-
-                # 2. Alimenta a Fila de Sincronização (Seção 2.3)
-                # O motor de sync vai olhar para esta tabela depois
                 cursor.execute("""
                     INSERT INTO sync_queue (leitura_id, data_tentativa, status_envio)
                     VALUES (?, ?, 'PENDENTE')
                 """, (id_db, agora))
-
                 conn.commit()
                 return {'sucesso': True, 'mensagem': "✅ Salvo e pronto para sincronizar!"}
-            
             except Exception as e:
-                conn.rollback() # Segurança total contra corrupção de dados
+                conn.rollback()
                 return {'sucesso': False, 'mensagem': f"Erro ao gravar: {e}"}
 
     @classmethod
@@ -172,38 +158,3 @@ class Database:
                     escritor.writerows(dados)
                 return True
             except: return False
-   @classmethod
-    def validar_valor(cls, valor_str):
-        """Barreira para aceitar vírgula/ponto e manter 7 casas decimais."""
-        if not valor_str: 
-            return {'valido': False, 'mensagem': '❌ Campo vazio'}
-        
-        # Usa a nova função de limpeza interna
-        valor_limpo = cls.limpar_valor_leitura(valor_str)
-        
-        try:
-            v = float(valor_limpo)
-            # Ajustado para aceitar valores maiores e manter até 7 casas de precisão
-            if 0 <= v <= 9999999.9999999: 
-                return {'valido': True, 'valor': round(v, 7)} 
-            return {'valido': False, 'mensagem': '❌ Valor fora do limite permitido'}
-        except: 
-            return {'valido': False, 'mensagem': '❌ Valor inválido'}
-
-    @staticmethod
-    def limpar_valor_leitura(valor_str):
-        """Transforma '123,456' em 123.456 e remove caracteres estranhos."""
-        if not valor_str:
-            return 0.0
-        
-        # 1. Converte para string e troca vírgula por ponto
-        s = str(valor_str).replace(',', '.')
-        
-        # 2. Mantém apenas números e o primeiro ponto que encontrar
-        # Isso evita erros se o OCR ler dois pontos por engano
-        valor_limpo = "".join(c for c in s if c.isdigit() or c == '.')
-        
-        try:
-            return float(valor_limpo)
-        except ValueError:
-            return 0.0
