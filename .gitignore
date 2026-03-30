@@ -91,3 +91,6 @@ yarn-error.log
 *.tmp
 temp/
 tmp/
+# Permitir apenas a pasta assets
+!assets/
+!assets/*
