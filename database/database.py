@@ -6,6 +6,7 @@ from datetime import datetime as dt
 from contextlib import contextmanager
 from dotenv import load_dotenv
 from supabase import create_client
+from datetime import datetime
 
 load_dotenv()
 logging.getLogger("httpx").setLevel(logging.ERROR)
@@ -171,3 +172,38 @@ class Database:
                     escritor.writerows(dados)
                 return True
             except: return False
+   @classmethod
+    def validar_valor(cls, valor_str):
+        """Barreira para aceitar vírgula/ponto e manter 7 casas decimais."""
+        if not valor_str: 
+            return {'valido': False, 'mensagem': '❌ Campo vazio'}
+        
+        # Usa a nova função de limpeza interna
+        valor_limpo = cls.limpar_valor_leitura(valor_str)
+        
+        try:
+            v = float(valor_limpo)
+            # Ajustado para aceitar valores maiores e manter até 7 casas de precisão
+            if 0 <= v <= 9999999.9999999: 
+                return {'valido': True, 'valor': round(v, 7)} 
+            return {'valido': False, 'mensagem': '❌ Valor fora do limite permitido'}
+        except: 
+            return {'valido': False, 'mensagem': '❌ Valor inválido'}
+
+    @staticmethod
+    def limpar_valor_leitura(valor_str):
+        """Transforma '123,456' em 123.456 e remove caracteres estranhos."""
+        if not valor_str:
+            return 0.0
+        
+        # 1. Converte para string e troca vírgula por ponto
+        s = str(valor_str).replace(',', '.')
+        
+        # 2. Mantém apenas números e o primeiro ponto que encontrar
+        # Isso evita erros se o OCR ler dois pontos por engano
+        valor_limpo = "".join(c for c in s if c.isdigit() or c == '.')
+        
+        try:
+            return float(valor_limpo)
+        except ValueError:
+            return 0.0

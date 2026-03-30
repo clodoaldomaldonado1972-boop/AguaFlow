@@ -37,5 +37,5 @@ def fechar_dialogo(e):
     dialogo.open = False
     page.update()
 
-# No botão do diálogo:
-actions=[ft.TextButton("Entendi", on_click=fechar_dialogo)]    
+# E no botão:
+actions=[ft.TextButton("Entendi", on_click=fechar_dialogo)]   

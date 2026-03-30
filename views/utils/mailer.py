@@ -3,6 +3,7 @@ import os
 import glob
 from email.message import EmailMessage
 from dotenv import load_dotenv
+from views.utils import mailer
 
 load_dotenv()
 

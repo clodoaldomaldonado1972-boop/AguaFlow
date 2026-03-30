@@ -1,10 +1,11 @@
 import flet as ft
 from views import styles as st
-import re # Para validar formato de email
+import re
 
 def validar_email(email):
+    # Regex ajustada para ser mais flexível com domínios
     regex = r'^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
-    return re.search(regex, email)
+    return re.search(regex, email.lower())
 
 def criar_tela_login(page, ao_logar_sucesso):
     
@@ -14,8 +15,9 @@ def criar_tela_login(page, ao_logar_sucesso):
     # Texto de erro dinâmico
     msg_erro = ft.Text("", color=st.ERROR_COLOR, size=12)
 
-    def handle_login(e):
+    async def handle_login(e):
         msg_erro.value = ""
+        page.update()
         
         # 1. Validação de Campo Vazio
         if not email_f.value or not pass_f.value:
@@ -23,23 +25,24 @@ def criar_tela_login(page, ao_logar_sucesso):
             page.update()
             return
 
-        # 2. Validação de Formato de Email
-        if not validar_email(email_f.value):
+        # 2. Validação de Formato de Email (limpando espaços e jogando para minúsculo)
+        email_digitado = email_f.value.lower().strip()
+        if not validar_email(email_digitado):
             msg_erro.value = "Formato de e-mail inválido."
             page.update()
             return
 
-        # 3. Simulação de Login (Aqui você conectaria com Database.login_supabase)
-        if email_f.value == "admin@vivere.com" and pass_f.value == "ADMIN123":
-            ao_logar_sucesso("admin")
+        # 3. Simulação de Login (admin@vivere.com / ADMIN123)
+        if email_digitado == "admin@vivere.com" and pass_f.value == "ADMIN123":
+            # Chama a função de sucesso passando o perfil
+            # Como definimos no main.py, isso disparará a troca de tela no palco
+            await ao_logar_sucesso("admin")
         else:
             msg_erro.value = "E-mail ou senha não reconhecidos."
         
         page.update()
 
     def recuperar_senha(e):
-        # Aqui você chamaria o seu mailer.enviar_email_com_pdf 
-        # adaptado para enviar um link de reset
         page.snack_bar = ft.SnackBar(ft.Text(f"Link de recuperação enviado para {email_f.value}"))
         page.snack_bar.open = True
         page.update()
@@ -54,23 +57,27 @@ def criar_tela_login(page, ao_logar_sucesso):
             
             ft.Divider(height=40, color=ft.colors.TRANSPARENT),
             
-            email_f,
-            pass_f,
-            msg_erro,
-            
-            ft.ElevatedButton(
-                "ENTRAR NO SISTEMA",
-                style=st.BTN_MAIN,
-                width=320,
-                height=50,
-                on_click=handle_login
-            ),
-            
-            ft.TextButton(
-                "Esqueci minha senha", 
-                on_click=recuperar_senha,
-                style=ft.ButtonStyle(color=st.GREY)
-            ),
+            ft.Container(
+                content=ft.Column([
+                    email_f,
+                    pass_f,
+                    msg_erro,
+                    ft.Divider(height=10, color=ft.colors.TRANSPARENT),
+                    ft.ElevatedButton(
+                        "ENTRAR NO SISTEMA",
+                        style=st.BTN_MAIN,
+                        width=320,
+                        height=50,
+                        on_click=handle_login # O Flet gerencia a chamada async automaticamente
+                    ),
+                    ft.TextButton(
+                        "Esqueci minha senha", 
+                        on_click=recuperar_senha,
+                        style=ft.ButtonStyle(color=st.GREY)
+                    ),
+                ], horizontal_alignment="center"),
+                width=350
+            )
             
         ], horizontal_alignment="center", alignment="center")
     )
