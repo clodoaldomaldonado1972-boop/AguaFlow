@@ -1,42 +1,43 @@
 import flet as ft
 
-# CORES (Baseadas na imagem do medidor)
+# Cores mantidas conforme o padrão AguaFlow
 BG_DARK = "#121417"
 PRIMARY_BLUE = "#2196F3"
 ACCENT_ORANGE = "#FF9800"
 WHITE = "#FFFFFF"
 GREY = "#B0B0B0"
-# Adicione isso ao seu views/styles.py
-ERROR_COLOR = "#FF5252"
-SUCCESS_COLOR = "#4CAF50"
 
-def campo_estilo(label, icon, password=False, on_submit=None):
+# Novo: Estilo de Container para padronizar as views
+STYLE_PAGE_CONTAINER = {
+    "padding": 20,
+    "alignment": ft.alignment.center,
+    "expand": True,
+    "bgcolor": BG_DARK
+}
+
+
+def campo_estilo(label, icon_name, password=False, on_submit=None):
     return ft.TextField(
         label=label,
-        prefix_icon=icon,
+        prefix_icon=icon_name,
         password=password,
-        can_reveal_password=True, # Olhinho para mostrar senha
+        can_reveal_password=True,
         border_color=PRIMARY_BLUE,
         focused_border_color=WHITE,
         color=WHITE,
         width=320,
+        height=60,  # Aumentado levemente para melhor toque (touch)
         on_submit=on_submit,
-        border_radius=10,
+        border_radius=12,
+        text_style=ft.TextStyle(color=WHITE),
+        label_style=ft.TextStyle(color=GREY),
+        cursor_color=PRIMARY_BLUE
     )
 
-# ESTILOS DE TEXTO
-TEXT_TITLE = ft.TextStyle(size=24, weight="bold", color=WHITE)
-TEXT_LABEL = ft.TextStyle(size=16, color=GREY)
 
-# PADRÃO DE BOTÕES
+# Botões com estado de "Hover" (passar o mouse)
 BTN_MAIN = ft.ButtonStyle(
-    color=WHITE,
-    bgcolor=PRIMARY_BLUE,
-    shape=ft.RoundedRectangleBorder(radius=10),
-)
-
-BTN_SPECIAL = ft.ButtonStyle(
-    color=WHITE,
-    bgcolor=ACCENT_ORANGE,
+    color={"": WHITE},
+    bgcolor={"": PRIMARY_BLUE, "hovered": "#1976D2"},
     shape=ft.RoundedRectangleBorder(radius=10),
 )

@@ -2,82 +2,86 @@ import cv2
 import pytesseract
 import numpy as np
 import os
-import re
 
-# 1. Configuração do Caminho do Tesseract (Ajuste se o seu Windows for diferente)
+# --- PROTEÇÃO CONTRA ERRO DE DLL (PYZBAR) ---
+try:
+    from pyzbar import pyzbar
+    PYZBAR_AVAILABLE = True
+except Exception as e:
+    PYZBAR_AVAILABLE = False
+    print(f"⚠️ Aviso: Scanner QR desativado (Erro de DLL: {e}).")
+
+# Configuração do Tesseract - Caminho padrão no Windows
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-def processar_e_ler(imagem):
-    """
-    Recebe uma imagem binarizada e tenta extrair apenas os números.
-    --psm 6: Assume que a imagem é um bloco de texto único e uniforme (ideal para visores).
-    """
-    config = '--psm 6 --oem 3 -c tessedit_char_whitelist=0123456789'
-    
-    # Executa o OCR
-    texto = pytesseract.image_to_string(imagem, config=config)
-    
-    # Filtra apenas sequências de 4 a 7 dígitos (padrão de hidrômetros)
-    # Isso ignora sujeiras, marcas de fabricante ou parafusos lidos como '0'
-    busca = re.findall(r'\d{4,7}', texto)
-    
-    return busca[0] if busca else None
 
-def extrair_dados_fluxo(origem):
-    """
-    Função principal que aplica a Estratégia em Cascata para leitura.
-    Pode receber um caminho de arquivo (string) ou um frame do OpenCV (array).
-    """
+def ler_qr_code(frame):
+    """Detecta o QR Code. Se a biblioteca falhar, retorna None para entrada manual."""
+    if not PYZBAR_AVAILABLE:
+        return None
+
     try:
-        # Carregamento da imagem (Suporta caracteres especiais no caminho via numpy)
-        if isinstance(origem, str):
-            if not os.path.exists(origem): return None, "Arquivo não encontrado"
-            img_array = np.fromfile(origem, np.uint8)
-            frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-        else:
-            frame = origem
+        qrcodes = pyzbar.decode(frame)
+        for qrcode in qrcodes:
+            return qrcode.data.decode('utf-8')
+    except:
+        return None
+    return None
 
-        if frame is None:
-            return "Erro", "Falha ao carregar imagem"
 
-        h_f, w_f = frame.shape[:2]
+def extrair_dados_fluxo(img):
+    """Lógica de OCR com pré-processamento para hidrômetros."""
+    try:
+        # Converte para escala de cinza
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # --- ESTRATÉGIA EM CASCATA ---
-        # Definimos recortes para focar onde os números costumam estar
-        corte_focado = frame[int(h_f*0.35):int(h_f*0.75), 
-                             int(w_f*0.10):int(w_f*0.90)]
+        # Aumenta o contraste e limpa ruídos (Thresholding)
+        # Isso ajuda o Tesseract a focar apenas nos números pretos
+        _, thresh = cv2.threshold(
+            gray, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        # Tentativas: Primeiro o corte central, depois a imagem cheia
-        tentativas = [corte_focado, frame]
+        # Configuração: psm 7 (trata a imagem como uma única linha de texto)
+        # Whitelist: obriga o Tesseract a procurar apenas números
+        config = '--psm 7 -c tessedit_char_whitelist=0123456789'
+        texto = pytesseract.image_to_string(thresh, config=config).strip()
 
-        for img_alvo in tentativas:
-            # 1. Pré-processamento: Cinza e Aumento de Escala (Essencial para o Tesseract)
-            cinza = cv2.cvtColor(img_alvo, cv2.COLOR_BGR2GRAY)
-            cinza = cv2.resize(cinza, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-
-            # --- TESTE A: OTSU (Bom para iluminação uniforme) ---
-            _, t1 = cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            res = processar_e_ler(t1)
-            if res:
-                cv2.imwrite("debug_ocr_sucesso.png", t1) # Salva para conferência
-                return "Identificado", res
-
-            # --- TESTE B: ADAPTATIVO INVERTIDO (Bom para sombras/reflexos) ---
-            # Ele analisa blocos de pixels, ideal para quando há lanterna envolvida
-            t2 = cv2.adaptiveThreshold(cinza, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                       cv2.THRESH_BINARY_INV, 25, 11)
-            res = processar_e_ler(t2)
-            if res:
-                cv2.imwrite("debug_ocr_sucesso.png", t2)
-                return "Identificado", res
-
-        return "Não identificado", None
-
+        return "Identificado", texto if texto else None
     except Exception as e:
-        return "Erro", str(e)
+        print(f"❌ Erro no OCR: {e}")
+        return "Erro", None
 
-# Exemplo de uso para teste rápido:
+
+def processar_leitura_completa(caminho_foto):
+    """Fluxo principal do Vivere Prudente: QR Code -> OCR -> Flet."""
+    try:
+        # Carregamento robusto para lidar com acentos em nomes de pastas
+        img_array = np.fromfile(caminho_foto, np.uint8)
+        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+        if img is None:
+            return {"unidade": None, "valor": None, "status": "Erro: Falha ao abrir imagem"}
+
+        # 1. Tenta ler o QR Code (Unidade do Apartamento)
+        unidade_detectada = ler_qr_code(img)
+        _, valor_ocr = extrair_dados_fluxo(img)
+
+        # Lógica de status para a interface Flet
+    if unidade_detectada and valor_ocr:
+        status = "Sucesso"
+    elif unidade_detectada and not valor_ocr:
+        status = "Manual"  # QR OK, mas OCR falhou (reflexo no vidro)
+    else:
+        status = "Falha"
+
+    return {
+        "unidade": unidade_detectada,
+        "valor": valor_ocr,
+        "status": status
+    }
+
+
 if __name__ == "__main__":
-    # status, valor = extrair_dados_fluxo("caminho_da_foto.jpg")
-    # print(f"Status: {status} | Valor: {valor}")
-    pass
+    print("--- Testando Fluxo AguaFlow (Modo Simulação) ---")
+    # Se não tiver uma imagem real, o sistema apenas retornará o status de erro em vez de fechar
+    resultado = processar_leitura_completa("teste_unidade.jpg")
+    print(f"Resultado: {resultado}")
