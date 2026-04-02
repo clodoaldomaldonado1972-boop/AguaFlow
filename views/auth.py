@@ -1,83 +1,64 @@
 import flet as ft
 from views import styles as st
-import re
 
-def validar_email(email):
-    # Regex ajustada para ser mais flexível com domínios
-    regex = r'^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
-    return re.search(regex, email.lower())
 
 def criar_tela_login(page, ao_logar_sucesso):
-    
-    email_f = st.campo_estilo("E-mail Institucional", ft.icons.EMAIL)
-    pass_f = st.campo_estilo("Senha", ft.icons.LOCK, password=True)
-    
-    # Texto de erro dinâmico
+    # Campos de entrada
+    # Certifique-se de que st.campo_estilo retorna um ft.TextField válido
+    # Mudado para Icon constante
+    email_f = st.campo_estilo("E-mail Institucional", ft.Icons.EMAIL_OUTLINED)
+    # Mudado para Icon constante
+    pass_f = st.campo_estilo("Senha", ft.Icons.LOCK_OUTLINED)
+    pass_f.password = True
+
+    # IMPORTANTE: st.ERROR_COLOR deve ser algo como ft.Colors.RED (com C maiúsculo)
     msg_erro = ft.Text("", color=st.ERROR_COLOR, size=12)
 
-    async def handle_login(e):
-        msg_erro.value = ""
-        page.update()
-        
-        # 1. Validação de Campo Vazio
-        if not email_f.value or not pass_f.value:
-            msg_erro.value = "Por favor, preencha todos os campos."
-            page.update()
-            return
-
-        # 2. Validação de Formato de Email (limpando espaços e jogando para minúsculo)
-        email_digitado = email_f.value.lower().strip()
-        if not validar_email(email_digitado):
-            msg_erro.value = "Formato de e-mail inválido."
-            page.update()
-            return
-
-        # 3. Simulação de Login (admin@vivere.com / ADMIN123)
-        if email_digitado == "admin@vivere.com" and pass_f.value == "ADMIN123":
-            # Chama a função de sucesso passando o perfil
-            # Como definimos no main.py, isso disparará a troca de tela no palco
-            await ao_logar_sucesso("admin")
+    def handle_login(e):
+        # Validação simples para o Condomínio Vivere Prudente
+        if email_f.value == "admin@vivere.com" and pass_f.value == "ADMIN123":
+            page.session.set("perfil", "Zelador")
+            # Correção: O callback deve ser compatível com o que o main.py espera
+            ao_logar_sucesso(e)
         else:
-            msg_erro.value = "E-mail ou senha não reconhecidos."
-        
-        page.update()
+            msg_erro.value = "E-mail ou senha incorretos."
+            msg_erro.update()  # Use update direto no controle para performance
 
-    def recuperar_senha(e):
-        page.snack_bar = ft.SnackBar(ft.Text(f"Link de recuperação enviado para {email_f.value}"))
-        page.snack_bar.open = True
-        page.update()
-
-    return ft.Container(
-        bgcolor=st.BG_DARK,
-        expand=True,
-        content=ft.Column([
-            ft.Icon(ft.icons.WATER_DROP_ROUNDED, size=100, color=st.PRIMARY_BLUE),
-            ft.Text("AguaFlow", size=32, weight="bold", color=st.WHITE),
-            ft.Text("Gestão Residencial Vivere Prudente", color=st.GREY),
-            
-            ft.Divider(height=40, color=ft.colors.TRANSPARENT),
-            
+    return ft.View(
+        route="/",
+        # No Flet 0.84, use as constantes com letra MAIÚSCULA
+        vertical_alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        padding=20,
+        controls=[
             ft.Container(
+                bgcolor=st.BG_DARK,
+                padding=30,
+                border_radius=15,
                 content=ft.Column([
+                    # Ícone com letra maiúscula na cor se st.PRIMARY_BLUE for ft.Colors
+                    ft.Icon(ft.Icons.WATER_DROP, size=80,
+                            color=st.PRIMARY_BLUE),
+                    ft.Text("AguaFlow", size=32,
+                            weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
                     email_f,
                     pass_f,
                     msg_erro,
-                    ft.Divider(height=10, color=ft.colors.TRANSPARENT),
                     ft.ElevatedButton(
                         "ENTRAR NO SISTEMA",
-                        style=st.BTN_MAIN,
-                        width=320,
+                        on_click=handle_login,
+                        width=300,
                         height=50,
-                        on_click=handle_login # O Flet gerencia a chamada async automaticamente
-                    ),
-                    ft.TextButton(
-                        "Esqueci minha senha", 
-                        on_click=recuperar_senha,
-                        style=ft.ButtonStyle(color=st.GREY)
-                    ),
-                ], horizontal_alignment="center"),
-                width=350
+                        # Adicionando um estilo básico caso o padrão falhe
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=10),
+                        )
+                    )
+                ],
+                    # Mudado de string para constante
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=15
+                )
             )
-            
-        ], horizontal_alignment="center", alignment="center")
+        ]
     )
