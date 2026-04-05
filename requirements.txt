@@ -12,6 +12,11 @@ supabase>=2.4.0
 postgrest>=0.16.0
 gotrue>=2.4.0
 
+flet
+supabase
+pandas
+python-dotenv
+
 # --- Relatórios & Documentação ---
 reportlab>=4.1.0
 
