@@ -3,7 +3,6 @@ flet>=0.21.0
 
 # --- Visão Computacional & Imagem ---
 opencv-python-headless
-pytesseract>=0.3.10
 Pillow>=10.2.0
 qrcode>=7.4.2
 
