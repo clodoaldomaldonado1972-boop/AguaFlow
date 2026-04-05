@@ -45,4 +45,4 @@ async def main(page: ft.Page):
 if __name__ == "__main__":
     # Para o desenvolvimento no VS Code, o AppView.FLET_APP costuma ser melhor
     # para simular o celular, mas WEB_BROWSER é ótimo para testes rápidos.
-    ft.run(main, view=ft.AppView.FLET_APP)
+    ft.app(target=main)
