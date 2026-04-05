@@ -39,4 +39,4 @@ async def main(page: ft.Page):
 if __name__ == "__main__":
     # Para o Vercel, o ideal é não usar o if __name__ == "__main__" para o ft.app
     # mas manter como está não costuma quebrar se o target estiver certo.
-    ft.app(target=main)
+    ft.app(target=main, view=None)
