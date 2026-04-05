@@ -1,4 +1,9 @@
-flet
+flet>=0.21.0
 supabase
 pandas
 python-dotenv
+opencv-python-headless
+Pillow
+qrcode
+reportlab
+pytesseract
