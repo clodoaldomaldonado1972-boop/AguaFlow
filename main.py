@@ -43,6 +43,4 @@ async def main(page: ft.Page):
     page.go("/")
 
 if __name__ == "__main__":
-    # Para o desenvolvimento no VS Code, o AppView.FLET_APP costuma ser melhor
-    # para simular o celular, mas WEB_BROWSER é ótimo para testes rápidos.
     ft.app(target=main)
