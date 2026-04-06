@@ -1,5 +1,5 @@
-# --- GUI & Framework ---
 flet>=0.21.0
+<<<<<<< HEAD
 
 # --- Visão Computacional & Imagem ---
 opencv-python>=4.9.0.80
@@ -19,3 +19,13 @@ reportlab>=4.1.0
 # --- Utilidades ---
 python-dotenv>=1.0.1
 requests>=2.31.0
+=======
+supabase
+pandas
+python-dotenv
+opencv-python-headless
+Pillow
+qrcode
+reportlab
+pytesseract
+>>>>>>> 17617d8e947cb1dc5d037226319a349527dc863f
