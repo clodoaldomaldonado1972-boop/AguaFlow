@@ -1,48 +1,92 @@
 import flet as ft
-from views.auth import criar_tela_login
-# Importe as outras views conforme for criando
-# from views.menu_principal import criar_menu
+import warnings
+import asyncio
 from database.database import Database
 
+# Imports das suas views (Certifique-se que os arquivos existem nas pastas)
+from views.auth import criar_tela_login
+from views.menu_principal import montar_menu as montar_tela_menu
+from views.medicao import montar_tela_medicao
+from views.dashboard import montar_tela_dashboard
+from views.relatorios import montar_tela_relatorios
 
-async def main(page: ft.Page):
-    # 1. Configurações Iniciais
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+def main(page: ft.Page):
     page.title = "AguaFlow - Vivere Prudente"
     page.theme_mode = ft.ThemeMode.DARK
     page.window_width = 400
-    page.window_height = 800
-    page.window_resizable = False  # Mantém o aspecto de app mobile
+    page.window_height = 700
 
-    # 2. Inicializa o Banco de Dados Local
+    # Inicializa o banco de dados SQLite
     Database.init_db()
 
+    # --- HANDLERS (Ações dos botões) ---
+    async def gerar_pdf_handler(e):
+        page.snack_bar = ft.SnackBar(ft.Text("Gerando PDF..."))
+        page.snack_bar.open = True
+        page.update()
+
+    async def sync_nuvem_handler(e):
+        page.snack_bar = ft.SnackBar(ft.Text("Sincronizando com a nuvem..."))
+        page.snack_bar.open = True
+        page.update()
+
+    # --- LÓGICA DE NAVEGAÇÃO ---
     def rota_mudou(e):
+        page.overlay.clear()
         page.views.clear()
 
-        # Rota de Login
-        if page.route == "/" or page.route == "/login":
-            page.views.append(
-                criar_tela_login(page, lambda _: page.go("/menu"))
-            )
+        # Verifica se está logado usando o atributo dinâmico que criamos
+        is_logado = getattr(page, "logado", False)
 
-        # Rota do Menu (Exemplo de como expandir)
+        if not is_logado and page.route not in ["/", "/login"]:
+            page.go("/")
+            return
+
+        # 1. ROTA: LOGIN
+        if page.route == "/" or page.route == "/login":
+            page.views.append(criar_tela_login(page, lambda: page.go("/menu")))
+
+        # 2. ROTA: MENU PRINCIPAL
         elif page.route == "/menu":
-            # page.views.append(criar_menu(page))
-            pass
+            # Criar view segura para v0.84.0
+            view = ft.View("/menu", vertical_alignment=ft.MainAxisAlignment.START)
+            view.controls.extend([
+                montar_tela_menu(
+                    page,
+                    ir_para_medicao=lambda _: page.go("/medicao"),
+                    ir_para_relatorios=lambda _: page.go("/relatorios"),
+                    ir_para_configs=lambda _: page.go("/configuracoes")
+                )
+            ])
+            page.views.append(view)
+
+        # 3. ROTA: MEDIÇÃO (Água/Gás)
+        elif page.route == "/medicao":
+            view = ft.View("/medicao")
+            view.controls.extend([montar_tela_medicao(page)])
+            page.views.append(view)
+
+        # 4. ROTA: RELATÓRIOS E DASHBOARD
+        elif page.route == "/relatorios":
+            view = ft.View("/relatorios")
+            view.controls.extend([
+                montar_tela_relatorios(
+                    page,
+                    voltar=lambda _: page.go("/menu"),
+                    gerar_e_enviar_pdf=gerar_pdf_handler,
+                    sync_nuvem=sync_nuvem_handler,
+                    gerar_qr=lambda _: print("Gerar QR")
+                )
+            ])
+            page.views.append(view)
 
         page.update()
 
-    def view_pop(e):
-        page.views.pop()
-        top_view = page.views[-1]
-        page.go(top_view.route)
-
+    # Configuração inicial de rotas
     page.on_route_change = rota_mudou
-    page.on_view_pop = view_pop  # Lida com o botão "voltar" do sistema/navegador
-
     page.go("/")
 
 if __name__ == "__main__":
-    # Para o desenvolvimento no VS Code, o AppView.FLET_APP costuma ser melhor
-    # para simular o celular, mas WEB_BROWSER é ótimo para testes rápidos.
-    ft.run(main, view=ft.AppView.FLET_APP)
+    ft.run(main) # Versão recomendada para v0.84.0

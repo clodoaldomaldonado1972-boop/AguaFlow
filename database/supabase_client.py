@@ -11,16 +11,20 @@ load_dotenv(dotenv_path=env_path)
 SUPABASE_URL = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
 SUPABASE_API_KEY = os.getenv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
 
-if not SUPABASE_URL or not SUPABASE_API_KEY:
-    # Log de depuração para você saber o que está vazio
-    print(f"DEBUG: URL encontrada: {bool(SUPABASE_URL)}")
-    print(f"DEBUG: KEY encontrada: {bool(SUPABASE_API_KEY)}")
-    raise RuntimeError('Erro: As chaves do Supabase não foram encontradas no .env. Verifique os nomes das variáveis.')
+_supabase_client: Client = None
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_API_KEY)
+if SUPABASE_URL and SUPABASE_API_KEY:
+    try:
+        _supabase_client = create_client(SUPABASE_URL, SUPABASE_API_KEY)
+    except Exception as e:
+        print(f"⚠️ Supabase indisponível: {e}")
+else:
+    print("⚠️ Chaves do Supabase não encontradas no .env — modo offline ativo.")
 
-def get_supabase_client() -> Client:
-    return supabase
+
+def get_supabase_client():
+    """Retorna o cliente Supabase ou None se não configurado (modo offline)."""
+    return _supabase_client
 
 def insert_leitura_supabase(id_qrcode, valor, tipo_registro="MISTO", leiturista="Zelador"):
     """Insere leitura usando o nome de coluna exato: id"""

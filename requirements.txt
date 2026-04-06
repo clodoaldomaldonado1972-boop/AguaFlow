@@ -6,6 +6,7 @@ opencv-python>=4.9.0.80
 pytesseract>=0.3.10
 Pillow>=10.2.0
 qrcode>=7.4.2
+easyocr>=1.7.1
 
 # --- Banco de Dados & Cloud ---
 supabase>=2.4.0

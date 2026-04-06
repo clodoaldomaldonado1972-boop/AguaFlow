@@ -15,7 +15,7 @@ class ScannerAguaFlow:
 
     async def iniciar_scan(self):
         # Abre a câmera ou seletor de arquivos
-        await self.picker.pick_files_async(allow_multiple=False)
+        await self.picker.pick_files(allow_multiple=False)
 
     async def _processar_resultado(self, e: ft.FilePickerResultEvent):
         if e.files:

@@ -1,6 +1,7 @@
 import flet as ft
 from .. import leitor_ocr
 
+
 class ScannerComponent:
     def __init__(self, page, ao_detectar_valor):
         self.page = page
@@ -11,14 +12,14 @@ class ScannerComponent:
 
     async def abrir_scanner(self):
         # Abre a interface de captura do dispositivo
-        await self.picker.pick_files_async(allow_multiple=False)
+        await self.picker.pick_files(allow_multiple=False)
 
     async def _processar_resultado(self, e: ft.FilePickerResultEvent):
         if e.files:
             caminho_foto = e.files[0].path
             # Apenas extrai os dados, não salva a imagem permanentemente
             status, valor = leitor_ocr.extrair_dados_fluxo(caminho_foto)
-            
+
             if status == "Identificado":
                 # Retorna o valor limpo (limitado a 7 dígitos por segurança)
                 await self.ao_detectar_valor(str(valor)[:7])
