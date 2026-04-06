@@ -3,7 +3,6 @@ from datetime import datetime
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-from . import gerador_qr
 
 # --- GERAÇÃO DE ETIQUETAS QR ---
 

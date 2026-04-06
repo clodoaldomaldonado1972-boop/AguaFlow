@@ -1,6 +1,7 @@
 from database.database import Database
 from database.backup import executar_backup_seguranca
-from views.gerador_pdf import gerar_relatorio_consumo
+# Correção dos caminhos que o Amazon Q marcou como inexistentes
+from views.reports import gerar_relatorio_consumo
 from views.utils.email_service import enviar_relatorio_por_email
 
 
@@ -16,7 +17,7 @@ def finalizar_mes_e_enviar(email):
             return False
 
         # 2. Lógica de negócio: gerar PDF e enviar e-mail
-        dados_resp = Database.get_leituras(status="CONCLUIDO")
+        dados_resp = Database.get_leituras(sincronizado=1)
         if not dados_resp.get("sucesso"):
             return False
 
@@ -38,24 +39,18 @@ def finalizar_mes_e_enviar(email):
 
 
 def resetar_banco_para_novo_mes():
-    conn = None
     try:
-        conn = Database.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE leituras SET
-            leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
-            leitura_atual = NULL,
-            status = 'PENDENTE',
-            data_leitura = NULL
-        """)
-        conn.commit()
+        with Database.get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE leituras SET
+                leitura_anterior = IFNULL(leitura_atual, leitura_anterior),
+                leitura_atual = NULL,
+                status = 'PENDENTE',
+                data_leitura = NULL
+            """)
+            conn.commit()
         return True
     except Exception as e:
         print(f"Erro no reset: {e}")
-        if conn:
-            conn.rollback()
         return False
-    finally:
-        if conn:
-            conn.close()

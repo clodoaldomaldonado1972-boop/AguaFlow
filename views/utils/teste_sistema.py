@@ -1,9 +1,7 @@
 import pytesseract
-from database.database import Database
 from sync_engine import SyncEngine
-from database.sync_engine import SyncEngine
+from database.database import Database
 
-# 1. Configura o caminho que acabamos de validar
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
@@ -14,18 +12,20 @@ def realizar_teste_completo():
     Database.init_db()
     print("✅ Banco SQLite pronto.")
 
-    # Passo B: Simular uma leitura de sucesso (Apartamento 166)
-    # Aqui simulamos o que o leitor_ocr.py faria
-    unidade_teste = "166"
+    # Passo B: Simular uma leitura de sucesso
+    unidade_teste = "Apto 166"  # Ajustado para o padrão do seu init_db
     valor_simulado = "00452.10"
+    tipo_teste = "Água"  # O argumento que estava faltando!
 
-    print(f"📸 Simulando leitura da Unidade {unidade_teste}...")
-    res = Database.registrar_leitura(unidade_teste, valor_simulado)
+    print(f"📸 Simulando leitura da Unidade {unidade_teste} ({tipo_teste})...")
+
+    # Agora com os 3 argumentos: unidade, valor, tipo
+    res = Database.registrar_leitura(unidade_teste, valor_simulado, tipo_teste)
 
     if res['sucesso']:
-        print(f"✅ Leitura salva no SQLite com status: {res['mensagem']}")
+        print(f"✅ Leitura salva no SQLite local.")
     else:
-        print(f"❌ Falha ao salvar no banco: {res['mensagem']}")
+        print(f"❌ Falha ao salvar no banco: {res.get('mensagem')}")
         return
 
     # Passo C: Testar Sincronização
@@ -33,7 +33,6 @@ def realizar_teste_completo():
     SyncEngine.sincronizar_tudo()
 
     print("\n--- TESTE FINALIZADO ---")
-    print("Verifique se o dado apareceu no seu painel do Supabase!")
 
 
 if __name__ == "__main__":

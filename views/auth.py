@@ -1,64 +1,110 @@
+from database.supabase_client import get_supabase_client
+import asyncio
 import flet as ft
-from views import styles as st
+# REMOVA O "IMPORT MAIN" DAQUI!
+
+
+def logar_usuario(p, uid, email):
+    # Criamos um atributo 'logado' dinamicamente na página
+    p.logado = True
+    p.user_email = email
+    p.go("/menu")
+
+
+def permitir_entrada_admin(page):
+    """Fallback direto para o Grupo 8"""
+    page.logado = True
+    page.user_email = "admin@offline.local"
+    page.overlay.clear()
+    page.go("/menu")
 
 
 def criar_tela_login(page, ao_logar_sucesso):
-    # Campos de entrada
-    # Certifique-se de que st.campo_estilo retorna um ft.TextField válido
-    # Mudado para Icon constante
-    email_f = st.campo_estilo("E-mail Institucional", ft.Icons.EMAIL_OUTLINED)
-    # Mudado para Icon constante
-    pass_f = st.campo_estilo("Senha", ft.Icons.LOCK_OUTLINED)
-    pass_f.password = True
+    # Componentes de entrada
+    email_f = ft.TextField(
+        label="E-mail Institucional",
+        width=300,
+        autofocus=True,
+        bgcolor=ft.Colors.GREY_900
+    )
+    pass_f = ft.TextField(
+        label="Senha",
+        password=True,
+        width=300,
+        can_reveal_password=True,
+        bgcolor=ft.Colors.GREY_900
+    )
 
-    # IMPORTANTE: st.ERROR_COLOR deve ser algo como ft.Colors.RED (com C maiúsculo)
-    msg_erro = ft.Text("", color=st.ERROR_COLOR, size=12)
+    msg_erro = ft.Text("", color=ft.Colors.RED, size=12)
+    progress_ring = ft.ProgressRing(visible=False)
+    btn_login = ft.ElevatedButton("ENTRAR", width=300)
 
-    def handle_login(e):
-        # Validação simples para o Condomínio Vivere Prudente
-        if email_f.value == "admin@vivere.com" and pass_f.value == "ADMIN123":
-            page.session.set("perfil", "Zelador")
-            # Correção: O callback deve ser compatível com o que o main.py espera
-            ao_logar_sucesso(e)
-        else:
-            msg_erro.value = "E-mail ou senha incorretos."
-            msg_erro.update()  # Use update direto no controle para performance
+    async def handle_login_async():
+        msg_erro.value = ""
+        if not email_f.value or not pass_f.value:
+            msg_erro.value = "Preencha e-mail e senha."
+            page.update()
+            return
+
+        btn_login.disabled = True
+        progress_ring.visible = True
+        page.update()
+
+        try:
+            # Teste rápido de senha local antes de chamar o Supabase
+            if email_f.value == "admin@aguaflow.com" and pass_f.value == "123456":
+                logar_usuario(page, "admin_id", "admin@aguaflow.com")
+                return
+
+            supabase = get_supabase_client()
+            if not supabase:
+                msg_erro.value = "Erro: Conexão com banco ausente."
+                return
+
+            # Tentativa de login real
+            response = await asyncio.to_thread(
+                lambda: supabase.auth.sign_in_with_password({
+                    "email": email_f.value,
+                    "password": pass_f.value
+                })
+            )
+
+            if response and response.user:
+                logar_usuario(page, response.user.id, response.user.email)
+            else:
+                msg_erro.value = "Credenciais inválidas."
+
+        except Exception as erro:
+            msg_erro.value = "Erro na autenticação."
+            print(f"Erro Auth: {erro}")
+        finally:
+            progress_ring.visible = False
+            btn_login.disabled = False
+            page.update()
+
+    btn_login.on_click = lambda _: asyncio.create_task(handle_login_async())
 
     return ft.View(
         route="/",
-        # No Flet 0.84, use as constantes com letra MAIÚSCULA
         vertical_alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        padding=20,
+        bgcolor="#121417",
         controls=[
-            ft.Container(
-                bgcolor=st.BG_DARK,
-                padding=30,
-                border_radius=15,
-                content=ft.Column([
-                    # Ícone com letra maiúscula na cor se st.PRIMARY_BLUE for ft.Colors
-                    ft.Icon(ft.Icons.WATER_DROP, size=80,
-                            color=st.PRIMARY_BLUE),
-                    ft.Text("AguaFlow", size=32,
-                            weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                    email_f,
-                    pass_f,
-                    msg_erro,
-                    ft.ElevatedButton(
-                        "ENTRAR NO SISTEMA",
-                        on_click=handle_login,
-                        width=300,
-                        height=50,
-                        # Adicionando um estilo básico caso o padrão falhe
-                        style=ft.ButtonStyle(
-                            shape=ft.RoundedRectangleBorder(radius=10),
-                        )
-                    )
-                ],
-                    # Mudado de string para constante
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    spacing=15
+            ft.Column([
+                ft.Icon(ft.Icons.WATER_DROP, size=100, color=ft.Colors.BLUE),
+                ft.Text("AguaFlow", size=32, weight="bold", color="white"),
+                ft.Text("Vivere Prudente", size=16, color="white70"),
+                ft.Container(height=20),
+                email_f,
+                pass_f,
+                progress_ring,
+                msg_erro,
+                btn_login,
+                ft.TextButton(
+                    "Modo Offline (Grupo 8)",
+                    on_click=lambda _: permitir_entrada_admin(page),
+                    width=300
                 )
-            )
+            ], horizontal_alignment="center", spacing=15, width=400)
         ]
     )

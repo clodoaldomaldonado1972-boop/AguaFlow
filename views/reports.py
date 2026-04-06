@@ -5,7 +5,7 @@ import flet as ft
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-import database as db
+from database.database import Database as db
 
 # =============================================================================
 # 1. MÓDULO DE INFRAESTRUTURA (Arquivos e Pastas)
@@ -96,9 +96,14 @@ def gerar_pdf_etiquetas(lista_unidades):
     return nome_pdf
 
 
-def gerar_relatorio_consumo(dados):
+def gerar_relatorio_consumo(dados, output_dir=None):
     """Cria o relatório consolidado de consumo mensal."""
-    caminho_pdf = preparar_caminho_pdf()
+    pasta_nome = output_dir if output_dir else datetime.now().strftime("Relatorios_%Y_%m")
+    if not os.path.exists(pasta_nome):
+        os.makedirs(pasta_nome)
+
+    timestamp = datetime.now().strftime("%d_%H%M%S")
+    caminho_pdf = os.path.join(pasta_nome, f"Relatorio_Vivere_{timestamp}.pdf")
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     width, height = A4
     y = desenhar_cabecalho(c, height - 2*cm)
@@ -152,20 +157,34 @@ def gerar_relatorio_consumo(dados):
         os.startfile(caminho_pdf)
     return caminho_pdf
 
+
+class Relatorios:
+    @staticmethod
+    def gerar_relatorio_mensal():
+        dados = db.buscar_relatorio_geral()
+        if not dados:
+            raise ValueError(
+                "Nenhuma leitura encontrada para gerar relatório.")
+        return gerar_relatorio_consumo(dados, output_dir="export")
+
+
 # =============================================================================
 # 4. MÓDULO DE INTERFACE (Flet UI)
 # =============================================================================
 
 
-        def btn_gerar_leitura(e):
-        leituras = db.buscar_todas_leituras()
-        if leituras:
-            gerar_relatorio_consumo(leituras)
+def btn_gerar_leitura(e):
+    leituras = db.buscar_todas_leituras()
+    if leituras:
+        gerar_relatorio_consumo(leituras)
 
-    def btn_gerar_etiquetas(e):
-        leituras = db.buscar_todas_leituras()
-        unidades = [str(u[0]) for u in leituras]
 
+def btn_gerar_etiquetas(e):
+    leituras = db.buscar_todas_leituras()
+    unidades = [str(u[0]) for u in leituras]
+
+
+def montar_tela_reports(page, voltar):
     return ft.Container(
         expand=True, bgcolor="#1A1C1E", padding=30,
         content=ft.Column(

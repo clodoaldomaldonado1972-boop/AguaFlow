@@ -2,86 +2,97 @@ import cv2
 import pytesseract
 import numpy as np
 import os
+import easyocr
+import re
 
-# --- PROTEÇÃO CONTRA ERRO DE DLL (PYZBAR) ---
-try:
-    from pyzbar import pyzbar
-    PYZBAR_AVAILABLE = True
-except Exception as e:
-    PYZBAR_AVAILABLE = False
-    print(f"⚠️ Aviso: Scanner QR desativado (Erro de DLL: {e}).")
+# Configuração do Tesseract
+tesseract_path = os.getenv(
+    "TESSERACT_PATH", r'C:\Program Files\Tesseract-OCR\tesseract.exe')
+pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
-# Configuração do Tesseract - Caminho padrão no Windows
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Inicializar EasyOCR
+# Use GPU if available, but False for CPU
+reader = easyocr.Reader(['en'], gpu=False)
 
 
-def ler_qr_code(frame):
-    """Detecta o QR Code. Se a biblioteca falhar, retorna None para entrada manual."""
-    if not PYZBAR_AVAILABLE:
-        return None
-
+def ler_qr_code(img):
+    """Implementar leitura de QR code usando OpenCV."""
     try:
-        qrcodes = pyzbar.decode(frame)
-        for qrcode in qrcodes:
-            return qrcode.data.decode('utf-8')
-    except:
-        return None
+        detector = cv2.QRCodeDetector()
+        data, bbox, straight_qrcode = detector.detectAndDecode(img)
+        if data:
+            return data
+    except Exception as e:
+        print(f"Erro ao ler QR code: {e}")
     return None
 
 
 def extrair_dados_fluxo(img):
-    """Lógica de OCR com pré-processamento para hidrômetros."""
+    """Implementar extração de dados do medidor usando EasyOCR."""
     try:
-        # Converte para escala de cinza
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Usar EasyOCR para detectar texto
+        results = reader.readtext(img)
 
-        # Aumenta o contraste e limpa ruídos (Thresholding)
-        # Isso ajuda o Tesseract a focar apenas nos números pretos
-        _, thresh = cv2.threshold(
-            gray, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # Extrair todos os textos detectados
+        textos = [result[1] for result in results]
 
-        # Configuração: psm 7 (trata a imagem como uma única linha de texto)
-        # Whitelist: obriga o Tesseract a procurar apenas números
-        config = '--psm 7 -c tessedit_char_whitelist=0123456789'
-        texto = pytesseract.image_to_string(thresh, config=config).strip()
+        # Procurar por valores numéricos (leitura do medidor)
+        valor = None
+        for texto in textos:
+            # Procurar por números com ponto decimal (ex: 123.45)
+            matches = re.findall(r'\d+\.\d+', texto)
+            if matches:
+                valor = matches[0]  # Pegar o primeiro encontrado
+                break
+            # Se não encontrar decimal, procurar por números inteiros
+            matches = re.findall(r'\d+', texto)
+            if matches:
+                valor = matches[0]
+                break
 
-        return "Identificado", texto if texto else None
+        # Para unidade, talvez procurar por "Apto" ou similar, mas por enquanto None
+        unidade = None
+        for texto in textos:
+            if "Apto" in texto:
+                unidade = texto
+                break
+
+        return unidade, valor
     except Exception as e:
-        print(f"❌ Erro no OCR: {e}")
-        return "Erro", None
+        print(f"Erro ao extrair dados: {e}")
+        return None, None
 
 
-def processar_leitura_completa(caminho_foto):
-    """Fluxo principal do Vivere Prudente: QR Code -> OCR -> Flet."""
+def processar_leitura_completa(img):
+    """
+    Processa a imagem completa: lê QR code e depois extrai valor do medidor.
+    Retorna dict com status detalhado para o fluxo de confirmação.
+    """
     try:
-        # Carregamento robusto para lidar com acentos em nomes de pastas
-        img_array = np.fromfile(caminho_foto, np.uint8)
-        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-
         if img is None:
-            return {"unidade": None, "valor": None, "status": "Erro: Falha ao abrir imagem"}
+            return {"unidade": None, "valor": None, "status": "Erro", "pode_inserir_manual": False}
 
-        # 1. Tenta ler o QR Code (Unidade do Apartamento)
+        # Etapa 1: Tentar ler QR code
         unidade_detectada = ler_qr_code(img)
+
+        # Etapa 2: Extrair valor do medidor
         _, valor_ocr = extrair_dados_fluxo(img)
 
-        # Lógica de status para a interface Flet
-    if unidade_detectada and valor_ocr:
-        status = "Sucesso"
-    elif unidade_detectada and not valor_ocr:
-        status = "Manual"  # QR OK, mas OCR falhou (reflexo no vidro)
-    else:
-        status = "Falha"
+        # Determinar status e se permite entrada manual
+        if valor_ocr:
+            status = "Sucesso"
+            pode_inserir_manual = False
+        else:
+            # OCR falhou, mas permite entrada manual
+            status = "OCR_Falhou"
+            pode_inserir_manual = True
 
-    return {
-        "unidade": unidade_detectada,
-        "valor": valor_ocr,
-        "status": status
-    }
-
-
-if __name__ == "__main__":
-    print("--- Testando Fluxo AguaFlow (Modo Simulação) ---")
-    # Se não tiver uma imagem real, o sistema apenas retornará o status de erro em vez de fechar
-    resultado = processar_leitura_completa("teste_unidade.jpg")
-    print(f"Resultado: {resultado}")
+        return {
+            "unidade": unidade_detectada,
+            "valor": valor_ocr,
+            "status": status,
+            "pode_inserir_manual": pode_inserir_manual
+        }
+    except Exception as e:
+        print(f"Erro ao processar leitura: {e}")
+        return {"unidade": None, "valor": None, "status": f"Erro: {e}", "pode_inserir_manual": True}
