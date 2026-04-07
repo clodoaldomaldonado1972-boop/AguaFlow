@@ -2,7 +2,6 @@ import flet as ft
 import warnings
 import asyncio
 from database.database import Database
-# Imports das suas views (Certifique-se que os arquivos existem nas pastas)
 from views.auth import criar_tela_login
 from views.menu_principal import montar_menu as montar_tela_menu
 from views.medicao import montar_tela_medicao
@@ -10,6 +9,7 @@ from views.dashboard import montar_tela_dashboard
 from views.relatorios import montar_tela_relatorios
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 
 def main(page: ft.Page):
     page.title = "AguaFlow - Vivere Prudente"
