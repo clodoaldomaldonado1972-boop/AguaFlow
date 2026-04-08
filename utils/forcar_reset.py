@@ -19,17 +19,19 @@ except ImportError:
 
 
 def forcar_reset():
-    """Limpa os dados locais para novos testes de campo."""
     try:
+        # 1. Garante que todas as tabelas (inclusive a sync_queue) existam
+        Database.init_db()
+
         with Database.get_db() as conn:
             cursor = conn.cursor()
-            # Limpa as leituras
+            # 2. Limpa as tabelas
             cursor.execute(
                 "UPDATE leituras SET valor = NULL, sincronizado = 0, data_leitura = NULL")
-            # Limpa a fila de sincronização
             cursor.execute("DELETE FROM sync_queue")
+
             conn.commit()
-            print("✅ [AGUAFLOW] Banco Local Resetado com Sucesso!")
+            print("✅ [AGUAFLOW] Banco Local Resetado e Tabelas Atualizadas!")
     except Exception as e:
         print(f"❌ Erro ao processar reset: {e}")
 

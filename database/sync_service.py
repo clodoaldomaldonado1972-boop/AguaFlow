@@ -11,7 +11,6 @@ class SyncService:
         print("🔄 Iniciando ciclo de sincronização...")
 
         with Database.get_db() as conn:
-            [cite: 12]
             cursor = conn.cursor()
 
             # 1. Busca leituras pendentes cruzando a fila com a tabela de leituras

@@ -1,6 +1,14 @@
 from database.database import Database
-# Import corrigido para buscar o cliente dentro da pasta database
-from database.supabase_client import get_supabase_client[cite: 16]
+from database.supabase_client import get_supabase_client
+import os
+import sys
+
+# AJUSTE DE PATH: Faz o script enxergar a raiz do projeto (C:\AguaFlow)
+caminho_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if caminho_raiz not in sys.path:
+    sys.path.append(caminho_raiz)
+
+# Imports corretos após o ajuste de path
 
 
 class SyncEngine:
@@ -9,51 +17,58 @@ class SyncEngine:
         """
         Sincroniza leituras pendentes com o Supabase e dispara feedback sonoro.
         """
-        cliente = get_supabase_client()[cite: 16]
+        cliente = get_supabase_client()
         if not cliente:
-            return "❌ Erro: Nuvem não configurada"[cite: 16]
+            return "❌ Erro: Nuvem não configurada"
 
-        with Database.get_db() as conn:
-            [cite: 12, 16]
-            cursor = conn.cursor()
-            # Busca apenas registros que ainda não foram sincronizados (sincronizado = 0)[cite: 16]
-            cursor.execute("SELECT * FROM leituras WHERE sincronizado = 0")
-            pendentes = cursor.fetchall()[cite: 16]
+        try:
+            # Abrimos a conexão com o banco local
+            with Database.get_db() as conn:
+                cursor = conn.cursor()
+                # Busca apenas registros que ainda não foram sincronizados
+                cursor.execute("SELECT * FROM leituras WHERE sincronizado = 0")
+                pendentes = cursor.fetchall()
 
-            if not pendentes:
-                return "✅ Tudo em dia!"[cite: 16]
+                if not pendentes:
+                    return "✅ Tudo em dia!"
 
-            sucessos = 0
-            for row in pendentes:
-                try:
-                    # Envio para o Supabase usando o mapeamento de campos da tabela remota[cite: 16]
-                    cliente.table("leituras").insert({
-                        # Adicionado para identificar o apartamento na nuvem
-                        "unidade": row['unidade'],
-                        "valor_leitura": row['valor'],
-                        "tipo_registro": row['tipo_leitura'],
-                        "data_hora_coleta": row['data_leitura'],
-                        "leiturista": "Zelador"
-                    }).execute()[cite: 16]
+                sucessos = 0
+                for row in pendentes:
+                    try:
+                        # Envio para o Supabase (mapeamento confirmado pelo seu SELECT SQL)
+                        cliente.table("leituras").insert({
+                            # Mudamos de _id para unidade_id
+                            "unidade_id": row['unidade'],
+                            "valor_leitura": row['valor'],
+                            "tipo_registro": row['tipo_leitura'],
+                            "leiturista": "Zelador",
+                            "data_hora_coleta": row['data_leitura']
+                        }).execute()
 
-                    # Atualiza o status local para 1 (sincronizado) para evitar reenvio[cite: 16]
-                    cursor.execute(
-                        "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (row['id'],))
-                    conn.commit()[cite: 16]
-                    sucessos += 1
-                except Exception as e:
-                    print(f"Erro ao sincronizar ID {row['id']}: {e}")
-                    continue [cite: 16]
+                        # Atualiza o status local para 1 (sincronizado) para evitar reenvio
+                        cursor.execute(
+                            "UPDATE leituras SET sincronizado = 1 WHERE id = ?",
+                            (row['id'],)
+                        )
+                        conn.commit()
+                        sucessos += 1
 
-            # Feedback de Sucesso com Áudio (se configurado na View)[cite: 16]
-            if sucessos > 0:
-                if som_sucesso:
-                    som_sucesso.play()
-                return f"🚀 {sucessos} registros enviados!"[cite: 16]
+                    except Exception as e:
+                        print(f"Erro ao sincronizar ID {row['id']}: {e}")
+                        continue
 
-            return "⚠️ Falha na conexão com a nuvem"[cite: 16]
+                # Feedback de Sucesso
+                if sucessos > 0:
+                    if som_sucesso:
+                        som_sucesso.play()
+                    return f"🚀 {sucessos} registros enviados!"
+
+                return "⚠️ Falha no envio para a nuvem"
+
+        except Exception as e:
+            return f"❌ Erro no banco local: {e}"
 
     @classmethod
-    def sincronizar_agora(cls, page):
-        """Atalho para ser chamado diretamente de botões no Flet[cite: 16]."""
-        return cls.sincronizar_tudo()[cite: 16]
+    def sincronizar_agora(cls, page=None):
+        """Atalho para ser chamado diretamente de botões no Flet."""
+        return cls.sincronizar_tudo()

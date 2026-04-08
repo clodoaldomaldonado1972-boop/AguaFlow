@@ -1,19 +1,30 @@
+import utils.gerador_qr as gerador_qr
 import os
+import sys
 from datetime import datetime
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-# Import do gerador de QR que agora está na pasta utils
-from utils import gerador_qr[cite: 14]
+
+# AJUSTE DE PATH: Garante que o script enxergue a raiz do projeto
+caminho_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if caminho_raiz not in sys.path:
+    sys.path.append(caminho_raiz)
+
+# Import corrigido: agora ele busca o arquivo vizinho na mesma pasta[cite: 1]
 
 # --- GERAÇÃO DE ETIQUETAS QR ---
 
 
 def gerar_pdf_etiquetas(lista_unidades):
-    # Salva na pasta 'storage' para manter a raiz limpa
-    caminho_pdf = os.path.join("storage", "Etiquetas_QR_Vivere.pdf")
+    # Garante que a pasta storage exista na raiz
+    pasta_storage = os.path.join(caminho_raiz, "storage")
+    if not os.path.exists(pasta_storage):
+        os.makedirs(pasta_storage)
+
+    caminho_pdf = os.path.join(pasta_storage, "Etiquetas_QR_Vivere.pdf")
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
-    width, height = A4
+    # ... (restante do seu código de etiquetas permanece igual)
 
     colunas, linhas = 3, 5
     margem_x, margem_y = 1.5 * cm, 2.0 * cm
