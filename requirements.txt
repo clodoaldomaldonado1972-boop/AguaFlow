@@ -1,31 +1,8 @@
 flet>=0.21.0
-<<<<<<< HEAD
-
-# --- Visão Computacional & Imagem ---
+python-dotenv>=1.0.1
+supabase>=2.4.0
 opencv-python>=4.9.0.80
 pytesseract>=0.3.10
 Pillow>=10.2.0
 qrcode>=7.4.2
-easyocr>=1.7.1
-
-# --- Banco de Dados & Cloud ---
-supabase>=2.4.0
-postgrest>=0.16.0
-gotrue>=2.4.0
-
-# --- Relatórios & Documentação ---
 reportlab>=4.1.0
-
-# --- Utilidades ---
-python-dotenv>=1.0.1
-requests>=2.31.0
-=======
-supabase
-pandas
-python-dotenv
-opencv-python-headless
-Pillow
-qrcode
-reportlab
-pytesseract
->>>>>>> 17617d8e947cb1dc5d037226319a349527dc863f

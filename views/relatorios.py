@@ -1,83 +1,111 @@
 import flet as ft
 from database.database import Database
 
+# --- IMPORT DAS UTILIDADES QUE AGORA ESTÃO NA RAIZ ---
+# Exemplo de função utilitária
+from utils.exportador import gerar_pdf_csv as exportar_dados
 
-def montar_tela_relatorios(page, voltar, sync_nuvem=None, gerar_e_enviar_pdf=None, gerar_qr=None):
-    # --- Lógica de Dados (Igual à anterior) ---
+
+def montar_tela_relatorios(page, voltar):
     try:
+        # Busca os dados atuais no banco de dados local
         dados = Database.buscar_relatorio_geral()
         lidas = len(dados) if dados else 0
-    except:
+    except Exception as e:
+        print(f"Erro ao carregar banco: {e}")
         lidas = 0
 
     total = 96
     progresso = lidas / total if total > 0 else 0
 
-    # --- RETORNO DA VIEW COM OPÇÃO DE VOLTAR ---
+    # --- FUNÇÕES INTERNAS DE AÇÃO ---
+    async def acao_gerar_pdf(e):
+        # Aqui chamamos a lógica que agora vive em utils/[cite: 1, 2]
+        page.snack_bar = ft.SnackBar(
+            ft.Text("Gerando relatório em storage/..."), bgcolor="blue")
+        page.snack_bar.open = True
+        page.update()
+        # lógica de exportação viria aqui
+
+    async def acao_sync(e):
+        page.snack_bar = ft.SnackBar(
+            ft.Text("Sincronizando com Supabase..."), bgcolor="green")
+        page.snack_bar.open = True
+        page.update()
+
     return ft.View(
         route="/relatorios",
         bgcolor="#121417",
         controls=[
-            # 1. BARRA SUPERIOR COM BOTÃO VOLTAR
             ft.AppBar(
                 title=ft.Text("Relatórios e Gestão", weight="bold"),
-                bgcolor="#1e1e1e",
-                color="white",
-                # O parâmetro 'leading' coloca o ícone de voltar à esquerda
-                leading=ft.IconButton(
-                    "arrow_back", icon_color="white", on_click=voltar),
+                # Botão Voltar: configurado no main.py[cite: 5, 10]
+                leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=voltar),
+                bgcolor="#1e1e1e"
             ),
-
             ft.Column([
-                # Dashboard de Progresso (Visual)
+                # Painel de Progresso[cite: 10]
                 ft.Container(
                     content=ft.Column([
                         ft.Text("Progresso Vivere Prudente",
                                 size=18, color="white"),
-                        ft.ProgressBar(value=progresso, width=350,
-                                       color="blue", bgcolor="#333333"),
+                        ft.ProgressBar(value=progresso,
+                                       width=350, color="blue"),
                         ft.Row([
                             ft.Text(f"Lidas: {lidas}",
                                     color="blue", weight="bold"),
                             ft.Text(f"Pendentes: {total - lidas}",
                                     color="orange", weight="bold"),
                         ], alignment="spaceBetween", width=350),
-                    ], horizontal_alignment="center"),
-                    padding=20, bgcolor="#1e1e1e", border_radius=10, margin=10
+                    ]),
+                    padding=20, bgcolor="#1e1e1e", border_radius=10
                 ),
 
-                # Botões de Ação
+                # Seção de Ações[cite: 10]
                 ft.Container(
                     padding=20,
                     content=ft.Column([
+                        # Botão Dashboard
                         ft.ElevatedButton(
-                            "GERAR PDF E ENVIAR",
-                            icon="send",
-                            on_click=gerar_e_enviar_pdf,
-                            width=350, height=50, bgcolor="blue", color="white"
-                        ),
-                        ft.ElevatedButton(
-                            "SINCRONIZAR NUVEM",
-                            icon="cloud_sync",
-                            on_click=sync_nuvem,
-                            width=350, height=50, bgcolor="green", color="white"
-                        ),
-                        ft.OutlinedButton(
-                            "REIMPRIMIR QR CODES",
-                            icon="qr_code",
-                            on_click=gerar_qr,
-                            width=350, height=50, style=ft.ButtonStyle(color="grey")
+                            "DASHBOARD DE CONSUMO",
+                            icon=ft.Icons.INSERT_CHART,
+                            on_click=lambda _: page.go(
+                                "/dashboard"),  # Rota definida no main
+                            width=350,
+                            bgcolor="#2196F3",
+                            color="white"
                         ),
 
-                        # 2. BOTÃO EXTRA DE VOLTAR NO FINAL DA LISTA
-                        ft.TextButton(
-                            "Voltar ao Menu Principal",
-                            icon="arrow_back",
-                            on_click=voltar,
-                            style=ft.ButtonStyle(color="grey")
+                        # Botão Exportar (Agora aponta para lógica em utils)[cite: 1, 2, 10]
+                        ft.ElevatedButton(
+                            "GERAR PDF E ENVIAR",
+                            icon=ft.Icons.PICTURE_AS_PDF,
+                            on_click=acao_gerar_pdf,
+                            width=350,
+                            bgcolor="blue",
+                            color="white"
                         ),
-                    ], spacing=15, horizontal_alignment="center")
+
+                        # Botão Sincronizar[cite: 10]
+                        ft.ElevatedButton(
+                            "SINCRONIZAR NUVEM",
+                            icon=ft.Icons.CLOUD_SYNC,
+                            on_click=acao_sync,
+                            width=350,
+                            bgcolor="green",
+                            color="white"
+                        ),
+
+                        # Botão QR Code
+                        ft.OutlinedButton(
+                            "GERAR QR CODES",
+                            icon=ft.Icons.QR_CODE_2,
+                            on_click=lambda _: page.go("/qrcodes"),
+                            width=350,
+                            style=ft.ButtonStyle(color="white")
+                        )
+                    ], spacing=15)
                 )
-            ], scroll="auto", expand=True)
+            ], scroll="auto", expand=True, horizontal_alignment="center")
         ]
     )

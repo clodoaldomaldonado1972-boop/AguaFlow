@@ -1,104 +1,117 @@
 import flet as ft
 import warnings
-import asyncio
 from database.database import Database
+
+# --- NOVOS IMPORTS DE ACORDO COM A ESTRUTURA ---
 from views.auth import criar_tela_login
 from views.menu_principal import montar_menu as montar_tela_menu
 from views.medicao import montar_tela_medicao
-from views.dashboard import montar_tela_dashboard
 from views.relatorios import montar_tela_relatorios
+from views.dashboard_saude import montar_tela_saude
+# Import da tela de configs que faltava
+from views.configuracoes import montar_tela_configs
 
+# Ignora avisos de comandos que serão alterados em versões futuras do Flet
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-def main(page: ft.Page):
+async def main(page: ft.Page):
+    # --- CONFIGURAÇÕES BÁSICAS ---
     page.title = "AguaFlow - Vivere Prudente"
-
-    def rota_mudou(e):
-        # ... (lógica das views)
-        page.update()  # <--- ESSA LINHA É OBRIGATÓRIA PARA "DESENHAR" A TELA
-
-    page.on_route_change = rota_mudou
-    page.go("/")  # Isso dispara o rota_mudou pela primeira vez
-    # <--- Adicione isto para garantir que o fundo não fique transparente/preto
-    page.bgcolor = ft.Colors.BLUE_GREY_900
+    page.bgcolor = "#121417"
     page.window_width = 400
     page.window_height = 700
-    # ... resto do seu código
+    page.theme_mode = ft.ThemeMode.DARK
 
-    # Inicializa o banco de dados SQLite
+    # --- IMPORTANTE: CONFIGURAÇÃO DE IMAGENS ---
+    # Isso diz ao Flet para procurar logos e fotos na pasta assets da raiz
+    # page.assets_dir = "assets"  <-- Se você rodar pelo terminal use isto
+    # Ou na chamada do app lá embaixo (ft.app)
+
+    # Inicializa o banco de dados SQLite local
     Database.init_db()
 
-    # --- HANDLERS (Ações dos botões) ---
-    async def gerar_pdf_handler(e):
-        page.snack_bar = ft.SnackBar(ft.Text("Gerando PDF..."))
-        page.snack_bar.open = True
-        page.update()
+    async def rota_mudou(e):
+        # LOG de depuração para o terminal
+        print(f"DEBUG: Rota solicitada -> {page.route}")
 
-    async def sync_nuvem_handler(e):
-        page.snack_bar = ft.SnackBar(ft.Text("Sincronizando com a nuvem..."))
-        page.snack_bar.open = True
-        page.update()
+        # Limpa a pilha de visualização para evitar sobreposição de telas
+        page.views.clear()
 
-    # --- LÓGICA DE NAVEGAÇÃO ---
-    def rota_mudou(e):
-        # ... (lógica das views)
-        page.update()  # <--- ESSA LINHA É OBRIGATÓRIA PARA "DESENHAR" A TELA
+        # Verifica se o usuário está autenticado
+        user_email = getattr(page, "user_email", None)
 
-        page.on_route_change = rota_mudou
-        page.go("/")  # Isso dispara o rota_mudou pela primeira vez
-        # Verifica se está logado usando o atributo dinâmico que criamos
-        is_logado = getattr(page, "logado", False)
+        # --- CONTROLE DE ROTAS ---
 
-        if not is_logado and page.route not in ["/", "/login"]:
-            page.go("/")
-            return
+        # 1. TELA DE LOGIN
+        if page.route == "/login" or page.route == "/":
+            page.views.append(criar_tela_login(page))
 
-        # 1. ROTA: LOGIN
-        if page.route == "/" or page.route == "/login":
-            page.views.append(criar_tela_login(page, lambda: page.go("/menu")))
-
-        # 2. ROTA: MENU PRINCIPAL
+        # 2. MENU PRINCIPAL
         elif page.route == "/menu":
-            # Criar view segura para v0.84.0
-            view = ft.View(
-                "/menu", vertical_alignment=ft.MainAxisAlignment.START)
-            view.controls.extend([
-                montar_tela_menu(
-                    page,
-                    ir_para_medicao=lambda _: page.go("/medicao"),
-                    ir_para_relatorios=lambda _: page.go("/relatorios"),
-                    ir_para_configs=lambda _: page.go("/configuracoes")
-                )
-            ])
-            page.views.append(view)
+            if not user_email:
+                page.go("/login")
+                return
 
-        # 3. ROTA: MEDIÇÃO (Água/Gás)
+            view_menu = montar_tela_menu(
+                page,
+                ir_para_leitura=lambda _: page.go("/medicao"),
+                ir_para_relatorios=lambda _: page.go("/relatorios"),
+                ir_para_configs=lambda _: page.go("/configuracoes")
+            )
+            page.views.append(view_menu)
+
+        # 3. TELA DE MEDIÇÃO
         elif page.route == "/medicao":
-            view = ft.View("/medicao")
-            view.controls.extend([montar_tela_medicao(page)])
-            page.views.append(view)
+            if not user_email:
+                page.go("/login")
+                return
+            page.views.append(montar_tela_medicao(page))
 
-        # 4. ROTA: RELATÓRIOS E DASHBOARD
+        # 4. TELA DE RELATÓRIOS
         elif page.route == "/relatorios":
-            view = ft.View("/relatorios")
-            view.controls.extend([
-                montar_tela_relatorios(
-                    page,
-                    voltar=lambda _: page.go("/menu"),
-                    gerar_e_enviar_pdf=gerar_pdf_handler,
-                    sync_nuvem=sync_nuvem_handler,
-                    gerar_qr=lambda _: print("Gerar QR")
-                )
-            ])
-            page.views.append(view)
+            if not user_email:
+                page.go("/login")
+                return
+            page.views.append(
+                montar_tela_relatorios(page, voltar=lambda _: page.go("/menu"))
+            )
+
+        # 5. TELA DE CONFIGURAÇÕES
+        elif page.route == "/configuracoes":
+            if not user_email:
+                page.go("/login")
+                return
+            page.views.append(
+                montar_tela_configs(page, voltar=lambda _: page.go("/menu"))
+            )
+
+        # 6. DASHBOARD DE SAÚDE
+        elif page.route == "/dashboard_saude":
+            if not user_email:
+                page.go("/login")
+                return
+            # Agora redireciona corretamente voltando para configurações
+            page.views.append(
+                montar_tela_saude(
+                    page, voltar=lambda _: page.go("/configuracoes"))
+            )
 
         page.update()
 
-    # Configuração inicial de rotas
+    def view_pop(e):
+        page.views.pop()
+        top_view = page.views[-1]
+        page.go(top_view.route)
+
     page.on_route_change = rota_mudou
-    page.go("/")
+    page.on_view_pop = view_pop
+
+    # Inicia na rota de login
+    page.go("/login")
 
 
+# --- INICIALIZAÇÃO DO APP ---
 if __name__ == "__main__":
-    ft.run(main)  # Versão recomendada para v0.84.0
+    # Aqui definimos a pasta assets para o Flet encontrar suas fotos
+    ft.app(target=main, assets_dir="assets")

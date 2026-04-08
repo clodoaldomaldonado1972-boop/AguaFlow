@@ -1,28 +1,24 @@
 import flet as ft
 
-# Cores principais do AguaFlow
+# --- CORES PRINCIPAIS ---
 BG_COLOR = "#121417"
 PRIMARY_COLOR = "#2196F3"
 GREY = "#808080"
 ERROR_COLOR = "#FF5252"
-
-# Additional color constants
 WHITE = "white"
 BG_DARK = BG_COLOR
 PRIMARY_BLUE = PRIMARY_COLOR
 ACCENT_ORANGE = "#FF9800"
 
-# Estilos de Texto
-TEXT_TITLE = ft.TextStyle(size=32, weight="bold", color="white")
-TEXT_SUB = ft.TextStyle(size=18, color=GREY)
-# 2. Estilos de Texto (CRITICAL: Adicionado para resolver o erro do menu)
+# --- ESTILOS DE TEXTO ---
 TEXT_TITLE = ft.TextStyle(
     size=24,
     weight=ft.FontWeight.BOLD,
     color=WHITE
 )
+TEXT_SUB = ft.TextStyle(size=18, color=GREY)
 
-# 3. Configurações de Container de Página
+# --- CONFIGURAÇÕES DE CONTAINER ---
 STYLE_PAGE_CONTAINER = {
     "padding": 20,
     "alignment": ft.Alignment(0, 0),
@@ -30,7 +26,7 @@ STYLE_PAGE_CONTAINER = {
     "bgcolor": BG_DARK
 }
 
-# 4. Função para campos de entrada (TextField)
+# --- COMPONENTES PADRONIZADOS ---
 
 
 def campo_estilo(label, icon_name, password=False, on_submit=None):
@@ -52,7 +48,7 @@ def campo_estilo(label, icon_name, password=False, on_submit=None):
     )
 
 
-# 5. Estilos de Botão (Corrigido para sintaxe de dicionário do Flet)
+# --- ESTILOS DE BOTÃO ---
 BTN_MAIN = ft.ButtonStyle(
     color={"": WHITE},
     bgcolor={"": PRIMARY_BLUE, "hovered": "#1976D2"},
