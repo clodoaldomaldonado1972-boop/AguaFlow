@@ -37,7 +37,7 @@ def montar_tela_saude(page: ft.Page, voltar):
         page.update()
 
         # Teste 1: Banco de Dados (Chamando da utils)
-        # O método testar_banco verifica se o SQLite responde[cite: 4]
+        # O método testar_banco verifica se o SQLite responde
         db_ok, db_msg = await DiagnosticoSistema.testar_banco()
         icon_db.color = "green" if db_ok else "red"
         lbl_db_status.value = "ONLINE" if db_ok else "ERRO"
@@ -45,7 +45,7 @@ def montar_tela_saude(page: ft.Page, voltar):
         lbl_db_detalhe.value = db_msg
         adicionar_log(db_msg, "green" if db_ok else "red")
 
-        # Teste 2: Internet (Verifica ping 8.8.8.8)[cite: 4]
+        # Teste 2: Internet (Verifica ping 8.8.8.8)
         net_ok, net_msg = await DiagnosticoSistema.testar_internet()
         icon_net.color = "green" if net_ok else "red"
         lbl_net_status.value = "CONECTADO" if net_ok else "OFFLINE"
@@ -81,44 +81,50 @@ def montar_tela_saude(page: ft.Page, voltar):
             title=ft.Text("Saúde do Sistema"),
             bgcolor="#1e1e1e",
             leading=ft.IconButton(
-                ft.Icons.ARROW_BACK, on_click=voltar)  # Corrigido para ícone padrão
+                ft.Icons.ARROW_BACK, on_click=voltar)
         ),
         controls=[
-            ft.Column([
-                ft.Text("Monitor de Infraestrutura", size=24,
-                        weight="bold", color="white"),
-                ft.Text("Status dos serviços essenciais do AguaFlow",
-                        color="grey"),
+            # CORREÇÃO: Container adicionado para suportar o 'padding' que a Column não aceita
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("Monitor de Infraestrutura", size=24,
+                            weight="bold", color="white"),
+                    ft.Text("Status dos serviços essenciais do AguaFlow",
+                            color="grey"),
 
-                ft.Divider(height=10, color="transparent"),
+                    ft.Divider(height=10, color="transparent"),
 
-                ft.Row([
-                    criar_card_status("BANCO DE DADOS", icon_db,
-                                      lbl_db_status, lbl_db_detalhe),
-                    criar_card_status("CONEXÃO REDE", icon_net,
-                                      lbl_net_status, lbl_net_detalhe),
+                    ft.Row([
+                        criar_card_status("BANCO DE DADOS", icon_db,
+                                          lbl_db_status, lbl_db_detalhe),
+                        criar_card_status("CONEXÃO REDE", icon_net,
+                                          lbl_net_status, lbl_net_detalhe),
+                    ], spacing=15),
+
+                    ft.Divider(height=20, color="white10"),
+
+                    ft.Text("LOGS DE EVENTOS (Tempo Real)",
+                            size=16, weight="bold", color="white"),
+                    ft.Container(
+                        content=lst_logs,
+                        bgcolor="black26",
+                        border_radius=10,
+                        # Ajustado para caber melhor na tela mobile[cite: 3]
+                        height=250,
+                        border=ft.border.all(1, "white10")
+                    ),
+
+                    ft.ElevatedButton(
+                        "REESCANEAR SISTEMA",
+                        icon=ft.Icons.REFRESH_ROUNDED,
+                        on_click=executar_diagnostico,
+                        width=400,
+                        height=50,
+                        style=ft.ButtonStyle(bgcolor="blue", color="white")
+                    )
                 ], spacing=15),
-
-                ft.Divider(height=20, color="white10"),
-
-                ft.Text("LOGS DE EVENTOS (Tempo Real)",
-                        size=16, weight="bold", color="white"),
-                ft.Container(
-                    content=lst_logs,
-                    bgcolor="black26",
-                    border_radius=10,
-                    height=250,  # Ajustado para caber melhor na tela mobile
-                    border=ft.border.all(1, "white10")
-                ),
-
-                ft.ElevatedButton(
-                    "REESCANEAR SISTEMA",
-                    icon=ft.Icons.REFRESH_ROUNDED,
-                    on_click=executar_diagnostico,
-                    width=400,
-                    height=50,
-                    style=ft.ButtonStyle(bgcolor="blue", color="white")
-                )
-            ], spacing=15, padding=20)
+                # Propriedade movida da Column para o Container[cite: 3]
+                padding=20
+            )
         ]
     )

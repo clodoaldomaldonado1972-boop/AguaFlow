@@ -1,8 +1,6 @@
-import qrcode
 import os
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
 COLUNAS = 5
@@ -10,75 +8,104 @@ LINHAS = 8
 NOME_CONDOMINIO = "Vivere Prudente"
 
 
-def gerar_qr_codes(filtro_tipo="AMBOS"):
-    """Gera o PDF de etiquetas para o condomínio."""
-    nome_output = f"Etiquetas_AguaFlow_{filtro_tipo}.pdf"
-    c = canvas.Canvas(nome_output, pagesize=A4)
-    width, height = A4
+def gerar_qr_codes(filtro_tipo="AMBOS", unidade_alvo=None):
+    """
+    Gera o PDF de etiquetas com a nova ordem:
+    1. QR Code
+    2. Nome do Condomínio
+    3. Unidade - Tipo
+    """
+    print(
+        f"\n[GERADOR] 🚀 Iniciando processo para: {unidade_alvo if unidade_alvo else 'TODOS'}")
 
-    lista_impressao = []
+    try:
+        # 1. Configuração de Pastas
+        pasta_output = "storage"
+        if not os.path.exists(pasta_output):
+            os.makedirs('storage', exist_ok=True)  # Acrescentado
 
-    # 1. GERAÇÃO DA LISTA (Andares 16 ao 1)
-    for andar in range(16, 0, -1):
-        for final in range(6, 0, -1):
-            unidade = f"{andar}{final}"
+        # 2. Definição do Nome do Arquivo
+        sufixo = f"UNID_{unidade_alvo}" if unidade_alvo else "COMPLETO"
+        nome_arquivo = f"Etiquetas_{filtro_tipo}_{sufixo}.pdf"
+
+        caminho_final = os.path.join(pasta_output, nome_arquivo)
+
+        # 3. Geração das Etiquetas
+        c = canvas.Canvas(caminho_final, pagesize=A4)
+        width, height = A4
+        lista_impressao = []
+
+        if unidade_alvo:
             if filtro_tipo in ["AGUA", "AMBOS"]:
                 lista_impressao.append(
-                    {"id": unidade, "tipo": "AGUA", "payload": f"{unidade}-AGUA"})
+                    {"id": unidade_alvo, "tipo": "ÁGUA", "payload": f"{unidade_alvo}-AGUA"})
             if filtro_tipo in ["GAS", "AMBOS"]:
                 lista_impressao.append(
-                    {"id": unidade, "tipo": "GAS", "payload": f"{unidade}-GAS"})
+                    {"id": unidade_alvo, "tipo": "GÁS", "payload": f"{unidade_alvo}-GAS"})
+        else:
+            for andar in range(16, 0, -1):
+                for final in range(6, 0, -1):
+                    unidade = f"{andar}{final}"
+                    if filtro_tipo in ["AGUA", "AMBOS"]:
+                        lista_impressao.append(
+                            {"id": unidade, "tipo": "ÁGUA", "payload": f"{unidade}-AGUA"})
+                    if filtro_tipo in ["GAS", "AMBOS"]:
+                        lista_impressao.append(
+                            {"id": unidade, "tipo": "GÁS", "payload": f"{unidade}-GAS"})
 
-    # Áreas Especiais
-    if filtro_tipo in ["GAS", "AMBOS"]:
-        lista_impressao.append(
-            {"id": "LAZER", "tipo": "GAS", "payload": "LAZER-GAS"})
-    if filtro_tipo in ["AGUA", "AMBOS"]:
-        lista_impressao.append(
-            {"id": "GERAL", "tipo": "AGUA", "payload": "GERAL-AGUA"})
+        w_cel = (width - 2 * 15) / COLUNAS
+        h_cel = (height - 2 * 15) / LINHAS
 
-    margem_x, margem_y = 20, 20
-    w_cel = (width - 2 * margem_x) / COLUNAS
-    h_cel = (height - 2 * margem_y) / LINHAS
+        for i, item in enumerate(lista_impressao):
+            if i > 0 and i % (COLUNAS * LINHAS) == 0:
+                c.showPage()
 
-    for i, item in enumerate(lista_impressao):
-        if i > 0 and i % (COLUNAS * LINHAS) == 0:
-            c.showPage()
+            idx = i % (COLUNAS * LINHAS)
+            col, row = idx % COLUNAS, idx // COLUNAS
+            x = 15 + (col * w_cel)
+            y = height - 15 - ((row + 1) * h_cel)
 
-        idx = i % (COLUNAS * LINHAS)
-        col, row = idx % COLUNAS, idx // COLUNAS
-        x = margem_x + (col * w_cel)
-        y = height - margem_y - ((row + 1) * h_cel)
+            # --- DESENHO DA ETIQUETA ---
 
-        qr = qrcode.QRCode(version=1, box_size=10, border=1)
-        qr.add_data(item['payload'])
-        qr.make(fit=True)
-        img_qr = qr.make_image(fill_color="black", back_color="white")
+            # A) Borda Cinza
+            c.setStrokeColorRGB(0.7, 0.7, 0.7)
+            c.rect(x + 5, y + 5, w_cel - 10, h_cel - 10, stroke=1, fill=0)
 
-        temp_img = f"temp_qr_{item['payload']}.png"
-        img_qr.save(temp_img)
+            # B) QR CODE (Agora no TOPO da etiqueta)
+            qr = qrcode.QRCode(version=1, box_size=10, border=1)
+            qr.add_data(item['payload'])
+            qr.make(fit=True)
+            img_qr = qr.make_image(fill_color="black", back_color="white")
 
-        c.setStrokeColorRGB(0.8, 0.8, 0.8)
-        c.rect(x, y, w_cel, h_cel, stroke=1, fill=0)
+            temp_img = f"temp_{i}_{item['id']}.png"
+            img_qr.save(temp_img)
 
-        qr_size = min(w_cel * 0.6, h_cel * 0.45)
-        img_reader = ImageReader(temp_img)
-        c.drawImage(img_reader, x + (w_cel - qr_size) / 2, y +
-                    h_cel - qr_size - 30, width=qr_size, height=qr_size)
+            # Posicionando na parte superior da célula
+            c.drawImage(img_reader, x + (w_cel - 60)/2,
+                        y + 35, width=60, height=60)
 
-        c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(x + w_cel / 2, y + 20,
-                            f"{item['id']} - {item['tipo']}")
+            # C) NOME DO CONDOMÍNIO (Logo depois do QR Code)
+            c.setFont("Helvetica-Bold", 10)
+            c.drawCentredString(x + w_cel/2, y + 12,
+                                f"{item['id']} - {item['tipo']}")
 
-        c.setFont("Helvetica", 7)
-        c.drawCentredString(x + w_cel / 2, y + 10, NOME_CONDOMINIO)
+            # D) Unidade
+            c.setFont("Helvetica-Bold", 10)
+            c.drawCentredString(95, y+30,
+                                f"{unidade_alvo or 'UNIDADE'}")
 
-        os.remove(temp_img)
+            # Cleanup
+            if os.path.exists(temp_img):
+                os.remove(temp_img)
 
-    c.save()
-    print(f"✅ Arquivo '{nome_output}' gerado com sucesso!")
-    return nome_output
+        c.save()
+        print(f"✅ [GERADOR] Sucesso! Arquivo: {caminho_final}")
+
+    except Exception as e:
+        print(f"❌ [GERADOR] ERRO: {str(e)}")
+        return None
 
 
 if __name__ == "__main__":
-    gerar_qr_codes("AMBOS")
+    # Teste de validação
+    gerar_qr_codes("AMBOS", "101")
