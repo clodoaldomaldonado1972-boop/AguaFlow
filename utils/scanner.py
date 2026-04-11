@@ -1,6 +1,6 @@
 import flet as ft
 from database.database import Database
-from views import leitor_ocr
+from utils.leitor_ocr import processar_leitura_completa
 
 # from database import Database
 
@@ -19,14 +19,15 @@ class ScannerAguaFlow:
 
     async def _processar_resultado(self, e: ft.FilePickerResultEvent):
         if e.files:
-            resultado = leitor_ocr.processar_leitura_completa(e.files[0].path)
+            resultado = processar_leitura_completa(e.files[0].path)
 
             if resultado["status"] == "Sucesso":
-                # Busca o ID numérico para o SQLite
-                id_db = Database.buscar_por_unidade(resultado["unidade"])
-                if id_db:
-                    Database.registrar_leitura(id_db, resultado["valor"])
-                    await self.ao_detectar_leitura(resultado["unidade"], resultado["valor"], True)
+                # Salva diretamente usando a unidade como identificador
+                res = Database.registrar_leitura(
+                    resultado["unidade"], resultado["valor"], "Água")
+                if res.get('sucesso'):
+                    await self.ao_detectar_leitura(
+                        resultado["unidade"], resultado["valor"], True)
 
             elif resultado["status"] == "Manual":
                 # Preenche a unidade e foca no campo de valor para o zelador digitar

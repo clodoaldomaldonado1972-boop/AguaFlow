@@ -1,6 +1,16 @@
 version: '3.8'
+
 services:
   web:
     build: .
     ports:
       - "8080:8080"
+    volumes:
+      # Garante que o banco de dados não seja apagado ao desligar o container
+      - ./database:/app/database
+      # Garante que os PDFs das etiquetas fiquem salvos na sua pasta local
+      - ./storage:/app/storage
+    environment:
+      # Indica que estamos rodando dentro do Docker para o Python ajustar caminhos
+      - IS_DOCKER=True
+    restart: always
