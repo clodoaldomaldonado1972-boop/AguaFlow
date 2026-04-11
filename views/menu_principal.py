@@ -22,7 +22,8 @@ def montar_menu(page: ft.Page):
                     ft.Container(height=30), # Espaçamento superior
                     
                     # Ícone principal (usando OPACITY que é universal para gota d'água)
-                    ft.Icon(ft.icons.OPACITY, size=80, color="blue"),
+                    # No arquivo views/menu_principal.py
+                    ft.Icon(name="water_drop", size=80, color="blue"),
                     
                     ft.Text(
                         "MENU PRINCIPAL", 
