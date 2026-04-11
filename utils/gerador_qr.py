@@ -1,6 +1,8 @@
 import os
+import qrcode
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 
 # --- CONFIGURAÇÕES DE LAYOUT ---
 COLUNAS = 5
@@ -81,7 +83,7 @@ def gerar_qr_codes(filtro_tipo="AMBOS", unidade_alvo=None):
             img_qr.save(temp_img)
 
             # Posicionando na parte superior da célula
-            c.drawImage(img_reader, x + (w_cel - 60)/2,
+            c.drawImage(ImageReader(temp_img), x + (w_cel - 60)/2,
                         y + 35, width=60, height=60)
 
             # C) NOME DO CONDOMÍNIO (Logo depois do QR Code)

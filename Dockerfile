@@ -1,16 +1,25 @@
+# 1. Usa a imagem slim, mas precisamos instalar pacotes do sistema
 FROM python:3.11-slim
+
+# 2. Instala dependências do Sistema (Crucial para OpenCV e Tesseract)
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-por \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copia tudo do ÁguaFlow
+# 3. Copia os arquivos
 COPY . .
 
-# Instala as bibliotecas (usando o pip que já vimos que funciona)
-# Forçamos a atualização do Flet para habilitar o componente de Câmera
-RUN pip install --no-cache-dir --upgrade "flet>=0.21.0" qrcode Pillow reportlab pytesseract opencv-python
+# 4. Instala as bibliotecas Python
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir "flet>=0.21.0" qrcode Pillow reportlab pytesseract opencv-python supabase python-dotenv
 
-# Expõe a porta para o Windows enxergar
+# 5. Expõe a porta
 EXPOSE 8080
 
-# COMANDO NOVO: Roda o python direto no main.py
+# 6. Comando de execução
 CMD ["python", "main.py"]

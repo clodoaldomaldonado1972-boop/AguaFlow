@@ -1,6 +1,7 @@
-flet>=0.21.0
-python-dotenv>=1.0.1
-supabase>=2.4.0
+flet==0.21.0
+python-dotenv==1.0.1
+supabase==2.4.0
+httpx==0.24.0
 opencv-python>=4.9.0.80
 pytesseract>=0.3.10
 Pillow>=10.2.0

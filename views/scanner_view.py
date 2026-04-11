@@ -42,7 +42,7 @@ def montar_tela_scanner(page: ft.Page):
     scanner_engine = ScannerAguaFlow(page, ao_receber_dados)
 
     # 4. Funções de Ação[cite: 18]
-    async def salvar_leitura(e):
+    def salvar_leitura(e):
         if txt_unidade.value and txt_valor.value:
             # Busca o tipo de filtro (Água/Gás) definido na sessão da página
             tipo = getattr(page, "filtro_leitura", "Água")
@@ -92,8 +92,7 @@ def montar_tela_scanner(page: ft.Page):
                     ft.ElevatedButton(
                         "ESCANEAR HIDRÔMETRO",
                         icon=ft.Icons.CAMERA_ALT,
-                        on_click=lambda _: page.run_task(
-                            scanner_engine.iniciar_scan),
+                        on_click=lambda _: scanner_engine.iniciar_scan(),
                         style=st.BTN_SPECIAL,  # Laranja para destaque[cite: 9]
                         width=320,
                         height=60
