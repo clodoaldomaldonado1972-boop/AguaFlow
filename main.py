@@ -54,4 +54,4 @@ async def main(page: ft.Page):
 if __name__ == "__main__":
     # O aviso de 'app()' ser antigo não impede o funcionamento, 
     # pode manter assim para garantir os assets.
-    ft.app(target=main, assets_dir="assets")
+    ft.run(main, assets_dir="assets")
