@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Script para popular as 96 unidades na tabela 'unidades' do SQLite local e do Supabase.
@@ -108,15 +109,6 @@ def popular_supabase(unidades):
                 print("[ERRO] Coluna não encontrada - schema pode estar diferente")
                 print("\nSugestão: Verifique o schema da tabela no Supabase")
                 return False
-            elif "column" in erro_str and "does not exist" in erro_str:
-                print("[ALERTA] Tabela existe mas sem colunas definidas")
-                print("\nExecute no SQL Editor do Supabase para criar a coluna:")
-                print("-" * 40)
-                print("""-- Adiciona coluna de identificador
-ALTER TABLE unidades ADD COLUMN id TEXT PRIMARY KEY;
-ALTER TABLE unidades ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();""")
-                print("-" * 40)
-                return False
             raise
 
         # Contar existentes e descobrir schema
@@ -132,6 +124,7 @@ ALTER TABLE unidades ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();""")
         print(f"    Unidades existentes: {count_antes}")
 
         # Determinar qual coluna usar para o identificador
+        # Tenta 'id', 'unidade', 'nome', ou primeira coluna texto disponível
         coluna_id = None
         for candidata in ['id', 'unidade', 'nome', 'nome_unidade', 'apartamento']:
             if candidata in colunas_validas:
@@ -139,14 +132,14 @@ ALTER TABLE unidades ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();""")
                 break
 
         if not coluna_id and colunas_validas:
+            # Usa a primeira coluna que não seja created_at/id
             for col in colunas_validas:
                 if col not in ['created_at', 'updated_at', 'id']:
                     coluna_id = col
                     break
 
         if not coluna_id:
-            print("\n[ERRO] Nenhuma coluna válida encontrada para inserção")
-            return False
+            coluna_id = 'id'  # Fallback
 
         print(f"    Coluna usada para identificador: {coluna_id}")
 

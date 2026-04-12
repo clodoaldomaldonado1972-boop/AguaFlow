@@ -102,7 +102,7 @@ def montar_tela_dashboard(page: ft.Page, voltar):
         appbar=ft.AppBar(
             title=ft.Text("Dashboard de Consumo"),
             leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=voltar),
-            bgcolor=ft.Colors.SURFACE_VARIANT
+            bgcolor=ft.colors.SURFACE_VARIANT
         ),
         controls=[
             ft.Column([
@@ -143,7 +143,7 @@ def montar_tela_dashboard(page: ft.Page, voltar):
                 ], spacing=10),
 
                 ft.Text("Estatísticas Mensais", size=16, weight="bold"),
-                ft.Container(content=chart, height=200, padding=15, bgcolor=ft.Colors.BLACK26, border_radius=10),
+                ft.Container(content=chart, height=200, padding=15, bgcolor=ft.colors.BLACK26, border_radius=10),
 
                 ft.Divider(height=10, color="transparent"),
                 ft.Text("Todas as Unidades (96)", size=16, weight="bold"),

@@ -27,7 +27,7 @@ def montar_menu(page: ft.Page):
                         "MENU PRINCIPAL", 
                         size=28, 
                         weight="bold", 
-                        color=ft.Colors.BLUE_GREY_700
+                        color=ft.colors.BLUE_GREY_700
                     ),
                     
                     ft.Container(height=20), # Espaçamento
