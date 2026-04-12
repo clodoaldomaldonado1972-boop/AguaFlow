@@ -1,57 +1,90 @@
 import flet as ft
 from database.database import Database
+
+# --- 1. IMPORTAÇÃO DE TODAS AS VIEWS (TELAS) ---
 from views.auth import criar_tela_login
 from views.menu_principal import montar_menu
 from views.medicao import montar_tela_medicao
 from views.qrcodes_view import montar_tela_qrcodes
-from views.relatorios import montar_tela_relatorios
+from views.relatorio_view import montar_tela_relatorio as montar_tela_relatorios
 from views.configuracoes import montar_tela_configs
 
+# Importação dos novos Dashboards que integramos
+from views.dashboard import montar_tela_dashboard
+from views.dashboard_saude import montar_tela_saude
+
 async def main(page: ft.Page):
-    # 1. REGISTRO DO FILEPICKER
+    # --- 2. REGISTRO DE UTILITÁRIOS ---
+    # O FilePicker é essencial para selecionar fotos ou salvar relatórios
     file_picker = ft.FilePicker()
     page.overlay.append(file_picker)
     page.file_picker = file_picker 
     
-    # --- 2. CONFIGURAÇÕES ---
+    # --- 3. CONFIGURAÇÕES GERAIS DA JANELA ---
     page.title = "AguaFlow - Vivere Prudente"
     page.theme_mode = ft.ThemeMode.DARK
+    
+    # Dimensões simulando um smartphone (evita quebra de layout)
     page.window_width = 400
     page.window_height = 700
+    page.window_resizable = False # Mantém o layout estável para a apresentação
 
-    # Inicializa o banco SQLite
+    # Inicializa o banco SQLite local
     Database.init_db()
 
-    # --- 3. GERENCIADOR DE ROTAS ---
+    # --- 4. GERENCIADOR DE ROTAS (O CORAÇÃO DO APP) ---
     async def rota_mudou(e):
+        """Função disparada toda vez que page.go() é chamado"""
         page.views.clear()
         
+        # Rota Inicial / Login
         if page.route == "/login" or page.route == "/":
             page.views.append(criar_tela_login(page))
+            
+        # Menu Principal (Hub central)
         elif page.route == "/menu":
             page.views.append(montar_menu(page))
+            
+        # Operação de Medição (OCR/Câmera)
         elif page.route == "/medicao":
             page.views.append(montar_tela_medicao(page))
+            
+        # Logística de QR Codes
         elif page.route == "/qrcodes":
             page.views.append(montar_tela_qrcodes(page))
+            
+        # Relatórios (Geração de PDF e envio de E-mail)
         elif page.route == "/relatorios":
-            page.views.append(montar_tela_relatorios(page, lambda _: page.push_route("/menu")))
+            # Passamos uma função lambda para o botão 'voltar' da AppBar
+            page.views.append(montar_tela_relatorios(page, lambda _: page.go("/menu")))
+            
+        # Dashboard de Consumo (Gráficos)
+        elif page.route == "/dashboard":
+            page.views.append(montar_tela_dashboard(page, lambda _: page.go("/menu")))
+            
+        # Dashboard de Saúde (Status de Rede e Banco)
+        elif page.route == "/dashboard_saude":
+            page.views.append(montar_tela_saude(page, lambda _: page.go("/menu")))
+            
+        # Configurações do Sistema e Reset
         elif page.route == "/configuracoes":
-            page.views.append(montar_tela_configs(page, lambda _: page.push_route("/menu")))
+            page.views.append(montar_tela_configs(page, lambda _: page.go("/menu")))
         
-        # AJUSTE: Remova o 'await' do update
         page.update()
 
-    page.on_route_change = rota_mudou
+    # Função para gerenciar o botão 'Voltar' físico do Android ou do navegador
+    async def view_pop(e):
+        page.views.pop()
+        top_view = page.views[-1]
+        page.go(top_view.route)
 
-# --- 4. NAVEGAÇÃO INICIAL ---
-    # push_route PRECISA de await para a tela carregar
-    await page.push_route("/login")
-    
-    # update NÃO PRECISA de await nas versões novas (0.80+)
-    page.update()
+    page.on_route_change = rota_mudou
+    page.on_view_pop = view_pop
+
+    # --- 5. INICIALIZAÇÃO ---
+    # Define a rota inicial e renderiza a primeira tela
+    page.go("/") 
 
 if __name__ == "__main__":
-    # O aviso de 'app()' ser antigo não impede o funcionamento, 
-    # pode manter assim para garantir os assets.
-    ft.run(main, assets_dir="assets")
+    # Inicia a aplicação
+    ft.app(target=main)
