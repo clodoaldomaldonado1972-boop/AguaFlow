@@ -1,4 +1,11 @@
 import flet as ft
+import os
+import sys
+
+# Garante que o Python encontre as pastas
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+# IMPORTAÇÃO DO BANCO (Essa é a linha que falta!)
 from database.database import Database
 
 # --- 1. IMPORTAÇÃO DE TODAS AS VIEWS (TELAS) ---
@@ -6,10 +13,11 @@ from views.auth import criar_tela_login
 from views.menu_principal import montar_menu
 from views.medicao import montar_tela_medicao
 from views.qrcodes_view import montar_tela_qrcodes
+# Note a correção do nome da função 'montar_tela_relatorio'
 from views.relatorio_view import montar_tela_relatorio as montar_tela_relatorios
 from views.configuracoes import montar_tela_configs
 
-# Importação dos novos Dashboards que integramos
+# Importação dos novos Dashboards
 from views.dashboard import montar_tela_dashboard
 from views.dashboard_saude import montar_tela_saude
 
@@ -83,8 +91,7 @@ async def main(page: ft.Page):
 
     # --- 5. INICIALIZAÇÃO ---
     # Define a rota inicial e renderiza a primeira tela
-    page.go("/") 
+    page.go("/menu")
 
 if __name__ == "__main__":
-    # Inicia a aplicação
     ft.app(target=main)
