@@ -36,7 +36,7 @@ def criar_tela_login(page: ft.Page):
                 content=ft.Column([
                     # Logotipo (Agora buscando da pasta assets da raiz)
                     ft.Image(
-                        src="logo.jpeg",
+                        src="assets/logo.jpeg",
                         width=150,
                         height=150,
                         border_radius=75

@@ -105,6 +105,20 @@ class Database:
             return (escolhido, escolhido, tipo_filtro)
 
     @classmethod
+    def buscar_todas_leituras(cls):
+        """Retorna todas as leituras registradas para o dashboard."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT unidade, valor, data_leitura, tipo_leitura FROM leituras ORDER BY data_leitura DESC")
+                linhas = cursor.fetchall()
+                return [dict(row) for row in linhas]
+        except Exception as e:
+            print(f"Erro ao buscar todas as leituras: {e}")
+            return []
+
+    @classmethod
     def buscar_relatorio_geral(cls):
         """Consolida leituras atuais e anteriores para o relatório PDF."""
         try:
