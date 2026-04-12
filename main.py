@@ -15,6 +15,7 @@ from views.medicao import montar_tela_medicao
 from views.qrcodes_view import montar_tela_qrcodes
 # Note a correção do nome da função 'montar_tela_relatorio'
 from views.relatorio_view import montar_tela_relatorio as montar_tela_relatorios
+# Certifique-se que o nome aqui bate com o arquivo na pasta views
 from views.configuracoes import montar_tela_configs
 
 # Importação dos novos Dashboards
@@ -62,8 +63,10 @@ async def main(page: ft.Page):
             page.views.append(montar_tela_qrcodes(page))
             
         # Relatórios (Geração de PDF e envio de E-mail)
+        # Relatórios (Geração de PDF e envio de E-mail)
         elif page.route == "/relatorios":
-            # Passamos uma função lambda para o botão 'voltar' da AppBar
+            # Certifique-se de que montar_tela_relatorios (que é o seu alias) 
+            # está recebendo os argumentos corretos.
             page.views.append(montar_tela_relatorios(page, lambda _: page.go("/menu")))
             
         # Dashboard de Consumo (Gráficos)
