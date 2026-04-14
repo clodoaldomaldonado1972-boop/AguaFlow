@@ -1,22 +1,25 @@
 import flet as ft
-# --- IMPORTS CORRIGIDOS PARA A NOVA ESTRUTURA ---
+import asyncio
 from database.database import Database
-from utils.scanner import ScannerAguaFlow  # Scanner movido para a pasta utils/
-from views import styles as st  # Uso dos estilos unificados
-
+from utils.scanner import ScannerAguaFlow
+from views import styles as st
 
 def montar_tela_scanner(page: ft.Page):
     """
-    Interface de captura que integra a câmera com o preenchimento automático[cite: 18].
+    Interface de captura que integra a câmara com o preenchimento automático.
+    Inclui mira visual e lógica de timeout de 10s.
     """
 
-    # 1. Campos da Interface usando estilos padronizados[cite: 18]
+    # 1. Definição dos Componentes de Texto e Status
+    lbl_info = ft.Text("Aguardando captura...", color=st.GREY)
+
     txt_unidade = ft.TextField(
         label="Unidade (Identificada via QR)",
         read_only=True,
         border_color=st.PRIMARY_BLUE,
         prefix_icon=ft.icons.APARTMENT,
-        border_radius=10
+        border_radius=10,
+        color="white"
     )
 
     txt_valor = ft.TextField(
@@ -24,88 +27,106 @@ def montar_tela_scanner(page: ft.Page):
         keyboard_type=ft.KeyboardType.NUMBER,
         prefix_icon=ft.icons.SPEED,
         border_color=st.PRIMARY_BLUE,
-        border_radius=10
+        border_radius=10,
+        color="white"
     )
 
-    # 2. Função de atualização (Callback)[cite: 18]
+    # 2. Callback: O que acontece quando o motor de OCR termina (ou dá timeout)
     async def ao_receber_dados(unidade, valor, foi_automatico):
-        """Atualiza os campos assim que o motor de visão processa a foto[cite: 18]."""
-        txt_unidade.value = unidade
-        txt_valor.value = valor if valor else ""
-
-        if not foi_automatico:
-            txt_valor.focus()
-
+        if unidade:
+            txt_unidade.value = unidade
+        if valor:
+            txt_valor.value = str(valor)
+        
+        if foi_automatico:
+            lbl_info.value = "✅ Captura automática realizada!"
+            lbl_info.color = "green"
+        else:
+            # Caso de Timeout ou falha no OCR
+            lbl_info.value = "⚠️ Insira o valor manualmente (Timeout/Falha)."
+            lbl_info.color = "orange"
         page.update()
 
-    # 3. Instancia o Scanner (passando a função de callback)[cite: 18]
+    # 3. Instância do Motor do Scanner
     scanner_engine = ScannerAguaFlow(page, ao_receber_dados)
 
-    # 4. Funções de Ação[cite: 18]
-    def salvar_leitura(e):
-        if txt_unidade.value and txt_valor.value:
-            # Busca o tipo de filtro (Água/Gás) definido na sessão da página
-            tipo = getattr(page, "filtro_leitura", "Água")
-            res = Database.registrar_leitura(
-                txt_unidade.value, txt_valor.value, tipo)
-
-            if res.get('sucesso'):
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("Leitura salva e na fila de envio!"), bgcolor="green")
-                page.snack_bar.open = True
-                # Limpa campos para a próxima leitura
-                txt_unidade.value = ""
-                txt_valor.value = ""
-                page.update()
-        else:
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Por favor, preencha todos os campos."), bgcolor="red")
+    # 4. Lógica de Salvamento
+    async def salvar_leitura(e):
+        if not txt_unidade.value or not txt_valor.value:
+            page.snack_bar = ft.SnackBar(ft.Text("⚠️ Erro: Capture a leitura primeiro!"))
             page.snack_bar.open = True
             page.update()
+            return
 
-    # 5. Layout da View[cite: 18]
+        try:
+            res = Database.registrar_leitura(
+                unidade=txt_unidade.value,
+                valor_agua=float(txt_valor.value.replace(',', '.')),
+                valor_gas=None
+            )
+
+            if res['sucesso']:
+                page.snack_bar = ft.SnackBar(ft.Text("✅ Salvo com sucesso!"), bgcolor="green")
+                page.snack_bar.open = True
+                page.update()
+                await asyncio.sleep(1)
+                page.go("/menu")
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Erro: {res['mensagem']}"))
+                page.snack_bar.open = True
+        except ValueError:
+            page.snack_bar = ft.SnackBar(ft.Text("Erro: Valor numérico inválido!"))
+        page.update()
+
+    # --- LAYOUT DA VIEW ---
     return ft.View(
         route="/scanner",
-        bgcolor=st.BG_DARK,
         appbar=ft.AppBar(
             title=ft.Text("Scanner AguaFlow"),
-            bgcolor="#1e1e1e",
-            leading=ft.IconButton(ft.icons.ARROW_BACK,
-                                  on_click=lambda _: page.go("/menu"))
+            bgcolor=st.PRIMARY_BLUE,
+            color="white",
+            leading=ft.IconButton(ft.icons.ARROW_BACK, icon_color="white", on_click=lambda _: page.go("/menu"))
         ),
+        bgcolor=st.BG_DARK,
         controls=[
             ft.Container(
                 padding=20,
                 content=ft.Column([
-                    # Estilo do styles.py[cite: 9]
-                    ft.Text("Registro de Consumo", style=st.TEXT_TITLE),
-                    ft.Text(
-                        "Aponte a câmera para o QR Code e o visor do hidrômetro", color=st.GREY),
-                    ft.Divider(height=20, color="transparent"),
+                    ft.Text("Leitura Automática", style=st.TEXT_TITLE),
+                    ft.Text("Posicione o hidrómetro no quadro abaixo", color=st.GREY),
+                    
+                    # MIRA VISUAL VINDA DO STYLES.PY
+                    st.criar_mira_scanner(), 
+
+                    lbl_info,
+                    ft.Divider(height=10, color="transparent"),
 
                     txt_unidade,
                     txt_valor,
 
-                    ft.Divider(height=20, color="transparent"),
+                    ft.Divider(height=10, color="transparent"),
 
-                    # Botão Flutuante de Escaneamento[cite: 18]
                     ft.ElevatedButton(
-                        "ESCANEAR HIDRÔMETRO",
+                        "ACIONAR CÂMARA",
                         icon=ft.icons.CAMERA_ALT,
-                        on_click=lambda _: scanner_engine.iniciar_scan(),
-                        style=st.BTN_SPECIAL,  # Laranja para destaque[cite: 9]
+                        on_click=lambda _: page.run_task(scanner_engine.iniciar_scan),
+                        bgcolor=ft.colors.ORANGE_700,
+                        color="white",
                         width=320,
                         height=60
                     ),
 
                     ft.ElevatedButton(
-                        "SALVAR MANUALMENTE",
+                        "CONFIRMAR E SALVAR",
                         icon=ft.icons.SAVE,
                         on_click=salvar_leitura,
-                        style=st.BTN_MAIN,  # Azul padrão[cite: 9]
+                        bgcolor=st.PRIMARY_BLUE,
+                        color="white",
                         width=320,
                         height=60
-                    )
+                    ),
+                    
+                    ft.TextButton("Voltar ao Menu", on_click=lambda _: page.go("/menu"))
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15)
             )
         ]

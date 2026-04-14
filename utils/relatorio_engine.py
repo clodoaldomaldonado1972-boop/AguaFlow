@@ -22,20 +22,22 @@ class RelatorioEngine:
             pdf.cell(200, 10, txt=f"Condomínio Vivere Prudente - Data: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
             pdf.ln(10)
 
-            # Tabela de Dados
+            # --- TABELA DE DADOS (CORRIGIDA) ---
             pdf.set_font("Arial", "B", 10)
             pdf.cell(40, 10, "Unidade", 1)
             pdf.cell(60, 10, "Data Leitura", 1)
-            pdf.cell(40, 10, "Valor (m³)", 1)
-            pdf.cell(50, 10, "Status", 1)
+            pdf.cell(45, 10, "Leitura Água (m3)", 1) # Mudança de nome no cabeçalho
+            pdf.cell(45, 10, "Leitura Gás (m3)", 1)  # Adição da coluna de Gás
             pdf.ln()
 
             pdf.set_font("Arial", size=10)
             for item in dados:
-                pdf.cell(40, 10, str(item.get("unidade", "N/A")), 1)
-                pdf.cell(60, 10, str(item.get("data_leitura", "N/A")), 1)
-                pdf.cell(40, 10, str(item.get("valor", "0")), 1)
-                pdf.cell(50, 10, "Sincronizado", 1)
+                pdf.cell(40, 10, str(item.get('unidade', 'N/A')), 1)
+                pdf.cell(60, 10, str(item.get('data_leitura', 'N/A')), 1)
+                # AJUSTE: Busca agora 'leitura_agua' em vez de 'valor'
+                pdf.cell(45, 10, str(item.get('leitura_agua', '0.00')), 1)
+                # AJUSTE: Busca 'leitura_gas'
+                pdf.cell(45, 10, str(item.get('leitura_gas', '-')), 1)
                 pdf.ln()
 
             caminho_pdf = "relatorio_consumo.pdf"
