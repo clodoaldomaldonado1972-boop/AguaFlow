@@ -4,17 +4,22 @@ from datetime import datetime as dt
 from contextlib import contextmanager
 from dotenv import load_dotenv
 
-# Carrega configurações sensíveis do .env.txt
+# Carrega configurações do .env se existir
 load_dotenv()
 
 class Database:
+    # AJUSTE 1: Caminho absoluto para evitar erro de "AttributeError" ou "File Not Found"
+    # Isso garante que o SQLite sempre saiba onde criar o arquivo, independente de onde o app é iniciado.
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "aguaflow.db")
-
+    
     @classmethod
     @contextmanager
     def get_db(cls):
         """Gerencia a conexão SQLite de forma segura (Context Manager)."""
+        # Garante que a pasta 'database' exista no computador
+        os.makedirs(os.path.dirname(cls.DB_PATH), exist_ok=True)
+        
         conn = sqlite3.connect(cls.DB_PATH, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         try:
@@ -24,89 +29,54 @@ class Database:
 
     @classmethod
     def init_db(cls):
-        """Inicializa tabelas e popula a lista estática de unidades (Andares 16 ao 1)."""
+        """Inicializa as tabelas e garante as colunas necessárias para o Dashboard."""
         with cls.get_db() as conn:
             cursor = conn.cursor()
-            # Tabela de unidades estáticas
-            cursor.execute("CREATE TABLE IF NOT EXISTS unidades (id TEXT PRIMARY KEY)")
-            
-            # Tabela de leituras (Água é obrigatória, Gás é opcional)
+            # Tabela de leituras sincronizada com 'leitura_agua' e 'leitura_gas'
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS leituras (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    unidade TEXT,
+                    unidade TEXT NOT NULL,
                     leitura_agua REAL NOT NULL,
                     leitura_gas REAL,
-                    data_leitura TEXT,
-                    sincronizado INTEGER DEFAULT 0
+                    data_leitura TEXT
                 )
             """)
-
-            # Popula as unidades seguindo a lógica: 166-161, 156-151... 16-11
-            # Mais as unidades especiais: Lazer Gás e Geral Água
-            unidades_projeto = cls._gerar_lista_unidades()
-            
-            cursor.executemany(
-                "INSERT OR IGNORE INTO unidades (id) VALUES (?)",
-                [(u,) for u in unidades_projeto]
-            )
+            # Tabela de unidades estáticas
+            cursor.execute("CREATE TABLE IF NOT EXISTS unidades (id TEXT PRIMARY KEY)")
             conn.commit()
 
-    @classmethod
-    def _gerar_lista_unidades(cls):
-        """
-        Gera a lista fixa de unidades para o condomínio.
-        Ordem: Andares 16 ao 1, Apartamentos 6 ao 1 por andar.
-        """
-        lista = []
-        for andar in range(16, 0, -1):
-            for apto in range(6, 0, -1):
-                # Formato: 166, 165, 164, 163, 162, 161...
-                lista.append(f"{andar}{apto}")
-        
-        # Unidades especiais de controle
-        lista.append("Lazer Gás")
-        lista.append("Geral Água")
-        return lista
-
-    @classmethod
-    def registrar_leitura(cls, unidade, valor_agua, valor_gas=None):
-        """
-        Salva a leitura localmente. 
-        REGRA: Água é obrigatória. Gás é opcional.
-        """
-        if not valor_agua:
-            return {'sucesso': False, 'mensagem': "Erro: A leitura de Água é obrigatória."}
-
-        agora = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    @staticmethod
+    def registrar_leitura(unidade, valor_agua, valor_gas=None):
+        """Salva a medição no banco. Note que os nomes batem com os selects do Dashboard."""
         try:
-            # Tratamento de string para float (vírgula para ponto)
-            v_agua = float(str(valor_agua).replace(',', '.'))
-            v_gas = float(str(valor_gas).replace(',', '.')) if valor_gas else None
-
-            with cls.get_db() as conn:
+            with Database.get_db() as conn:
                 cursor = conn.cursor()
+                data_agora = dt.now().strftime("%Y-%m-%d %H:%M:%S")
                 cursor.execute("""
-                    INSERT INTO leituras (unidade, leitura_agua, leitura_gas, data_leitura) 
+                    INSERT INTO leituras (unidade, leitura_agua, leitura_gas, data_leitura)
                     VALUES (?, ?, ?, ?)
-                """, (unidade, v_agua, v_gas, agora))
+                """, (unidade, valor_agua, valor_gas, data_agora))
                 conn.commit()
-                return {'sucesso': True, 'id': cursor.lastrowid}
+                return {"sucesso": True, "mensagem": "Leitura salva!"}
         except Exception as e:
-            return {'sucesso': False, 'mensagem': f"Erro ao gravar banco: {str(e)}"}
+            return {"sucesso": False, "mensagem": f"Erro técnico: {e}"}
 
     @classmethod
     def buscar_ultima_unidade_lida(cls):
-        """Retorna o ID da última unidade registrada para validar o 'pulo' de hall."""
-        with cls.get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT unidade FROM leituras ORDER BY id DESC LIMIT 1")
-            row = cursor.fetchone()
-            return row['unidade'] if row else None
+        """Busca a última unidade para o fluxo automático (166 -> 165)."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT unidade FROM leituras ORDER BY id DESC LIMIT 1")
+                res = cursor.fetchone()
+                return res['unidade'] if res else None
+        except Exception:
+            return None # Proteção caso a tabela ainda não exista
 
     @classmethod
     def buscar_todas_leituras(cls):
-        """Busca histórico completo para alimentar os Dashboards."""
+        """Alimenta o Dashboard. Usa os nomes de campos que o exportador e views esperam."""
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
@@ -117,23 +87,32 @@ class Database:
                 """)
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
-            print(f"Erro Dashboard: {e}")
+            print(f"Erro no Banco (Dashboard): {e}")
             return []
 
     @classmethod
     def buscar_relatorio_geral(cls):
-        """Consolida dados para exportação (PDF/CSV)."""
+        """Busca a leitura mais recente de cada unidade para o Relatório PDF/CSV."""
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                # Busca a leitura mais recente de cada unidade
+                # GROUP BY garante que só pegamos a última leitura de cada apartamento
                 cursor.execute("""
                     SELECT unidade, leitura_agua, leitura_gas, data_leitura 
                     FROM leituras 
                     GROUP BY unidade 
-                    ORDER BY id ASC
+                    ORDER BY unidade ASC
                 """)
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
-            print(f"Erro Relatório: {e}")
+            print(f"Erro no Banco (Relatório): {e}")
             return []
+
+    @staticmethod
+    def _gerar_lista_unidades():
+        """Gera a lista estática de unidades (Andares 16 ao 1, Apto 1 ao 6)."""
+        lista = []
+        for andar in range(16, 0, -1):
+            for apto in range(1, 7):
+                lista.append(f"Apto {andar}{apto}")
+        return lista

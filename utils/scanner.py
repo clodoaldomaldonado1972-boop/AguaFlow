@@ -3,18 +3,40 @@ import asyncio
 from utils.leitor_ocr import processar_leitura_completa
 
 class ScannerAguaFlow:
-    def __init__(self, page, ao_detectar_leitura):
+    def __init__(self, page: ft.Page, ao_detectar_leitura):
         self.page = page
-        # Função da interface que receberá os dados (unidade, valor, sucesso)
         self.ao_detectar_leitura = ao_detectar_leitura
+        
+        # Criamos o seletor de arquivos
         self.picker = ft.FilePicker(on_result=self._processar_resultado)
-        self.page.overlay.append(self.picker)
-        self.tipo_leitura = "Água" # Padrão
+        
+        # Garantimos que o overlay receba o objeto para ele não ser None
+        if self.picker not in self.page.overlay:
+            self.page.overlay.append(self.picker)
+        
+        self.page.update() 
+        self.tipo_leitura = "Água"
 
     async def iniciar_scan(self, tipo="Água"):
-        """Abre a câmara definindo se a leitura é Água ou Gás."""
         self.tipo_leitura = tipo
-        await self.picker.pick_files(allow_multiple=False)
+        
+        # Garante que o picker está no overlay e a página está atualizada
+        if self.picker not in self.page.overlay:
+            self.page.overlay.append(self.picker)
+            self.page.update()
+            await asyncio.sleep(0.2) # Tempo para o Flet processar o componente
+
+        try:
+            # Só tenta abrir se o picker estiver vinculado a uma página
+            if self.picker.page:
+                await self.picker.pick_files(allow_multiple=False)
+            else:
+                # Se ainda não estiver vinculado, força um update e tenta novamente
+                self.page.update()
+                await asyncio.sleep(0.3)
+                await self.picker.pick_files(allow_multiple=False)
+        except Exception as e:
+            print(f"Erro ao abrir câmara: {e}")
 
     async def _processar_resultado(self, e: ft.FilePickerResultEvent):
         if not e.files:
@@ -22,45 +44,32 @@ class ScannerAguaFlow:
 
         caminho_arquivo = e.files[0].path
         
-        # --- LÓGICA DE TIMEOUT DE 10 SEGUNDOS ---
         try:
-            # Tenta processar o OCR dentro do limite de tempo
-            # Usamos o asyncio.wait_for para garantir o timeout planeado
+            # Timeout de segurança para o OCR não travar a UI
             resultado = await asyncio.wait_for(
                 self._executar_ocr(caminho_arquivo), 
                 timeout=10.0
             )
-            
             await self._tratar_retorno_ocr(resultado)
-
-        except asyncio.TimeoutError:
-            # Se demorar mais de 10s, interrompe e muda para modo manual
+        except Exception as ex:
+            print(f"Erro no processamento: {ex}")
             await self.ao_detectar_leitura(None, "", False)
-            self._notificar("⏱️ Timeout: OCR demorou muito. Insira manualmente.", "orange")
 
     async def _executar_ocr(self, caminho):
-        """Chama o motor de OCR (leitor_ocr.py)"""
-        # Passamos o caminho para o processamento de imagem
         return processar_leitura_completa(caminho)
 
     async def _tratar_retorno_ocr(self, resultado):
-        """Analisa o dicionário vindo do leitor_ocr e envia para a UI."""
         status = resultado.get("status")
         unidade = resultado.get("unidade")
         valor = resultado.get("valor")
 
         if status == "Sucesso":
-            # Detectou tudo. Enviamos para a UI validar e o utilizador confirmar.
             await self.ao_detectar_leitura(unidade, valor, True)
             self._notificar(f"✅ {self.tipo_leitura} lida com sucesso!", "green")
-            
-        elif status in ["Manual", "OCR_Falhou"]:
-            # Identificou a unidade (QR), mas não o valor. Preenche a unidade e foca no manual.
-            await self.ao_detectar_leitura(unidade, "", False)
-            self._notificar("📍 Unidade identificada. Digite o valor manualmente.", "blue")
-            
         else:
-            self._notificar("❌ Não foi possível ler o hidrómetro. Tente outra foto.", "red")
+            # Se falhar ou for parcial, preenche a unidade e abre para manual
+            await self.ao_detectar_leitura(unidade, "", False)
+            self._notificar("📍 OCR inconclusivo. Insira o valor manualmente.", "blue")
 
     def _notificar(self, texto, cor):
         self.page.snack_bar = ft.SnackBar(ft.Text(texto), bgcolor=cor)
