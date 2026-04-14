@@ -19,6 +19,11 @@ def criar_tela_login(page: ft.Page):
     # Credenciais Administrativas do .env.txt
     USUARIO_CORRETO = os.getenv("EMAIL_USER")
     SENHA_CORRETA = os.getenv("EMAIL_PASS")
+    # No componente de texto ou botão de "Esqueci minha senha"
+    ft.TextButton(
+        "Esqueci minha senha",
+        on_click=lambda _: page.go("/recuperar_senha") # <--- O comando vital
+    )
 
     # Campos de entrada
     txt_user = st.campo_estilo("E-mail", ft.icons.PERSON)

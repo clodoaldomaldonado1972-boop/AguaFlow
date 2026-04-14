@@ -149,10 +149,11 @@ def montar_tela_configs(page, on_back_click):
                         content=ft.Column([
                             ft.Text(f"Suporte técnico para: {user_email_logado}", size=12, color="grey"),
                             ft.Row([
+                                # No botão GUIA DE USO
                                 ft.ElevatedButton(
                                     "GUIA DE USO", 
                                     icon=ft.icons.HELP_OUTLINE,
-                                    on_click=lambda _: page.go("/ajuda")
+                                    on_click=lambda _: page.go("/ajuda") # <--- Garanta que esta linha existe
                                 ),
                                 ft.IconButton(
                                     icon=ft.icons.CHAT,

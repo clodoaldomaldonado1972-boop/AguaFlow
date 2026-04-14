@@ -5,7 +5,6 @@ class SuporteHelper:
     """Centraliza a ajuda e documentação do sistema AguaFlow."""
     
     NUMERO_SUPORTE = "5518981337316"
-    # Link para o manual (pode ser um link do Google Drive ou GitHub)
     URL_MANUAL = "https://docs.google.com/document/d/16K78tdhAwYScNKrxz4Qnw0g-AXXT-b3gv10UHFzX1SM/edit?usp=sharing"
 
     @staticmethod
@@ -14,6 +13,7 @@ class SuporteHelper:
         texto_url = urllib.parse.quote(mensagem)
         page.launch_url(f"https://wa.me/{SuporteHelper.NUMERO_SUPORTE}?text={texto_url}")
 
+    # Renomeado para coincidir com a View e corrigido as aspas do link
     @staticmethod
-    def abrir_manual(page: ft.Page):
+    def abrir_manual_externo(page: ft.Page):
         page.launch_url(SuporteHelper.URL_MANUAL)

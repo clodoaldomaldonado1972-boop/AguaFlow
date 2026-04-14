@@ -1,73 +1,79 @@
 import flet as ft
-from database.database import Database
+import os
 
-# Tenta importar o gerador, se falhar, define como None para não travar a tela
+# Importação robusta do motor
 try:
     from utils.gerador_qr import gerar_qr_codes
 except ImportError:
     gerar_qr_codes = None
 
-
-def montar_tela_qrcodes(page: ft.Page):
+def montar_tela_qrcodes(page: ft.Page, voltar):
     txt_unidade = ft.TextField(
-        label="Unidade (ex: 101)",
-        hint_text="Vazio = Condomínio Inteiro",
+        label="Unidade específica",
+        hint_text="Ex: 101 (Deixe vazio para todos)",
         width=300,
-        border_radius=10
+        border_radius=10,
+        bgcolor="white10"
     )
 
     def disparar_geracao(tipo):
         if not gerar_qr_codes:
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Erro: Gerador não encontrado"), bgcolor="red", open=True)
+            page.snack_bar = ft.SnackBar(ft.Text("Erro: Motor não carregado"), bgcolor="red", open=True)
             page.update()
             return
 
+        # Feedback de início
         txt_unidade.disabled = True
+        page.snack_bar = ft.SnackBar(ft.Text(f"Gerando etiquetas de {tipo}..."), bgcolor="blue", open=True)
         page.update()
 
         unid = txt_unidade.value.strip() if txt_unidade.value else None
-        caminho = gerar_qr_codes(filtro_tipo=tipo, unidade_alvo=unid)
+        
+        # Chama o motor e recebe o caminho
+        caminho_pdf = gerar_qr_codes(filtro_tipo=tipo, unidade_alvo=unid)
 
-        if caminho:
+        if caminho_pdf:
             page.snack_bar = ft.SnackBar(
-                ft.Text("PDF Gerado com sucesso!"), bgcolor="#2E7D32", open=True)
-
+                ft.Text(f"Sucesso! Salvo em: {caminho_pdf}"), 
+                bgcolor="#2E7D32", 
+                open=True
+            )
+            # Tenta abrir a pasta automaticamente no Windows
+            try:
+                os.startfile(os.path.dirname(os.path.abspath(caminho_pdf)))
+            except:
+                pass
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("Erro ao gerar PDF."), bgcolor="red", open=True)
+        
         txt_unidade.disabled = False
         page.update()
 
     return ft.View(
         route="/qrcodes",
-        # Adicione alinhamento para garantir que apareça no centro
+        appbar=ft.AppBar(
+            title=ft.Text("Gerador de Etiquetas"),
+            leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar),
+            bgcolor="blue"
+        ),
         vertical_alignment="center",
         horizontal_alignment="center",
-        controls=[  # NOMEIE EXPLICITAMENTE O PARÂMETRO
-            ft.AppBar(
-                title=ft.Text("Gerador de Etiquetas"),
-                center_title=True,
-                bgcolor="blue"
-            ),
-            ft.Column(
-                controls=[  # NOMEIE EXPLICITAMENTE AQUI TAMBÉM
-                    ft.Icon("qr_code", size=60, color="blue"),
-                    ft.Text("Emissão de Etiquetas", size=20, weight="bold"),
-                    txt_unidade,
-                    ft.Row(
-                        controls=[
-                            ft.ElevatedButton(
-                                "ÁGUA", icon="water_drop", on_click=lambda _: disparar_geracao("AGUA")),
-                            ft.ElevatedButton(
-                                "GÁS", icon="local_fire_department", on_click=lambda _: disparar_geracao("GAS"))
-                        ],
-                        alignment="center"
-                    ),
-                    ft.ElevatedButton("GERAR AMBOS", icon="all_inbox", width=250,
-                                      on_click=lambda _: disparar_geracao("AMBOS")),
-                    ft.TextButton("Voltar ao Menu", icon="arrow_back",
-                                  on_click=lambda _: page.go("/menu"))
-                ],
-                horizontal_alignment="center",
-                spacing=15
-            )
+        controls=[
+            ft.Column([
+                ft.Icon(ft.icons.QR_CODE_2, size=100, color="blue"),
+                ft.Text("Emissão de QR Codes", size=25, weight="bold"),
+                txt_unidade,
+                ft.Row([
+                    ft.ElevatedButton("ÁGUA", on_click=lambda _: disparar_geracao("AGUA")),
+                    ft.ElevatedButton("GÁS", on_click=lambda _: disparar_geracao("GAS")),
+                ], alignment="center"),
+                ft.ElevatedButton(
+                    "GERAR COMPLETO", 
+                    width=300, 
+                    bgcolor="green", 
+                    color="white",
+                    on_click=lambda _: disparar_geracao("AMBOS")
+                )
+            ], horizontal_alignment="center", spacing=20)
         ]
     )
