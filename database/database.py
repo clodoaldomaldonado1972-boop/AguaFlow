@@ -8,18 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Database:
-    # AJUSTE 1: Caminho absoluto para evitar erro de "AttributeError" ou "File Not Found"
-    # Isso garante que o SQLite sempre saiba onde criar o arquivo, independente de onde o app é iniciado.
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "aguaflow.db")
     
     @classmethod
     @contextmanager
     def get_db(cls):
-        """Gerencia a conexão SQLite de forma segura (Context Manager)."""
-        # Garante que a pasta 'database' exista no computador
+        """Gerencia a conexão SQLite de forma segura."""
         os.makedirs(os.path.dirname(cls.DB_PATH), exist_ok=True)
-        
         conn = sqlite3.connect(cls.DB_PATH, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         try:
@@ -29,10 +25,10 @@ class Database:
 
     @classmethod
     def init_db(cls):
-        """Inicializa as tabelas e garante as colunas necessárias para o Dashboard."""
+        """Inicializa as tabelas necessárias para o ÁguaFlow."""
         with cls.get_db() as conn:
             cursor = conn.cursor()
-            # Tabela de leituras sincronizada com 'leitura_agua' e 'leitura_gas'
+            # Tabela de leituras (histórico)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS leituras (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,13 +38,18 @@ class Database:
                     data_leitura TEXT
                 )
             """)
-            # Tabela de unidades estáticas
+            # Tabela de unidades (referência)
             cursor.execute("CREATE TABLE IF NOT EXISTS unidades (id TEXT PRIMARY KEY)")
             conn.commit()
 
+    @classmethod
+    def get_unidades(cls):
+        """Retorna a lista completa para o Gerador com a chave 'id' inclusa."""
+        return cls._gerar_lista_unidades()
+
     @staticmethod
     def registrar_leitura(unidade, valor_agua, valor_gas=None):
-        """Salva a medição no banco. Note que os nomes batem com os selects do Dashboard."""
+        """Salva a medição no banco."""
         try:
             with Database.get_db() as conn:
                 cursor = conn.cursor()
@@ -64,55 +65,69 @@ class Database:
 
     @classmethod
     def buscar_ultima_unidade_lida(cls):
-        """Busca a última unidade para o fluxo automático (166 -> 165)."""
+        """Busca a última unidade lida incluindo o campo id."""
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT unidade FROM leituras ORDER BY id DESC LIMIT 1")
+                cursor.execute("SELECT id, unidade FROM leituras ORDER BY id DESC LIMIT 1")
                 res = cursor.fetchone()
-                return res['unidade'] if res else None
+                return dict(res) if res else None
         except Exception:
-            return None # Proteção caso a tabela ainda não exista
+            return None
 
     @classmethod
     def buscar_todas_leituras(cls):
-        """Alimenta o Dashboard. Usa os nomes de campos que o exportador e views esperam."""
+        """Alimenta o Dashboard."""
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT unidade, leitura_agua, leitura_gas, data_leitura 
-                    FROM leituras 
-                    ORDER BY id DESC
-                """)
+                cursor.execute("SELECT id, unidade, leitura_agua, leitura_gas, data_leitura FROM leituras ORDER BY id DESC")
                 return [dict(row) for row in cursor.fetchall()]
-        except Exception as e:
-            print(f"Erro no Banco (Dashboard): {e}")
-            return []
-
-    @classmethod
-    def buscar_relatorio_geral(cls):
-        """Busca a leitura mais recente de cada unidade para o Relatório PDF/CSV."""
-        try:
-            with cls.get_db() as conn:
-                cursor = conn.cursor()
-                # GROUP BY garante que só pegamos a última leitura de cada apartamento
-                cursor.execute("""
-                    SELECT unidade, leitura_agua, leitura_gas, data_leitura 
-                    FROM leituras 
-                    GROUP BY unidade 
-                    ORDER BY unidade ASC
-                """)
-                return [dict(row) for row in cursor.fetchall()]
-        except Exception as e:
-            print(f"Erro no Banco (Relatório): {e}")
+        except Exception:
             return []
 
     @staticmethod
     def _gerar_lista_unidades():
-        """Gera a lista estática de unidades (Andares 16 ao 1, Apto 1 ao 6)."""
+        """
+        Gera a lista para o Vivere Prudente:
+        - Cada apto gera dois registros (Água e Gás) com IDs únicos.
+        """
         lista = []
+        condominio = "Vivere Prudente"
+        
+        # Unidades dos Apartamentos (96 aptos x 2 medidores cada = 192 QR Codes)
         for andar in range(16, 0, -1):
             for apto in range(1, 7):
-                lista.append(f"Apto {andar}{apto}")
+                numero_unidade = f"{andar}{apto}"
+                
+                # Item Água: O ID é essencial para o Gerador não travar
+                lista.append({
+                    "id": f"{numero_unidade}_agua",
+                    "unidade": numero_unidade,
+                    "tipo": "Água",
+                    "condominio": condominio
+                })
+                
+                # Item Gás
+                lista.append({
+                    "id": f"{numero_unidade}_gas",
+                    "unidade": numero_unidade,
+                    "tipo": "Gás",
+                    "condominio": condominio
+                })
+        
+        # Unidades Especiais com seus IDs únicos
+        lista.append({
+            "id": "GERAL_AGUA",
+            "unidade": "GERAL",
+            "tipo": "Água",
+            "condominio": condominio
+        })
+        lista.append({
+            "id": "LAZER_GAS",
+            "unidade": "LAZER",
+            "tipo": "Gás",
+            "condominio": condominio
+        })
+        
         return lista
