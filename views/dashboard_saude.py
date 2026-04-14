@@ -6,11 +6,11 @@ from utils.alertas_engine import enviar_alerta_whatsapp
 
 def montar_tela_saude(page: ft.Page, voltar):
     # --- COMPONENTES DE STATUS (REATIVOS) ---
-    icon_db = ft.Icon(ft.Icons.STORAGE_ROUNDED, color="grey", size=30)
+    icon_db = ft.Icon(ft.icons.STORAGE_ROUNDED, color="grey", size=30)
     lbl_db_status = ft.Text("Aguardando...", color="grey", size=16, weight="bold")
     lbl_db_detalhe = ft.Text("Verificando banco local", size=12, color="white54")
 
-    icon_net = ft.Icon(ft.Icons.WIFI_ROUNDED, color="grey", size=30)
+    icon_net = ft.Icon(ft.icons.WIFI_ROUNDED, color="grey", size=30)
     lbl_net_status = ft.Text("Aguardando...", color="grey", size=16, weight="bold")
     lbl_net_detalhe = ft.Text("Verificando conexão", size=12, color="white54")
 
@@ -76,7 +76,7 @@ def montar_tela_saude(page: ft.Page, voltar):
         route="/dashboard_saude",
         appbar=ft.AppBar(
             title=ft.Text("Saúde do Sistema"),
-            leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=voltar),
+            leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar),
             bgcolor="black26"
         ),
         controls=[
@@ -94,14 +94,14 @@ def montar_tela_saude(page: ft.Page, voltar):
                 # --- BOTÕES DE AÇÃO ---
                 ft.ElevatedButton(
                     "REESCANEAR SISTEMA",
-                    icon=ft.Icons.REFRESH_ROUNDED,
+                    icon=ft.icons.REFRESH_ROUNDED,
                     on_click=executar_diagnostico,
                     width=400, height=50,
                     style=ft.ButtonStyle(bgcolor="blue", color="white")
                 ),
                 ft.TextButton(
                     "Relatar erro ao suporte técnico (WhatsApp)",
-                    icon=ft.Icons.SUPPORT_AGENT,
+                    icon=ft.icons.SUPPORT_AGENT,
                     on_click=reportar_erro_suporte
                 )
             ], spacing=15, padding=20)

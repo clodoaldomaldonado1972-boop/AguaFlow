@@ -42,7 +42,7 @@ def montar_tela_configs(page: ft.Page, voltar):
 
     # Componentes de Interface (UI)
     txt_email_notif = ft.TextField(label="E-mail para Alertas", value=user_email_logado, expand=True)
-    status_icon = ft.Icon(ft.Icons.DASHBOARD_RENAME_KEYBOARD, color="grey")
+    status_icon = ft.Icon(ft.icons.DASHBOARD_RENAME_KEYBOARD, color="grey")
     status_text = ft.Text("Sistema não testado", color="grey")
     btn_teste = ft.ElevatedButton("TESTAR CONEXÃO", on_click=realizar_teste_sistema)
 
@@ -50,16 +50,16 @@ def montar_tela_configs(page: ft.Page, voltar):
         route="/configuracoes",
         appbar=ft.AppBar(
             title=ft.Text("Configurações"),
-            leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=voltar) # Rota de volta ao Menu
+            leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar) # Rota de volta ao Menu
         ),
         controls=[
             ft.Column([
                 ft.Text("CONTA E PERFIL", size=16, weight="bold"),
-                ft.ListTile(leading=ft.Icon(ft.Icons.PERSON), title=ft.Text("Usuário"), subtitle=ft.Text(user_email_logado)),
+                ft.ListTile(leading=ft.Icon(ft.icons.PERSON), title=ft.Text("Usuário"), subtitle=ft.Text(user_email_logado)),
                 
                 ft.Divider(),
                 ft.Text("ALERTAS POR E-MAIL", size=16, weight="bold"),
-                ft.Row([txt_email_notif, ft.IconButton(ft.Icons.SAVE, on_click=salvar_email_notificacao)]),
+                ft.Row([txt_email_notif, ft.IconButton(ft.icons.SAVE, on_click=salvar_email_notificacao)]),
                 
                 ft.Divider(),
                 ft.Text("CONFIGURAÇÕES TÉCNICAS", size=16, weight="bold"),

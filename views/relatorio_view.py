@@ -51,7 +51,7 @@ def montar_tela_relatorio(page: ft.Page, voltar):
         route="/relatorios",
         appbar=ft.AppBar(
             title=ft.Text("Relatórios de Consumo"),
-            leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=voltar) # Volta ao menu principal
+            leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar) # Volta ao menu principal
         ),
         controls=[
             ft.Column([
@@ -68,14 +68,14 @@ def montar_tela_relatorio(page: ft.Page, voltar):
                 
                 ft.ElevatedButton(
                     "GERAR RELATÓRIO PDF (LOCAL)", 
-                    icon=ft.Icons.PICTURE_AS_PDF, 
+                    icon=ft.icons.PICTURE_AS_PDF, 
                     on_click=clicar_gerar_pdf,
                     width=400, height=50
                 ),
                 
                 ft.ElevatedButton(
                     "FINALIZAR MÊS E ENVIAR AO ESCRITÓRIO", 
-                    icon=ft.Icons.EMAIL_OUTLINED, 
+                    icon=ft.icons.EMAIL_OUTLINED, 
                     on_click=acao_finalizar_mes,
                     width=400, height=50,
                     style=ft.ButtonStyle(bgcolor="blue", color="white")

@@ -1,60 +1,53 @@
 import cv2
 import pytesseract
 import numpy as np
+import os
 
-# Se necessário no Windows, descomente e aponte o caminho do executável:
+# Configuração do caminho do Tesseract (Ajuste se necessário)
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-
-def processar_foto_hidrometro(caminho_foto):
-    # 1. Carregar a imagem
+def processar_foto_hidrometro(caminho_foto, tipo_leitura="AGUA"):
+    """
+    Processa a imagem para extrair QR Code e leitura numérica.
+    tipo_leitura: "AGUA" ou "GAS"
+    """
     img = cv2.imread(caminho_foto)
     if img is None:
         return None, None
 
-    # Redimensionar para facilitar o processamento (Padrão HD)
+    # 1. Redimensionamento Padrão (HD)
     largura_alvo = 1280
     fator = largura_alvo / img.shape[1]
     img = cv2.resize(img, (largura_alvo, int(img.shape[0] * fator)))
 
-    # --- ETAPA A: QR CODE (Multicamadas) ---
+    # --- ETAPA A: QR CODE ---
     detector = cv2.QRCodeDetector()
     dados_qr, _, _ = detector.detectAndDecode(img)
 
-    if not dados_qr:
-        # Aumenta contraste e converte para cinza para tentar o QR novamente
-        img_contraste = cv2.convertScaleAbs(img, alpha=1.5, beta=10)
-        dados_qr, _, _ = detector.detectAndDecode(img_contraste)
-
-    # --- ETAPA B: OCR (Pré-processamento Avançado) ---
+    # --- ETAPA B: OCR (Pré-processamento) ---
     cinza = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    if tipo_leitura == "GAS":
+        # Filtro para medidores de gás (geralmente fundo escuro ou reflexos metálicos)
+        final_img = cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    else:
+        # Filtro para medidores de água (Geralmente plástico e luz direta)
+        blur = cv2.medianBlur(cinza, 3)
+        final_img = cv2.adaptiveThreshold(
+            blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV, 11, 2
+        )
 
-    # Blur para reduzir ruído digital (ISO alto do celular no escuro)
-    blur = cv2.medianBlur(cinza, 3)
-
-    # Threshold Adaptativo: Crucial para lidar com a lanterna do celular refletindo no vidro
-    binaria = cv2.adaptiveThreshold(
-        blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV, 11, 2
-    )
-
-    # Operação Morfológica (Dilação): Conecta partes separadas dos números
+    # Dilação para melhorar a leitura de números digitais/segmentados
     kernel = np.ones((2, 2), np.uint8)
-    binaria = cv2.dilate(binaria, kernel, iterations=1)
+    final_img = cv2.dilate(final_img, kernel, iterations=1)
 
-    # Configuração Tesseract:
-    # PSM 7: Trata a imagem como uma única linha de texto.
-    # OEM 3: Modo de motor padrão (LSTM).
+    # Configuração: PSM 7 (Linha única) + Whitelist de números
     config_ocr = '--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789'
 
     try:
-        leitura_texto = pytesseract.image_to_string(binaria, config=config_ocr)
-        # Filtra apenas dígitos para evitar sujeira de caracteres especiais
-        valor_final = "".join(filter(str.isdigit, leitura_texto))
+        leitura_texto = pytesseract.image_to_string(final_img, config=config_ocr)
+        return dados_qr, leitura_texto.strip()
     except Exception as e:
-        print(f"❌ Erro OCR: {e}")
-        valor_final = ""
-
-    print(f"🔍 DEBUG AGUA FLOW - QR: {dados_qr} | Valor: {valor_final}")
-
-    return dados_qr if dados_qr else None, valor_final if valor_final else None
+        print(f"Erro OCR: {e}")
+        return dados_qr, None

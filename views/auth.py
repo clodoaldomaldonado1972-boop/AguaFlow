@@ -1,25 +1,37 @@
 import flet as ft
 import asyncio
-# --- IMPORT DOS ESTILOS UNIFICADOS ---
-from views import styles as st
+import os
+from supabase import create_client, Client
+from dotenv import load_dotenv
+# Importação do estilo que está na mesma pasta
+import views.styles as st 
 
+# 1. CARREGAMENTO DAS VARIÁVEIS (Subindo uma pasta para achar o .env.txt na raiz)
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env.txt")
+load_dotenv(env_path)
+
+# 2. INICIALIZAÇÃO DO CLIENTE SUPABASE
+url: str = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+key: str = os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
+supabase: Client = create_client(url, key)
 
 def criar_tela_login(page: ft.Page):
-    # Campos de entrada usando os estilos padronizados
-    txt_user = st.campo_estilo("Usuário", ft.Icons.PERSON)
-    txt_pass = st.campo_estilo("Senha", ft.Icons.LOCK, password=True)
+    # Credenciais Administrativas do .env.txt
+    USUARIO_CORRETO = os.getenv("EMAIL_USER")
+    SENHA_CORRETA = os.getenv("EMAIL_PASS")
+
+    # Campos de entrada
+    txt_user = st.campo_estilo("E-mail", ft.icons.PERSON)
+    txt_pass = st.campo_estilo("Senha", ft.icons.LOCK, password=True)
     lbl_erro = ft.Text("", color=st.ERROR_COLOR, size=14)
 
     async def realizar_login(e):
-        print("DEBUG: Tentativa de login iniciada")
-
-        # Simulação de autenticação (Pode ser conectada ao Database futuramente)
-        if txt_user.value == "admin" and txt_pass.value == "123":
-            # 1. Define as credenciais na sessão da página
-            page.user_email = "operador@aguaflow.com"
+        print("DEBUG: Iniciando validação de acesso...")
+        
+        if txt_user.value == USUARIO_CORRETO and txt_pass.value == SENHA_CORRETA:
+            page.user_email = USUARIO_CORRETO
             page.logado = True
-
-            # 2. Muda a rota e navega
+            # Navega para o menu após sucesso
             page.go("/menu")
         else:
             lbl_erro.value = "Usuário ou senha incorretos!"
@@ -34,12 +46,12 @@ def criar_tela_login(page: ft.Page):
         controls=[
             ft.Container(
                 content=ft.Column([
-                    # Logotipo (Agora buscando da pasta assets da raiz)
+                    # Logotipo
                     ft.Image(
                         src="assets/logo.jpeg",
-                        width=150,
-                        height=150,
-                        border_radius=75
+                        width=120,
+                        height=120,
+                        border_radius=60
                     ),
                     ft.Text("AguaFlow", style=st.TEXT_TITLE),
                     ft.Text("Vivere Prudente", style=st.TEXT_SUB),
@@ -62,7 +74,9 @@ def criar_tela_login(page: ft.Page):
 
                     ft.TextButton(
                         "Esqueci minha senha",
-                        style=ft.ButtonStyle(color=st.GREY)
+                        style=ft.ButtonStyle(color=st.GREY),
+                        # Ação que faltava: leva para a tela de recuperação por e-mail
+                        on_click=lambda _: page.go("/recuperar-email")
                     )
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 padding=20,
