@@ -8,7 +8,7 @@ def montar_tela_ajuda(page, voltar):
         appbar=ft.AppBar(
             title=ft.Text("Central de Ajuda"),
             bgcolor="#1e1e1e",
-            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=voltar)
+            leading=ft.IconButton(icon=ft.icons.ARROW_BACK, on_click=voltar)
         ),
         controls=[
             ft.Container(
@@ -21,7 +21,7 @@ def montar_tela_ajuda(page, voltar):
                     # Seção 1
                     ft.ExpansionTile(
                         title=ft.Text("Como realizar uma medição?"),
-                        leading=ft.Icon(ft.Icons.CAMERA_ALT, color="green"),
+                        leading=ft.Icon(ft.icons.CAMERA_ALT, color="green"),
                         controls=[
                             ft.ListTile(title=ft.Text(
                                 "1. Clique em 'Realizar Leituras' no menu.")),
@@ -35,7 +35,7 @@ def montar_tela_ajuda(page, voltar):
                     # Seção 2
                     ft.ExpansionTile(
                         title=ft.Text("Problemas com o Scanner (OCR)?"),
-                        leading=ft.Icon(ft.Icons.BUG_REPORT, color="orange"),
+                        leading=ft.Icon(ft.icons.BUG_REPORT, color="orange"),
                         controls=[
                             ft.ListTile(title=ft.Text(
                                 "• Limpe o visor do hidrômetro.")),
@@ -49,7 +49,7 @@ def montar_tela_ajuda(page, voltar):
                     # Seção 3
                     ft.ExpansionTile(
                         title=ft.Text("Sincronização de Dados"),
-                        leading=ft.Icon(ft.Icons.SYNC, color="blue"),
+                        leading=ft.Icon(ft.icons.SYNC, color="blue"),
                         controls=[
                             ft.ListTile(title=ft.Text(
                                 "Os dados são salvos localmente e podem ser enviados para a nuvem na aba 'Relatórios'.")),
@@ -59,7 +59,7 @@ def montar_tela_ajuda(page, voltar):
                     ft.Divider(height=40),
                     ft.ElevatedButton(
                         "VOLTAR",
-                        icon=ft.Icons.CHECK,
+                        icon=ft.icons.CHECK,
                         on_click=voltar,
                         width=400
                     )

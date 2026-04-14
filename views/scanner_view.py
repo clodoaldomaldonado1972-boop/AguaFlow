@@ -15,14 +15,14 @@ def montar_tela_scanner(page: ft.Page):
         label="Unidade (Identificada via QR)",
         read_only=True,
         border_color=st.PRIMARY_BLUE,
-        prefix_icon=ft.Icons.APARTMENT,
+        prefix_icon=ft.icons.APARTMENT,
         border_radius=10
     )
 
     txt_valor = ft.TextField(
         label="Leitura Atual (m³)",
         keyboard_type=ft.KeyboardType.NUMBER,
-        prefix_icon=ft.Icons.SPEED,
+        prefix_icon=ft.icons.SPEED,
         border_color=st.PRIMARY_BLUE,
         border_radius=10
     )
@@ -70,7 +70,7 @@ def montar_tela_scanner(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("Scanner AguaFlow"),
             bgcolor="#1e1e1e",
-            leading=ft.IconButton(ft.Icons.ARROW_BACK,
+            leading=ft.IconButton(ft.icons.ARROW_BACK,
                                   on_click=lambda _: page.go("/menu"))
         ),
         controls=[
@@ -91,7 +91,7 @@ def montar_tela_scanner(page: ft.Page):
                     # Botão Flutuante de Escaneamento[cite: 18]
                     ft.ElevatedButton(
                         "ESCANEAR HIDRÔMETRO",
-                        icon=ft.Icons.CAMERA_ALT,
+                        icon=ft.icons.CAMERA_ALT,
                         on_click=lambda _: scanner_engine.iniciar_scan(),
                         style=st.BTN_SPECIAL,  # Laranja para destaque[cite: 9]
                         width=320,
@@ -100,7 +100,7 @@ def montar_tela_scanner(page: ft.Page):
 
                     ft.ElevatedButton(
                         "SALVAR MANUALMENTE",
-                        icon=ft.Icons.SAVE,
+                        icon=ft.icons.SAVE,
                         on_click=salvar_leitura,
                         style=st.BTN_MAIN,  # Azul padrão[cite: 9]
                         width=320,

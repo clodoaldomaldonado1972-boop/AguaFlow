@@ -68,7 +68,7 @@ def montar_tela_dashboard(page: ft.Page, voltar):
 
             # Botão de WhatsApp para consumo alto
             btn_alerta = ft.IconButton(
-                icon=ft.Icons.WHATSAPP,
+                icon=ft.icons.WHATSAPP,
                 icon_color="green",
                 tooltip="Alertar Suspeita de Vazamento",
                 on_click=lambda e, u=unidade, v=valor_c: enviar_alerta_whatsapp(
@@ -78,7 +78,7 @@ def montar_tela_dashboard(page: ft.Page, voltar):
 
             lista_unidades.controls.append(
                 ft.ListTile(
-                    leading=ft.Icon(ft.Icons.WATER_DROP, color="green" if valor_c <= 15 else "red"),
+                    leading=ft.Icon(ft.icons.WATER_DROP, color="green" if valor_c <= 15 else "red"),
                     title=ft.Text(unidade, weight="bold"),
                     subtitle=ft.Text(f"Lido: {valor_c} m³ em {data_leitura}"),
                     trailing=btn_alerta,
@@ -89,10 +89,10 @@ def montar_tela_dashboard(page: ft.Page, voltar):
             # Unidade pendente - pronta para receber leitura
             lista_unidades.controls.append(
                 ft.ListTile(
-                    leading=ft.Icon(ft.Icons.WATER_DROP_OUTLINED, color="grey"),
+                    leading=ft.Icon(ft.icons.WATER_DROP_OUTLINED, color="grey"),
                     title=ft.Text(unidade, italic=True),
                     subtitle=ft.Text("Aguardando leitura", size=12, color="grey"),
-                    trailing=ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, color="amber", tooltip="Pronta para leitura")
+                    trailing=ft.Icon(ft.icons.ADD_CIRCLE_OUTLINE, color="amber", tooltip="Pronta para leitura")
                 )
             )
 
@@ -101,7 +101,7 @@ def montar_tela_dashboard(page: ft.Page, voltar):
         route="/dashboard",
         appbar=ft.AppBar(
             title=ft.Text("Dashboard de Consumo"),
-            leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=voltar),
+            leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar),
             bgcolor=ft.colors.SURFACE_VARIANT
         ),
         controls=[

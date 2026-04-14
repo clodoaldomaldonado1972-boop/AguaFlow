@@ -9,6 +9,8 @@ WHITE = "white"
 BG_DARK = BG_COLOR
 PRIMARY_BLUE = PRIMARY_COLOR
 ACCENT_ORANGE = "#FF9800"
+# Adicione isso dentro do views/styles.py
+MAIN_COLOR = "blue"  # ou a cor que você preferir (ex: "#2196F3")
 
 # --- ESTILOS DE TEXTO ---
 TEXT_TITLE = ft.TextStyle(
@@ -29,7 +31,7 @@ STYLE_PAGE_CONTAINER = {
 # --- COMPONENTES PADRONIZADOS ---
 
 
-def campo_estilo(label, icon_name, password=False, on_submit=None):
+def campo_estilo(label, icon_name, password=False, on_submit=None, keyboard_type=None, read_only=False):
     return ft.TextField(
         label=label,
         prefix_icon=icon_name,
@@ -44,7 +46,10 @@ def campo_estilo(label, icon_name, password=False, on_submit=None):
         border_radius=12,
         text_style=ft.TextStyle(color=WHITE),
         label_style=ft.TextStyle(color=GREY),
-        cursor_color=PRIMARY_BLUE
+        cursor_color=PRIMARY_BLUE,
+        # --- NOVOS CAMPOS ADICIONADOS ---
+        read_only=read_only,
+        keyboard_type=keyboard_type if keyboard_type else ft.KeyboardType.TEXT
     )
 
 
