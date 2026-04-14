@@ -27,27 +27,42 @@ def montar_tela_qrcodes(page: ft.Page, voltar):
         page.snack_bar = ft.SnackBar(ft.Text(f"Gerando etiquetas de {tipo}..."), bgcolor="blue", open=True)
         page.update()
 
-        unid = txt_unidade.value.strip() if txt_unidade.value else None
-        
-        # Chama o motor e recebe o caminho
-        caminho_pdf = gerar_qr_codes(filtro_tipo=tipo, unidade_alvo=unid)
+        try:
+            unid = txt_unidade.value.strip() if txt_unidade.value else None
+            
+            # Chama o motor e recebe o caminho
+            # O motor agora usará o Database.get_unidades() que já ajustamos
+            caminho_pdf = gerar_qr_codes(filtro_tipo=tipo, unidade_alvo=unid)
 
-        if caminho_pdf:
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"Sucesso! Salvo em: {caminho_pdf}"), 
-                bgcolor="#2E7D32", 
-                open=True
-            )
-            # Tenta abrir a pasta automaticamente no Windows
+            if caminho_pdf:
+                page.snack_bar = ft.SnackBar(
+                    ft.Text(f"Sucesso! Salvo em: {caminho_pdf}"), 
+                    bgcolor="#2E7D32", 
+                    open=True
+                )
+                # Tenta abrir a pasta automaticamente no Windows
+                try:
+                    os.startfile(os.path.dirname(os.path.abspath(caminho_pdf)))
+                except:
+                    pass
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("Erro ao gerar PDF."), bgcolor="red", open=True)
+        
+        except RuntimeError as e:
+            # Proteção contra o erro de 'Event loop is closed'
+            if "Event loop is closed" in str(e):
+                print("Geração interrompida pelo fechamento da janela.")
+                return
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Erro inesperado: {e}"), bgcolor="red", open=True)
+        
+        finally:
+            # Garante que o campo seja reabilitado se a página ainda existir
             try:
-                os.startfile(os.path.dirname(os.path.abspath(caminho_pdf)))
+                txt_unidade.disabled = False
+                page.update()
             except:
                 pass
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("Erro ao gerar PDF."), bgcolor="red", open=True)
-        
-        txt_unidade.disabled = False
-        page.update()
 
     return ft.View(
         route="/qrcodes",
@@ -64,8 +79,8 @@ def montar_tela_qrcodes(page: ft.Page, voltar):
                 ft.Text("Emissão de QR Codes", size=25, weight="bold"),
                 txt_unidade,
                 ft.Row([
-                    ft.ElevatedButton("ÁGUA", on_click=lambda _: disparar_geracao("AGUA")),
-                    ft.ElevatedButton("GÁS", on_click=lambda _: disparar_geracao("GAS")),
+                    ft.ElevatedButton("ÁGUA", on_click=lambda _: disparar_geracao("Água")), # Ajustado para bater com o banco
+                    ft.ElevatedButton("GÁS", on_click=lambda _: disparar_geracao("Gás")),   # Ajustado para bater com o banco
                 ], alignment="center"),
                 ft.ElevatedButton(
                     "GERAR COMPLETO", 
