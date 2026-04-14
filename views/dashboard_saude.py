@@ -2,7 +2,7 @@ import flet as ft
 import asyncio
 import datetime
 from utils.diagnostico import DiagnosticoSistema
-from utils.alertas_engine import enviar_alerta_whatsapp 
+from utils.alertas_engine import enviar_alerta_MESSAGE
 
 def montar_tela_saude(page: ft.Page, voltar):
     # --- COMPONENTES DE STATUS (REATIVOS) ---
