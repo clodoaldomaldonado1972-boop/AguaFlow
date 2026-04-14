@@ -8,13 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Database:
+    # Define o caminho para o banco de dados no diretório atual
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "aguaflow.db")
     
     @classmethod
     @contextmanager
     def get_db(cls):
-        """Gerencia a conexão SQLite de forma segura."""
+        """Gerencia a conexão SQLite de forma segura (Context Manager)."""
         os.makedirs(os.path.dirname(cls.DB_PATH), exist_ok=True)
         conn = sqlite3.connect(cls.DB_PATH, check_same_thread=False)
         conn.row_factory = sqlite3.Row
@@ -25,10 +26,9 @@ class Database:
 
     @classmethod
     def init_db(cls):
-        """Inicializa as tabelas necessárias para o ÁguaFlow."""
+        """Inicializa as tabelas do Dashboard."""
         with cls.get_db() as conn:
             cursor = conn.cursor()
-            # Tabela de leituras (histórico)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS leituras (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,13 +38,12 @@ class Database:
                     data_leitura TEXT
                 )
             """)
-            # Tabela de unidades (referência)
             cursor.execute("CREATE TABLE IF NOT EXISTS unidades (id TEXT PRIMARY KEY)")
             conn.commit()
 
     @classmethod
     def get_unidades(cls):
-        """Retorna a lista completa para o Gerador com a chave 'id' inclusa."""
+        """Retorna a lista higienizada para o Gerador."""
         return cls._gerar_lista_unidades()
 
     @staticmethod
@@ -65,13 +64,13 @@ class Database:
 
     @classmethod
     def buscar_ultima_unidade_lida(cls):
-        """Busca a última unidade lida incluindo o campo id."""
+        """Busca a última unidade para o fluxo automático."""
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, unidade FROM leituras ORDER BY id DESC LIMIT 1")
+                cursor.execute("SELECT unidade FROM leituras ORDER BY id DESC LIMIT 1")
                 res = cursor.fetchone()
-                return dict(res) if res else None
+                return res['unidade'] if res else None
         except Exception:
             return None
 
@@ -81,53 +80,42 @@ class Database:
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, unidade, leitura_agua, leitura_gas, data_leitura FROM leituras ORDER BY id DESC")
-                return [dict(row) for row in cursor.fetchall()]
+                cursor.execute("SELECT unidade, leitura_agua, leitura_gas, data_leitura FROM leituras ORDER BY id DESC")
+                return [dict(row) for row in conn.cursor().fetchall()]
         except Exception:
             return []
 
     @staticmethod
     def _gerar_lista_unidades():
         """
-        Gera a lista para o Vivere Prudente:
-        - Cada apto gera dois registros (Água e Gás) com IDs únicos.
+        Gera a lista otimizada para o Vivere Prudente:
+        - Removemos o 'UNID' e 'Apto' para deixar apenas o número.
+        - Ajustado para evitar nomes duplicados como 'Agua Agua'.
         """
         lista = []
         condominio = "Vivere Prudente"
         
-        # Unidades dos Apartamentos (96 aptos x 2 medidores cada = 192 QR Codes)
+        # Unidades dos Apartamentos (96 aptos)
         for andar in range(16, 0, -1):
             for apto in range(1, 7):
-                numero_unidade = f"{andar}{apto}"
-                
-                # Item Água: O ID é essencial para o Gerador não travar
+                numero = f"{andar}{apto}"
+                # Entrada para Água
                 lista.append({
-                    "id": f"{numero_unidade}_agua",
-                    "unidade": numero_unidade,
+                    "id": f"{numero}_A",
+                    "unidade": numero,
                     "tipo": "Água",
                     "condominio": condominio
                 })
-                
-                # Item Gás
+                # Entrada para Gás
                 lista.append({
-                    "id": f"{numero_unidade}_gas",
-                    "unidade": numero_unidade,
+                    "id": f"{numero}_G",
+                    "unidade": numero,
                     "tipo": "Gás",
                     "condominio": condominio
                 })
         
-        # Unidades Especiais com seus IDs únicos
-        lista.append({
-            "id": "GERAL_AGUA",
-            "unidade": "GERAL",
-            "tipo": "Água",
-            "condominio": condominio
-        })
-        lista.append({
-            "id": "LAZER_GAS",
-            "unidade": "LAZER",
-            "tipo": "Gás",
-            "condominio": condominio
-        })
+        # Unidades Especiais (conforme imagem)
+        lista.append({"id": "GERAL_A", "unidade": "GERAL", "tipo": "Água", "condominio": condominio})
+        lista.append({"id": "LAZER_G", "unidade": "LAZER", "tipo": "Gás", "condominio": condominio})
         
         return lista
