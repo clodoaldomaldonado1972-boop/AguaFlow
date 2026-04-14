@@ -1,7 +1,7 @@
 import flet as ft
 import os
 
-# Importação robusta do motor
+# Importação robusta do motor de QR Codes
 try:
     from utils.gerador_qr import gerar_qr_codes
 except ImportError:
@@ -22,7 +22,6 @@ def montar_tela_qrcodes(page: ft.Page, voltar):
             page.update()
             return
 
-        # Feedback de início
         txt_unidade.disabled = True
         page.snack_bar = ft.SnackBar(ft.Text(f"Gerando etiquetas de {tipo}..."), bgcolor="blue", open=True)
         page.update()
@@ -30,8 +29,7 @@ def montar_tela_qrcodes(page: ft.Page, voltar):
         try:
             unid = txt_unidade.value.strip() if txt_unidade.value else None
             
-            # Chama o motor e recebe o caminho
-            # O motor agora usará o Database.get_unidades() que já ajustamos
+            # O motor deve estar configurado para 40mm x 40mm no arquivo utils/gerador_qr.py
             caminho_pdf = gerar_qr_codes(filtro_tipo=tipo, unidade_alvo=unid)
 
             if caminho_pdf:
@@ -40,24 +38,19 @@ def montar_tela_qrcodes(page: ft.Page, voltar):
                     bgcolor="#2E7D32", 
                     open=True
                 )
-                # Tenta abrir a pasta automaticamente no Windows
+                # Tenta abrir o PDF automaticamente no Windows
                 try:
-                    os.startfile(os.path.dirname(os.path.abspath(caminho_pdf)))
+                    os.startfile(caminho_pdf)
                 except:
                     pass
             else:
                 page.snack_bar = ft.SnackBar(ft.Text("Erro ao gerar PDF."), bgcolor="red", open=True)
         
         except RuntimeError as e:
-            # Proteção contra o erro de 'Event loop is closed'
             if "Event loop is closed" in str(e):
-                print("Geração interrompida pelo fechamento da janela.")
-                return
-            else:
-                page.snack_bar = ft.SnackBar(ft.Text(f"Erro inesperado: {e}"), bgcolor="red", open=True)
+                return # Proteção contra fechamento da janela
         
         finally:
-            # Garante que o campo seja reabilitado se a página ainda existir
             try:
                 txt_unidade.disabled = False
                 page.update()
@@ -67,7 +60,7 @@ def montar_tela_qrcodes(page: ft.Page, voltar):
     return ft.View(
         route="/qrcodes",
         appbar=ft.AppBar(
-            title=ft.Text("Gerador de Etiquetas"),
+            title=ft.Text("Gerador de Etiquetas (4x4)"),
             leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar),
             bgcolor="blue"
         ),
@@ -76,11 +69,11 @@ def montar_tela_qrcodes(page: ft.Page, voltar):
         controls=[
             ft.Column([
                 ft.Icon(ft.icons.QR_CODE_2, size=100, color="blue"),
-                ft.Text("Emissão de QR Codes", size=25, weight="bold"),
+                ft.Text("Vivere Prudente", size=25, weight="bold"),
                 txt_unidade,
                 ft.Row([
-                    ft.ElevatedButton("ÁGUA", on_click=lambda _: disparar_geracao("Água")), # Ajustado para bater com o banco
-                    ft.ElevatedButton("GÁS", on_click=lambda _: disparar_geracao("Gás")),   # Ajustado para bater com o banco
+                    ft.ElevatedButton("ÁGUA", on_click=lambda _: disparar_geracao("Água")),
+                    ft.ElevatedButton("GÁS", on_click=lambda _: disparar_geracao("Gás")),
                 ], alignment="center"),
                 ft.ElevatedButton(
                     "GERAR COMPLETO", 
