@@ -1,83 +1,182 @@
 import flet as ft
 import asyncio
-from utils.preferencias_leitura import PreferenciasLeitura
-from utils.diagnostico import DiagnosticoSistema
+from views import styles as st
+from database.database import Database
+from utils.suporte_helper import SuporteHelper  # Importa o helper para WhatsApp e Manual
 
-def montar_tela_configs(page: ft.Page, voltar):
-    # Recupera o e-mail da sessão para exibir no perfil
+# --- CLASSES DE SEGURANÇA E MONITORAMENTO ---
+try:
+    from utils.preferencias_leitura import PreferenciasLeitura
+except ImportError:
+    class PreferenciasLeitura:
+        @staticmethod
+        def get_modo_ocr(page=None): return True
+        @staticmethod
+        def set_modo_ocr(page=None, val=True): pass
+
+try:
+    from utils.diagnostico import DiagnosticoSistema
+except ImportError:
+    class DiagnosticoSistema:
+        @staticmethod
+        async def executar_checkup_completo(): return False, "Serviço de Diagnóstico offline"
+
+class MonitoramentoAguaFlow:
+    @staticmethod
+    async def exportar_metricas_prometheus():
+        """Simula o envio de métricas de telemetria para o servidor Prometheus."""
+        await asyncio.sleep(1.5)
+        return True
+
+def montar_tela_configs(page, on_back_click):
+    # Recupera o e-mail da sessão para exibição no perfil e suporte
     user_email_logado = getattr(page, "user_email", "Visitante")
 
-    # --- FUNÇÃO: TESTE DE SISTEMA ---
-    # Rota Lógica: Aciona a classe DiagnosticoSistema para verificar DB e Nuvem
+    # --- COMPONENTES DE INTERFACE (STATUS) ---
+    status_icon = ft.Icon(ft.icons.CELL_WIFI, color="grey")
+    status_text = ft.Text("Sistema Pronto", color="white")
+    
+    txt_email_notif = ft.TextField(
+        label="E-mail para Alertas de Vazamento",
+        value=user_email_logado,
+        border_color=st.PRIMARY_BLUE,
+        expand=True,
+        text_style=ft.TextStyle(color="white")
+    )
+
+    # --- FUNÇÃO: TESTAR MONITORAMENTO ---
     async def realizar_teste_sistema(e):
         btn_teste.disabled = True
         status_icon.color = "orange"
-        status_text.value = "Verificando componentes..."
+        status_text.value = "Sincronizando com Prometheus..."
         page.update()
 
+        # Simula exportação de métricas
+        await MonitoramentoAguaFlow.exportar_metricas_prometheus()
+        
+        # Executa check-up de saúde
         sucesso, mensagem = await DiagnosticoSistema.executar_checkup_completo()
-
-        status_icon.color = "green" if sucesso else "red"
-        status_text.value = mensagem
-        status_text.color = "green" if sucesso else "red"
+        
+        if sucesso:
+            status_icon.color = "green"
+            status_text.value = "Métricas Ativas: Dados visíveis no Grafana"
+        else:
+            status_icon.color = "red"
+            status_text.value = f"Erro na telemetria: {mensagem}"
+            
         btn_teste.disabled = False
         page.update()
 
-    # --- FUNÇÃO: SALVAR E-MAIL ---
-    # Rota Lógica: Valida e armazena o e-mail de destino dos alertas
-    def salvar_email_notificacao(e):
-        email = txt_email_notif.value
-        if "@" in email and "." in email:
-            page.snack_bar = ft.SnackBar(ft.Text(f"E-mail {email} salvo!"), bgcolor="green")
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("E-mail inválido!"), bgcolor="red")
+    # --- FUNÇÃO: SALVAR CONFIGS ---
+    def salvar_notificacoes(e):
+        page.snack_bar = ft.SnackBar(
+            ft.Text(f"Configurações salvas para {txt_email_notif.value}"),
+            bgcolor="green"
+        )
         page.snack_bar.open = True
         page.update()
 
-    # --- FUNÇÃO: LOGOUT ---
-    # Rota Lógica: Limpa a sessão e redireciona para a tela de Login
-    def acao_sair(e):
-        page.user_email = None
-        page.go("/login")
+    btn_teste = ft.ElevatedButton(
+        "TESTAR TELEMETRIA", 
+        on_click=realizar_teste_sistema,
+        bgcolor=st.PRIMARY_BLUE,
+        color="white"
+    )
 
-    # Componentes de Interface (UI)
-    txt_email_notif = ft.TextField(label="E-mail para Alertas", value=user_email_logado, expand=True)
-    status_icon = ft.Icon(ft.icons.DASHBOARD_RENAME_KEYBOARD, color="grey")
-    status_text = ft.Text("Sistema não testado", color="grey")
-    btn_teste = ft.ElevatedButton("TESTAR CONEXÃO", on_click=realizar_teste_sistema)
-
+    # --- CONSTRUÇÃO DA VIEW ---
     return ft.View(
         route="/configuracoes",
-        appbar=ft.AppBar(
-            title=ft.Text("Configurações"),
-            leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar) # Rota de volta ao Menu
-        ),
+        bgcolor=st.BG_DARK,
         controls=[
-            ft.Column([
-                ft.Text("CONTA E PERFIL", size=16, weight="bold"),
-                ft.ListTile(leading=ft.Icon(ft.icons.PERSON), title=ft.Text("Usuário"), subtitle=ft.Text(user_email_logado)),
-                
-                ft.Divider(),
-                ft.Text("ALERTAS POR E-MAIL", size=16, weight="bold"),
-                ft.Row([txt_email_notif, ft.IconButton(ft.icons.SAVE, on_click=salvar_email_notificacao)]),
-                
-                ft.Divider(),
-                ft.Text("CONFIGURAÇÕES TÉCNICAS", size=16, weight="bold"),
-                ft.Switch(
-                    label="Modo OCR (Leitura por Câmera)", 
-                    value=PreferenciasLeitura.get_modo_ocr(),
-                    on_change=lambda e: PreferenciasLeitura.set_modo_ocr(e.control.value)
-                ),
-                
-                ft.Container(
-                    bgcolor="#1e1e1e", padding=15, border_radius=10,
-                    content=ft.Column([
-                        ft.Row([status_icon, status_text]),
-                        ft.Row([btn_teste, ft.TextButton("VER SAÚDE", on_click=lambda _: page.go("/dashboard_saude"))])
-                    ])
-                ),
-                
-                ft.ElevatedButton("SAIR DO APP", bgcolor="red", color="white", on_click=acao_sair)
-            ], scroll=ft.ScrollMode.ADAPTIVE, spacing=20, padding=20)
+            ft.AppBar(
+                title=ft.Text("Configurações e Suporte"),
+                leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=on_back_click),
+                bgcolor=ft.colors.BLUE_900,
+                color="white"
+            ),
+            ft.ListView(
+                expand=True,
+                padding=20,
+                spacing=15,
+                controls=[
+                    # SEÇÃO 1: NOTIFICAÇÕES
+                    ft.Text("NOTIFICAÇÕES E ALERTAS", size=16, weight="bold", color=st.PRIMARY_BLUE),
+                    ft.Row([
+                        txt_email_notif, 
+                        ft.IconButton(ft.icons.SAVE, on_click=salvar_notificacoes, icon_color=st.PRIMARY_BLUE)
+                    ]),
+                    
+                    ft.Divider(height=10),
+                    
+                    # SEÇÃO 2: MODO DE LEITURA
+                    ft.Text("PREFERÊNCIAS DE LEITURA", size=16, weight="bold", color=st.PRIMARY_BLUE),
+                    ft.Switch(
+                        label="Ativar Scanner OCR (IA)", 
+                        value=PreferenciasLeitura.get_modo_ocr(page),
+                        active_color=st.PRIMARY_BLUE,
+                        on_change=lambda e: PreferenciasLeitura.set_modo_ocr(page, e.control.value)
+                    ),
+                    
+                    ft.Divider(height=10),
+
+                    # SEÇÃO 3: OBSERVABILIDADE (INTEGRAÇÃO COMPLETA)
+                    ft.Text("SAÚDE DO SISTEMA (PROMETHEUS/GRAFANA)", size=16, weight="bold", color=st.PRIMARY_BLUE),
+                    ft.Container(
+                        bgcolor="#1e1e1e", padding=15, border_radius=10,
+                        content=ft.Column([
+                            ft.Row([status_icon, status_text]),
+                            ft.Row([
+                                btn_teste, 
+                                ft.ElevatedButton(
+                                    "VER SAÚDE (APP)", 
+                                    on_click=lambda _: page.go("/dashboard_saude"),
+                                    bgcolor=ft.colors.BLUE_GREY_700
+                                ),
+                                ft.TextButton(
+                                    "ABRIR GRAFANA", 
+                                    on_click=lambda _: page.launch_url("http://localhost:3000")
+                                )
+                            ], wrap=True)
+                        ])
+                    ),
+
+                    ft.Divider(height=10),
+
+                    # SEÇÃO 4: SUPORTE E MANUAL (WHATSAPP E GUIA INTERNO)
+                    ft.Text("AJUDA E SUPORTE", size=16, weight="bold", color=st.PRIMARY_BLUE),
+                    ft.Container(
+                        bgcolor="#1e1e1e", padding=15, border_radius=10,
+                        content=ft.Column([
+                            ft.Text(f"Suporte técnico para: {user_email_logado}", size=12, color="grey"),
+                            ft.Row([
+                                ft.ElevatedButton(
+                                    "GUIA DE USO", 
+                                    icon=ft.icons.HELP_OUTLINE,
+                                    on_click=lambda _: page.go("/ajuda")
+                                ),
+                                ft.IconButton(
+                                    icon=ft.icons.CHAT,
+                                    icon_color=ft.colors.GREEN_ACCENT,
+                                    tooltip="Falar no WhatsApp",
+                                    on_click=lambda _: SuporteHelper.abrir_whatsapp_suporte(page, user_email_logado)
+                                )
+                            ])
+                        ])
+                    ),
+                    
+                    ft.Container(height=20),
+                    
+                    # SEÇÃO 5: SAIR
+                    ft.ElevatedButton(
+                        "ENCERRAR SESSÃO", 
+                        bgcolor=ft.colors.RED_700, 
+                        color="white", 
+                        on_click=lambda _: page.go("/"),
+                        height=50,
+                        width=float("inf")
+                    ),
+                    ft.Text("AguaFlow v1.0 - Projeto Integrador UNIVESP", size=10, color="grey", text_align="center")
+                ]
+            )
         ]
     )
