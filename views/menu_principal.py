@@ -19,7 +19,7 @@ def montar_menu(page: ft.Page):
                 controls=[
                     ft.Container(height=40),
                     ft.Icon(ft.icons.WATER_DROP, size=80, color=ft.colors.BLUE_400),
-                    ft.Text("PAINEL DE CONTROLO", size=24, weight="bold", color="white"),
+                    ft.Text("PAINEL DE CONTROLE", size=28, weight="bold", color="white"),
                     ft.Container(height=20),
                     
                     ft.Column(

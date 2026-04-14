@@ -17,6 +17,7 @@ from views.dashboard import montar_tela_dashboard
 from views.dashboard_saude import montar_tela_saude 
 from views.recuperar_senha_email import criar_tela_recuperacao
 from views.reset_password_view import reset_password_view
+from views.ajuda_view import montar_tela_ajuda
 
 # Silencia avisos do Torch e do Python
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -39,9 +40,13 @@ async def main(page: ft.Page):
         if page.route == "/":
             page.views.append(criar_tela_login(page))
             
-        # 2. RECUPERAÇÃO
-        elif page.route == "/recuperar":
-            page.views.append(criar_tela_recuperacao(page))
+        # 2. RECUPERAÇÃO / ESQUECI MINHA SENHA
+        elif page.route == "/recuperar_senha":
+            try:
+                page.views.append(criar_tela_recuperacao(page))
+            except Exception as e:
+                print(f"Erro ao carregar Recuperação: {e}")
+                page.go("/")
 
         # 3. MENU PRINCIPAL
         elif page.route == "/menu":
@@ -54,19 +59,23 @@ async def main(page: ft.Page):
         elif page.route == "/medicao":
             page.views.append(montar_tela_medicao(page))
             
-        # 5. QR CODES
+        # 5. GERADOR DE QR CODE (Unificado e Corrigido)
         elif page.route == "/qrcodes":
-            page.views.append(montar_tela_qrcodes(page))
-            
+            try:
+                # Importação local para evitar dependência circular
+                from views.qrcodes_view import montar_tela_qrcodes
+                page.views.append(montar_tela_qrcodes(page, lambda _: page.go("/menu")))
+            except Exception as e:
+                print(f"ERRO NO QR CODE: {e}")
+                page.go("/menu")
+
         # 6. RELATÓRIOS
         elif page.route == "/relatorios":
             page.views.append(montar_tela_relatorio(page, lambda _: page.go("/menu")))
             
-        # 7. DASHBOARD (Ajustado para evitar erro de sintaxe e duplicidade)
+        # 7. DASHBOARD
         elif page.route == "/dashboard":
             try:
-                from views.dashboard import montar_tela_dashboard
-                # Removemos qualquer linha solta anterior e deixamos apenas esta:
                 page.views.append(montar_tela_dashboard(page, lambda _: page.go("/menu")))
             except Exception as e:
                 print(f"Erro ao carregar Dashboard: {e}")
@@ -75,9 +84,7 @@ async def main(page: ft.Page):
         # 8. DASHBOARD SAÚDE
         elif page.route == "/dashboard_saude":
             try:
-                from views.dashboard_saude import montar_tela_saude
-                view_saude = montar_tela_saude(page, lambda _: page.go("/menu"))
-                page.views.append(view_saude)
+                page.views.append(montar_tela_saude(page, lambda _: page.go("/menu")))
             except Exception as e:
                 print(f"Erro ao carregar Saúde: {e}")
                 page.go("/menu")
@@ -85,25 +92,33 @@ async def main(page: ft.Page):
         # 9. CONFIGURAÇÕES
         elif page.route == "/configuracoes":
             try:
-                from views.configuracoes import montar_tela_configs
                 page.views.append(montar_tela_configs(page, lambda _: page.go("/menu")))
             except Exception as e:
                 print(f"Erro ao carregar Configurações: {e}")
                 page.go("/menu")
 
+        # 10. GUIA MANUAL
+        elif page.route == "/ajuda":
+            try:
+                page.views.append(montar_tela_ajuda(page, lambda _: page.go("/configuracoes")))
+            except Exception as e:
+                print(f"Erro ao carregar Ajuda: {e}")
+                page.go("/configuracoes")
+
         page.update()
-        
+
+    # CORREÇÃO DE INDENTAÇÃO: Alinhado com o 'def route_change'
     async def view_pop(view):
         """Gerencia o botão 'Voltar' do sistema."""
         if len(page.views) > 1:
             page.views.pop()
             top_view = page.views[-1]
-            page.go(top_view.route)
+            page.route = top_view.route
+            page.update()
 
     page.on_route_change = route_change
     page.on_view_pop = view_pop
     
-    # Inicia na rota atual
     page.go(page.route)
 
 if __name__ == "__main__":
