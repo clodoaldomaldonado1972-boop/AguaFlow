@@ -5,94 +5,97 @@ import os
 import easyocr
 import re
 
-# Configuração do Tesseract
-tesseract_path = os.getenv(
-    "TESSERACT_PATH", r'C:\Program Files\Tesseract-OCR\tesseract.exe')
+# --- CONFIGURAÇÃO DO AMBIENTE ---
+tesseract_path = os.getenv("TESSERACT_PATH", r'C:\Program Files\Tesseract-OCR\tesseract.exe')
 pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
-# Inicializar EasyOCR
-# Use GPU if available, but False for CPU
+# Inicializar EasyOCR (English para números)
 reader = easyocr.Reader(['en'], gpu=False)
 
+def carregar_imagem(caminho_ou_img):
+    """Garante que a entrada seja um numpy array válido para o OpenCV."""
+    if isinstance(caminho_ou_img, str):
+        img = cv2.imread(caminho_ou_img)
+        if img is None:
+            print(f"Erro: Não foi possível carregar a imagem em {caminho_ou_img}")
+        return img
+    return caminho_ou_img
 
 def ler_qr_code(img):
-    """Implementar leitura de QR code usando OpenCV."""
+    """Lê o QR Code para identificar a unidade (Apto)."""
     try:
+        img = carregar_imagem(img)
         detector = cv2.QRCodeDetector()
+        # detectAndDecode agora recebe o numpy array corretamente
         data, bbox, straight_qrcode = detector.detectAndDecode(img)
         if data:
-            return data
+            return str(data).strip()
     except Exception as e:
         print(f"Erro ao ler QR code: {e}")
     return None
 
-
-def extrair_dados_fluxo(img):
-    """Implementar extração de dados do medidor usando EasyOCR."""
+def extrair_dados_fluxo(img, unidade_qr=None):
     try:
-        # Usar EasyOCR para detectar texto
-        results = reader.readtext(img)
+        img = carregar_imagem(img)
+        # 1. Converter para tons de cinza
+        # No leitor_ocr.py, dentro de extrair_dados_fluxo:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Filtro para destacar números pretos e ignorar reflexos no vidro
+        processed = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-        # Extrair todos os textos detectados
-        textos = [result[1] for result in results]
-
-        # Procurar por valores numéricos (leitura do medidor)
-        valor = None
-        for texto in textos:
-            # Procurar por números com ponto decimal (ex: 123.45)
-            matches = re.findall(r'\d+\.\d+', texto)
-            if matches:
-                valor = matches[0]  # Pegar o primeiro encontrado
-                break
-            # Se não encontrar decimal, procurar por números inteiros
-            matches = re.findall(r'\d+', texto)
-            if matches:
-                valor = matches[0]
-                break
-
-        # Para unidade, talvez procurar por "Apto" ou similar, mas por enquanto None
-        unidade = None
-        for texto in textos:
-            if "Apto" in texto:
-                unidade = texto
-                break
-
-        return unidade, valor
+        results = reader.readtext(processed)
+        
+        for res in results:
+            texto = res[1]
+            numeros = re.sub(r'[^0-9]', '', texto)
+            
+            # Ignora se for o número da unidade (adesivo do QR)
+            if unidade_qr and numeros == str(unidade_qr):
+                continue
+            
+            # Hidrómetros costumam ter entre 4 a 6 dígitos pretos
+            if 4 <= len(numeros) <= 6:
+                return numeros
+        return None
+    
     except Exception as e:
-        print(f"Erro ao extrair dados: {e}")
-        return None, None
+        print(f"Erro no processamento OCR: {e}")
+        return None
 
-
-def processar_leitura_completa(img):
+def processar_leitura_completa(caminho_arquivo):
     """
-    Processa a imagem completa: lê QR code e depois extrai valor do medidor.
-    Retorna dict com status detalhado para o fluxo de confirmação.
+    Função principal chamada pelo scanner.py.
+    Recebe o caminho do arquivo e retorna o dicionário de status.
     """
     try:
+        img = carregar_imagem(caminho_arquivo)
         if img is None:
-            return {"unidade": None, "valor": None, "status": "Erro", "pode_inserir_manual": False}
+            return {"unidade": None, "valor": None, "status": "Erro", "pode_inserir_manual": True}
 
-        # Etapa 1: Tentar ler QR code
-        unidade_detectada = ler_qr_code(img)
+        # 1. Identificar Unidade via QR Code
+        unidade = ler_qr_code(img)
 
-        # Etapa 2: Extrair valor do medidor
-        _, valor_ocr = extrair_dados_fluxo(img)
+        # 2. Extrair Valor do Hidrômetro (passando a unidade para evitar duplicidade)
+        valor_ocr = extrair_dados_fluxo(img, unidade_qr=unidade)
 
-        # Determinar status e se permite entrada manual
-        if valor_ocr:
+        # 3. Definir Status do Processamento
+        if unidade and valor_ocr:
             status = "Sucesso"
-            pode_inserir_manual = False
+            manual = False
+        elif unidade:
+            status = "OCR_Falhou" # Leu o QR mas não o número
+            manual = True
         else:
-            # OCR falhou, mas permite entrada manual
-            status = "OCR_Falhou"
-            pode_inserir_manual = True
+            status = "Manual" # Não leu nada
+            manual = True
 
         return {
-            "unidade": unidade_detectada,
+            "unidade": unidade,
             "valor": valor_ocr,
             "status": status,
-            "pode_inserir_manual": pode_inserir_manual
+            "pode_inserir_manual": manual
         }
+
     except Exception as e:
-        print(f"Erro ao processar leitura: {e}")
-        return {"unidade": None, "valor": None, "status": f"Erro: {e}", "pode_inserir_manual": True}
+        print(f"Falha crítica no processamento: {e}")
+        return {"unidade": None, "valor": None, "status": "Erro", "pode_inserir_manual": True}
