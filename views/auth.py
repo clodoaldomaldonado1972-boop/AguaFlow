@@ -3,43 +3,67 @@ import asyncio
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
-# Importação do estilo que está na mesma pasta
 import views.styles as st 
 
-# 1. CARREGAMENTO DAS VARIÁVEIS (Subindo uma pasta para achar o .env.txt na raiz)
+# 1. CARREGAMENTO DAS VARIÁVEIS
 env_path = os.path.join(os.path.dirname(__file__), "..", ".env.txt")
-load_dotenv(env_path)
+# No topo do auth.py, mude para:
+load_dotenv() # Sem passar caminho fixo, ele busca na raiz
 
-# 2. INICIALIZAÇÃO DO CLIENTE SUPABASE
-url: str = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-key: str = os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
-supabase: Client = create_client(url, key)
+url = os.getenv("SUPABASE_URL") # Nome simplificado
+key = os.getenv("SUPABASE_KEY") # Nome simplificado
+
+if url and key:
+    supabase: Client = create_client(url, key)
+else:
+    print("⚠️ Aviso: Supabase não configurado no auth.py")
 
 def criar_tela_login(page: ft.Page):
-    # Credenciais Administrativas do .env.txt
-    USUARIO_CORRETO = os.getenv("EMAIL_USER")
-    SENHA_CORRETA = os.getenv("EMAIL_PASS")
-    # No componente de texto ou botão de "Esqueci minha senha"
-    ft.TextButton(
-        "Esqueci minha senha",
-        on_click=lambda _: page.go("/recuperar_senha") # <--- O comando vital
-    )
-
     # Campos de entrada
     txt_user = st.campo_estilo("E-mail", ft.icons.PERSON)
     txt_pass = st.campo_estilo("Senha", ft.icons.LOCK, password=True)
-    lbl_erro = ft.Text("", color=st.ERROR_COLOR, size=14)
+    lbl_erro = ft.Text("", color="red", size=12, weight=ft.FontWeight.BOLD)
 
     async def realizar_login(e):
-        print("DEBUG: Iniciando validação de acesso...")
-        
-        if txt_user.value == USUARIO_CORRETO and txt_pass.value == SENHA_CORRETA:
-            page.user_email = USUARIO_CORRETO
-            page.logado = True
-            # Navega para o menu após sucesso
-            page.go("/menu")
-        else:
-            lbl_erro.value = "Usuário ou senha incorretos!"
+        lbl_erro.value = ""
+        lbl_erro.visible = False
+        page.update()
+
+        if not txt_user.value or not txt_pass.value:
+            lbl_erro.value = "Preencha todos os campos!"
+            lbl_erro.visible = True
+            page.update()
+            return
+
+        try:
+            # 1. Tenta autenticar no Supabase
+            auth_response = supabase.auth.sign_in_with_password({
+                "email": txt_user.value,
+                "password": txt_pass.value
+            })
+
+            if auth_response.user:
+                # 2. IMPLEMENTAÇÃO DE NÍVEIS DE ACESSO
+                # Busca o 'role' dentro dos metadados do usuário (padrão é 'user')
+                user_metadata = auth_response.user.user_metadata
+                role = user_metadata.get("role", "user")
+
+                # Armazena o role na sessão da página para uso em outras telas
+                page.session.set("user_role", role)
+                page.session.set("user_email", auth_response.user.email)
+
+                # 3. Lógica de Redirecionamento
+                if role == "admin":
+                    print(f"DEBUG: Admin {auth_response.user.email} logado.")
+                    page.go("/menu") # Admin vai para o menu completo
+                else:
+                    print(f"DEBUG: Usuário comum {auth_response.user.email} logado.")
+                    page.go("/menu") # Você pode criar uma rota /menu_operador se preferir
+
+        except Exception as ex:
+            lbl_erro.value = "E-mail ou senha incorretos."
+            lbl_erro.visible = True
+            print(f"Erro de login: {ex}")
             page.update()
 
     # Layout da View de Login
@@ -78,10 +102,8 @@ def criar_tela_login(page: ft.Page):
                     ),
 
                     ft.TextButton(
-                        "Esqueci minha senha",
-                        style=ft.ButtonStyle(color=st.GREY),
-                        # Ação que faltava: leva para a tela de recuperação por e-mail
-                        on_click=lambda _: page.go("/recuperar-email")
+                        "Esqueci minha senha", 
+                        on_click=lambda _: page.go("/recuperar_senha")
                     )
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 padding=20,

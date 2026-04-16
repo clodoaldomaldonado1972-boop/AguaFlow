@@ -30,29 +30,41 @@ async def main(page: ft.Page):
     Database.init_db()
     
     page.title = "AguaFlow - Gestão Vivere Prudente"
-    page.theme_mode = ft.ThemeMode.DARK
     
-    # Função para gerenciar a mudança de telas (Rotas)
-    async def route_change(route):
+    # --- CONFIGURAÇÃO DE TEMA DARK (BLACK) ---
+    page.theme_mode = ft.ThemeMode.DARK  # Força o modo escuro em todo o app
+    page.bgcolor = "#121212"            # Fundo preto profundo para destaque profissional
+    
+    page.window_width = 400
+    page.window_height = 700
+    
+    # Configurações de navegação e layout
+    page.padding = 0
+    page.spacing = 0
+
+    def route_change(e):
         page.views.clear()
         
-        # 1. TELA DE LOGIN (Porta de Entrada)
+        # 1. TELA DE LOGIN (INICIAL)
         if page.route == "/" or page.route == "/login":
             page.views.append(criar_tela_login(page))
 
-        # 2. TELA DE CADASTRO LOCAL (Nova Rota solicitada)
-        elif page.route == "/cadastrar":
+        # 2. RECUPERAÇÃO DE SENHA
+        elif page.route == "/recuperar_senha":
+            page.views.append(criar_tela_recuperacao(page))
+
+        # 3. AUTENTICAÇÃO/VERIFICAÇÃO
+        elif page.route == "/autenticacao":
             page.views.append(montar_tela_autenticacao(page))
 
-        # 3. MENU PRINCIPAL
+        # 4. MENU PRINCIPAL
         elif page.route == "/menu":
             page.views.append(montar_menu(page))
 
-        # 4. MEDIÇÃO (Leitura de QR Codes/Câmera)
+        # 5. OPERAÇÕES DE CAMPO (OCR E QR CODE)
         elif page.route == "/medicao":
             page.views.append(montar_tela_medicao(page, lambda _: page.go("/menu")))
 
-        # 5. GERADOR DE ETIQUETAS (Ajustado para 4x4 e sem UNID)
         elif page.route == "/qrcodes":
             page.views.append(montar_tela_qrcodes(page, lambda _: page.go("/menu")))
 
@@ -72,17 +84,13 @@ async def main(page: ft.Page):
 
         elif page.route == "/ajuda":
             page.views.append(montar_tela_ajuda(page, lambda _: page.go("/configuracoes")))
-
-        # 8. RECUPERAÇÃO DE SENHA (Caminhos existentes)
-        elif page.route == "/recuperar_senha":
-            page.views.append(criar_tela_recuperacao(page))
             
         elif page.route == "/reset-password":
             page.views.append(reset_password_view(page))
 
         page.update()
 
-    async def view_pop(view):
+    def view_pop(e):
         if len(page.views) > 1:
             page.views.pop()
             top_view = page.views[-1]
@@ -91,8 +99,10 @@ async def main(page: ft.Page):
     page.on_route_change = route_change
     page.on_view_pop = view_pop
     
-    # Inicializa na rota atual
-    await page.go_async(page.route)
+    # Início do App
+    page.go(page.route)
 
+# Execução do Aplicativo
 if __name__ == "__main__":
+    # O uso do ft.app(target=main) no Flet moderno gerencia o loop de eventos automaticamente
     ft.app(target=main)
