@@ -107,8 +107,17 @@ async def main(page: ft.Page):
                 view = montar_tela_ajuda(page, lambda _: page.go("/configuracoes"))
                 view.appbar = criar_barra("Suporte Técnico")
                 page.views.append(view)
-
-            await page.update_async()
+            # ... outras rotas ...
+            
+            elif page.route == "/recuperar_senha":
+                # Certifique-se de que a função criar_tela_recuperacao existe
+                page.views.append(criar_tela_recuperacao(page))
+            
+            elif page.route == "/reset_password":
+                page.views.append(reset_password_view(page))
+  
+ # Substituído await page.update_async() por update() simples
+            page.update()
             
         except Exception as err:
             print(f"Erro ao mudar rota: {err}")
@@ -116,8 +125,10 @@ async def main(page: ft.Page):
     # Configura os eventos de navegação
     page.on_route_change = route_change
     
-    # Inicializa o app na rota atual
-    await page.go_async(page.route)
+    # Inicializa o app na rota atual de forma simplificada
+    # Removido await page.go_async(page.route) para evitar o DeprecationWarning
+    page.go(page.route)
 
 if __name__ == "__main__":
+    # O Flet detecta automaticamente que 'main' é async
     ft.app(target=main)
