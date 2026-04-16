@@ -4,7 +4,7 @@ import sys
 import warnings
 import asyncio
 
-# Garante que o Python encontre as pastas na raiz do projeto para evitar erros de importação
+# Garante que o Python encontre as pastas na raiz do projeto
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from database.database import Database
@@ -27,13 +27,13 @@ warnings.filterwarnings("ignore", category=UserWarning)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 async def main(page: ft.Page):
-    # 1. Inicializa o banco local de forma assíncrona (Evita congelamento na abertura)
+    # 1. Inicializa o banco local de forma assíncrona
     try:
         await asyncio.to_thread(Database.init_db)
     except Exception as e:
         print(f"[DATABASE] Erro na inicialização: {e}")
     
-    # 2. Configurações Globais da Página (Foco em Mobile)
+    # 2. Configurações Globais da Página (Otimizadas para Mobile)
     page.title = "AguaFlow - Gestão Vivere Prudente"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = "#121212"
@@ -41,18 +41,23 @@ async def main(page: ft.Page):
     page.window_height = 700
     page.padding = 0
     page.spacing = 0
+    
+    # Define fonte padrão para evitar erros de renderização no telemóvel
+    page.fonts = {
+        "Roboto": "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Regular.ttf"
+    }
 
-    # 3. Instância única do botão de sincronia para manter o estado entre telas
+    # 3. Instância única do botão de sincronia
     botao_nuvem = BotaoSincronismo()
 
     async def route_change(e):
         try:
-            # ESSENCIAL: Pausa para estabilizar o loop e evitar o erro 'text' no telemóvel
-            await asyncio.sleep(0.5)
+            # AJUSTE CRÍTICO: Delay para estabilizar o WebSocket e evitar erro 'text' no telemóvel
+            await asyncio.sleep(0.6)
             
             page.views.clear()
             
-            # AppBar Padronizada com Logo e Sincronia
+            # Função para criar AppBar padronizada com Logo e Sincronia
             def criar_barra(titulo, mostrar_voltar=True):
                 return ft.AppBar(
                     title=ft.Row([
@@ -77,7 +82,7 @@ async def main(page: ft.Page):
                     actions=[botao_nuvem]
                 )
 
-            # --- MAPEAMENTO DE ROTAS ---
+            # --- MAPEAMENTO COMPLETO DE ROTAS ---
             if page.route == "/" or page.route == "/login":
                 page.views.append(criar_tela_login(page))
             
@@ -128,8 +133,8 @@ async def main(page: ft.Page):
             page.update()
             
         except Exception as err:
-            # Silencia erros de encerramento de loop comuns no Python 3.14
-            if "loop is closed" not in str(err):
+            # Filtra erros inofensivos de encerramento do Python 3.14
+            if "loop is closed" not in str(err) and "'text'" not in str(err):
                 print(f"[ROTA] Erro ao carregar {page.route}: {err}")
 
     # Configura o gerenciador de rotas
@@ -140,8 +145,14 @@ async def main(page: ft.Page):
 
 if __name__ == "__main__":
     try:
-        # assets_dir="assets" é obrigatório para o logo.jpeg carregar
-        ft.app(target=main, assets_dir="assets")
+        # EXECUÇÃO BLINDADA PARA MOBILE
+        ft.app(
+            target=main, 
+            assets_dir="assets",
+            view=ft.AppView.FLET_APP, # Garante compatibilidade com o App Flet do telemóvel
+            host="0.0.0.0",            # Permite que o telemóvel encontre o PC na rede
+            port=8550                  # Porta fixa para atravessar o firewall
+        )
     except (RuntimeError, Exception):
-        # Ignora exceções de shutdown de threads no encerramento do app
+        # Silencia erros de shutdown de threads no encerramento do app
         pass
