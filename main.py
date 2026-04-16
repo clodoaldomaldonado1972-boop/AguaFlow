@@ -2,14 +2,18 @@ import flet as ft
 import os
 import sys
 import warnings
+import asyncio
 
 # Garante que o Python encontre as pastas na raiz do projeto
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
-# --- IMPORTAÇÕES DAS VIEWS ---
 from database.database import Database
+# Importando o componente visual de sincronismo animado
+from utils.sync_interface import BotaoSincronismo
+
+# --- IMPORTAÇÕES DAS VIEWS ---
 from views.auth import criar_tela_login
-from views.autenticacao import montar_tela_autenticacao # NOVA ROTA
+from views.autenticacao import montar_tela_autenticacao
 from views.menu_principal import montar_menu
 from views.medicao import montar_tela_medicao
 from views.qrcodes_view import montar_tela_qrcodes
@@ -21,88 +25,99 @@ from views.recuperar_senha_email import criar_tela_recuperacao
 from views.reset_password_view import reset_password_view
 from views.ajuda_view import montar_tela_ajuda
 
-# Configurações de sistema
+# Suprime avisos técnicos
 warnings.filterwarnings("ignore", category=UserWarning)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 async def main(page: ft.Page):
-    # Inicializa o Banco de Dados Local (SQLite)
-    Database.init_db()
+    # Inicializa o banco local de forma assíncrona para não travar a abertura
+    await asyncio.to_thread(Database.init_db)
     
     page.title = "AguaFlow - Gestão Vivere Prudente"
-    
-    # --- CONFIGURAÇÃO DE TEMA DARK (BLACK) ---
-    page.theme_mode = ft.ThemeMode.DARK  # Força o modo escuro em todo o app
-    page.bgcolor = "#121212"            # Fundo preto profundo para destaque profissional
-    
+    page.theme_mode = ft.ThemeMode.DARK
+    page.bgcolor = "#121212"
     page.window_width = 400
     page.window_height = 700
-    
-    # Configurações de navegação e layout
     page.padding = 0
     page.spacing = 0
 
-    def route_change(e):
-        page.views.clear()
-        
-        # 1. TELA DE LOGIN (INICIAL)
-        if page.route == "/" or page.route == "/login":
-            page.views.append(criar_tela_login(page))
+    # Instância única do botão de nuvem (sincronismo)
+    botao_nuvem = BotaoSincronismo()
 
-        # 2. RECUPERAÇÃO DE SENHA
-        elif page.route == "/recuperar_senha":
-            page.views.append(criar_tela_recuperacao(page))
-
-        # 3. AUTENTICAÇÃO/VERIFICAÇÃO
-        elif page.route == "/autenticacao":
-            page.views.append(montar_tela_autenticacao(page))
-
-        # 4. MENU PRINCIPAL
-        elif page.route == "/menu":
-            page.views.append(montar_menu(page))
-
-        # 5. OPERAÇÕES DE CAMPO (OCR E QR CODE)
-        elif page.route == "/medicao":
-            page.views.append(montar_tela_medicao(page, lambda _: page.go("/menu")))
-
-        elif page.route == "/qrcodes":
-            page.views.append(montar_tela_qrcodes(page, lambda _: page.go("/menu")))
-
-        # 6. RELATÓRIOS E DASHBOARDS
-        elif page.route == "/relatorios":
-            page.views.append(montar_tela_relatorio(page, lambda _: page.go("/menu")))
+    async def route_change(e):
+        try:
+            page.views.clear()
             
-        elif page.route == "/dashboard":
-            page.views.append(montar_tela_dashboard(page, lambda _: page.go("/menu")))
+            # Função para criar AppBar padronizada
+            def criar_barra(titulo, mostrar_voltar=True):
+                return ft.AppBar(
+                    title=ft.Text(titulo, size=20, weight="bold"),
+                    center_title=True,
+                    bgcolor="#1A1A1A",
+                    leading=(
+                        ft.IconButton(
+                            icon=ft.icons.ARROW_BACK_IOS_NEW_ROUNDED,
+                            on_click=lambda _: page.go("/menu"),
+                            icon_size=20
+                        ) if mostrar_voltar else None
+                    ),
+                    actions=[botao_nuvem]
+                )
 
-        elif page.route == "/dashboard_saude":
-            page.views.append(montar_tela_saude(page, lambda _: page.go("/menu")))
-
-        # 7. CONFIGURAÇÕES E AJUDA
-        elif page.route == "/configuracoes":
-            page.views.append(montar_tela_configs(page, lambda _: page.go("/menu")))
-
-        elif page.route == "/ajuda":
-            page.views.append(montar_tela_ajuda(page, lambda _: page.go("/configuracoes")))
+            # --- ROTEAMENTO ---
+            if page.route == "/" or page.route == "/login":
+                page.views.append(criar_tela_login(page))
             
-        elif page.route == "/reset-password":
-            page.views.append(reset_password_view(page))
+            elif page.route == "/menu":
+                view = montar_menu(page)
+                view.appbar = criar_barra("AguaFlow", False)
+                page.views.append(view)
+            
+            elif page.route == "/medicao":
+                view = montar_tela_medicao(page, lambda _: page.go("/menu"))
+                view.appbar = criar_barra("Medição")
+                page.views.append(view)
+            
+            elif page.route == "/qrcodes":
+                view = montar_tela_qrcodes(page, lambda _: page.go("/menu"))
+                view.appbar = criar_barra("Gerar QR Codes")
+                page.views.append(view)
+            
+            elif page.route == "/relatorios":
+                view = montar_tela_relatorio(page, lambda _: page.go("/menu"))
+                view.appbar = criar_barra("Relatórios")
+                page.views.append(view)
+            
+            elif page.route == "/dashboard":
+                view = montar_tela_dashboard(page, lambda _: page.go("/menu"))
+                view.appbar = criar_barra("Consumo Mensal")
+                page.views.append(view)
+            
+            elif page.route == "/dashboard_saude":
+                view = montar_tela_saude(page, lambda _: page.go("/menu"))
+                view.appbar = criar_barra("Saúde do Sistema")
+                page.views.append(view)
+            
+            elif page.route == "/configuracoes":
+                view = montar_tela_configs(page, lambda _: page.go("/menu"))
+                view.appbar = criar_barra("Configurações")
+                page.views.append(view)
+            
+            elif page.route == "/ajuda":
+                view = montar_tela_ajuda(page, lambda _: page.go("/configuracoes"))
+                view.appbar = criar_barra("Suporte Técnico")
+                page.views.append(view)
 
-        page.update()
+            await page.update_async()
+            
+        except Exception as err:
+            print(f"Erro ao mudar rota: {err}")
 
-    def view_pop(e):
-        if len(page.views) > 1:
-            page.views.pop()
-            top_view = page.views[-1]
-            page.go(top_view.route)
-
+    # Configura os eventos de navegação
     page.on_route_change = route_change
-    page.on_view_pop = view_pop
     
-    # Início do App
-    page.go(page.route)
+    # Inicializa o app na rota atual
+    await page.go_async(page.route)
 
-# Execução do Aplicativo
 if __name__ == "__main__":
-    # O uso do ft.app(target=main) no Flet moderno gerencia o loop de eventos automaticamente
     ft.app(target=main)
