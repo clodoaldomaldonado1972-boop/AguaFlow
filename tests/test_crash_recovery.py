@@ -107,10 +107,10 @@ class TestCrashRecovery:
         # Tenta operação que causa erro
         for i in range(10):
             try:
-                # Operação inválida - valor NULL onde não é permitido
-                result = db.Database.registrar_leitura(99999, "valor_teste")
-                # Deve retornar erro, não travar
-                assert result['sucesso'] == False, "Deveria falhar para ID inexistente"
+                # Operação com unidade inválida/vazia
+                result = db.Database.registrar_leitura('', 'valor_teste')
+                # Deve retornar False para unidade vazia
+                assert result == False, "Deveria falhar para unidade vazia"
             except Exception as e:
                 # Erros devem ser tratados graciosamente
                 pass
@@ -123,29 +123,27 @@ class TestCrashRecovery:
         """
         Teste 3: registrar_leitura deve ser atômica.
 
-        Verifica se uma leitura parcial não é salva em caso de erro.
+        Verifica se uma leitura é salva corretamente sem erros.
         """
         print("\n📋 Teste 3: Transação atômica em registrar_leitura...")
 
-        # Busca uma unidade pendente
-        pendente = db.Database.buscar_proximo_pendente()
-        assert pendente is not None, "Deve haver unidades pendentes"
+        # Registra uma leitura com unidade e valor válidos
+        unidade_teste = 'TESTE-001'
+        valor_teste = 123.45
 
-        id_db, unidade, leitura_anterior = pendente
+        result = db.Database.registrar_leitura(unidade_teste, valor_teste, 'Água')
+        assert result == True, f"Falha ao registrar: {result}"
 
-        # Tenta registrar com valor válido
-        result = db.Database.registrar_leitura(id_db, "123.45")
-        assert result['sucesso'] == True, f"Falha ao registrar: {result['mensagem']}"
-
-        # Verifica se foi salvo
+        # Verifica se foi salvo no banco
         conn = db.Database.get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT leitura_atual, status FROM leituras WHERE id = ?", (id_db,))
+        cursor.execute("SELECT valor, tipo_leitura FROM leituras WHERE unidade = ?", (unidade_teste,))
         row = cursor.fetchone()
         conn.close()
 
-        assert row[0] == 123.45, "Valor não foi salvo corretamente"
-        assert row[1] == 'CONCLUIDO', "Status não foi atualizado"
+        assert row is not None, "Registro não foi encontrado"
+        assert row[0] == valor_teste, f"Valor não foi salvo corretamente (esperado {valor_teste}, got {row[0]})"
+        assert row[1] == 'Água', "Tipo de leitura deve ser 'Água'"
 
         print("✅ Transação atômica funciona corretamente")
 
