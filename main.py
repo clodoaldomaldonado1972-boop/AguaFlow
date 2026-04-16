@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 async def main(page: ft.Page):
-    # Inicializa o banco local sem travar a UI
+    # Inicializa o banco local sem travar a UI usando uma thread separada
     await asyncio.to_thread(Database.init_db)
     
     page.title = "AguaFlow - Gestão Vivere Prudente"
@@ -38,20 +38,25 @@ async def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
-    # Instância única do botão de nuvem
+    # Instância única do botão de nuvem para sincronismo
     botao_nuvem = BotaoSincronismo()
 
     async def route_change(e):
         try:
-            # Pequeno delay para garantir que o ClientStorage esteja pronto
-            # Isso resolve o erro de "Timeout waiting for invokeMethod"
-            await asyncio.sleep(0.1)
+            # ESSENCIAL: Pequena pausa para o Flet estabilizar o ClientStorage e as Views
+            # Isso resolve o erro de Timeout e RuntimeError: Event loop is closed
+            await asyncio.sleep(0.2)
             
             page.views.clear()
             
+            # Função para criar uma AppBar padronizada com o logo e botão de nuvem
             def criar_barra(titulo, mostrar_voltar=True):
                 return ft.AppBar(
-                    title=ft.Text(titulo, size=20, weight="bold"),
+                    title=ft.Row([
+                        # Logotipo da gota d'água adicionado à barra
+                        ft.Image(src="assets/logo.jpeg", width=30, height=30, border_radius=15),
+                        ft.Text(titulo, size=20, weight="bold")
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=10, tight=True),
                     center_title=True,
                     bgcolor="#1A1A1A",
                     leading=(
@@ -64,53 +69,65 @@ async def main(page: ft.Page):
                     actions=[botao_nuvem]
                 )
 
-            # --- ROTEAMENTO ---
+            # --- ROTEAMENTO E MAPEAMENTO DE TELAS ---
             if page.route == "/" or page.route == "/login":
                 page.views.append(criar_tela_login(page))
+            
             elif page.route == "/menu":
                 view = montar_menu(page)
                 view.appbar = criar_barra("AguaFlow", False)
                 page.views.append(view)
+            
             elif page.route == "/medicao":
                 view = montar_tela_medicao(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Medição")
                 page.views.append(view)
+            
             elif page.route == "/qrcodes":
                 view = montar_tela_qrcodes(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Gerar QR Codes")
                 page.views.append(view)
+            
             elif page.route == "/relatorios":
                 view = montar_tela_relatorio(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Relatórios")
                 page.views.append(view)
+            
             elif page.route == "/dashboard":
                 view = montar_tela_dashboard(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Consumo Mensal")
                 page.views.append(view)
+            
             elif page.route == "/dashboard_saude":
                 view = montar_tela_saude(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Saúde do Sistema")
                 page.views.append(view)
+            
             elif page.route == "/configuracoes":
                 view = montar_tela_configs(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Configurações")
                 page.views.append(view)
+            
             elif page.route == "/ajuda":
+                # Rota de Suporte Técnico corrigida para voltar para configurações
                 view = montar_tela_ajuda(page, lambda _: page.go("/configuracoes"))
                 view.appbar = criar_barra("Suporte Técnico")
                 page.views.append(view)
+            
             elif page.route == "/recuperar_senha":
                 page.views.append(criar_tela_recuperacao(page))
 
             page.update()
+            
         except Exception as err:
-            print(f"Erro ao mudar rota: {err}")
+            print(f"Erro crítico ao mudar rota: {err}")
 
+    # Configura o evento de mudança de rota
     page.on_route_change = route_change
     
-    # Inicialização segura
+    # Inicializa o aplicativo na rota atual de forma compatível com Flet 0.21+
     page.go(page.route)
 
 if __name__ == "__main__":
-    # Rodar o app
+    # Inicia a aplicação Flet
     ft.app(target=main)
