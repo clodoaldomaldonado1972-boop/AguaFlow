@@ -4,13 +4,13 @@ import sys
 import warnings
 import asyncio
 
-# Garante que o Python encontre as pastas na raiz do projeto (importante para módulos locais)
+# Garante que o Python encontre as pastas na raiz do projeto para evitar erros de importação
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from database.database import Database
 from utils.sync_interface import BotaoSincronismo
 
-# --- IMPORTAÇÕES DAS VIEWS (Garante que todos os caminhos existam) ---
+# --- IMPORTAÇÕES DAS VIEWS ---
 from views.auth import criar_tela_login
 from views.menu_principal import montar_menu
 from views.medicao import montar_tela_medicao
@@ -18,23 +18,22 @@ from views.qrcodes_view import montar_tela_qrcodes
 from views.relatorio_view import montar_tela_relatorio
 from views.configuracoes import montar_tela_configs
 from views.dashboard import montar_tela_dashboard
-# Importação corrigida para evitar o erro 'NameError'
 from views.dashboard_saude import montar_tela_saude 
 from views.recuperar_senha_email import criar_tela_recuperacao
 from views.ajuda_view import montar_tela_ajuda
 
-# Suprime avisos técnicos de bibliotecas de terceiros
+# Suprime avisos técnicos e resolve conflitos de bibliotecas gráficas
 warnings.filterwarnings("ignore", category=UserWarning)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 async def main(page: ft.Page):
-    # 1. Inicializa o banco SQLite de forma segura (Assíncrono para Python 3.14)
+    # 1. Inicializa o banco local de forma assíncrona (Evita congelamento na abertura)
     try:
         await asyncio.to_thread(Database.init_db)
     except Exception as e:
         print(f"[DATABASE] Erro na inicialização: {e}")
     
-    # 2. Configurações Globais da Página
+    # 2. Configurações Globais da Página (Foco em Mobile)
     page.title = "AguaFlow - Gestão Vivere Prudente"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = "#121212"
@@ -43,17 +42,17 @@ async def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
-    # 3. Instância única do Botão de Nuvem (Gerencia o estado da sincronia)
+    # 3. Instância única do botão de sincronia para manter o estado entre telas
     botao_nuvem = BotaoSincronismo()
 
     async def route_change(e):
         try:
-            # ESSENCIAL: Pequena pausa para estabilizar o ClientStorage no Python 3.14
-            await asyncio.sleep(0.4)
+            # ESSENCIAL: Pausa para estabilizar o loop e evitar o erro 'text' no telemóvel
+            await asyncio.sleep(0.5)
             
             page.views.clear()
             
-            # Função auxiliar para criar a AppBar com o Logo (Gota d'Água) e Botão de Nuvem
+            # AppBar Padronizada com Logo e Sincronia
             def criar_barra(titulo, mostrar_voltar=True):
                 return ft.AppBar(
                     title=ft.Row([
@@ -78,7 +77,7 @@ async def main(page: ft.Page):
                     actions=[botao_nuvem]
                 )
 
-            # --- MAPEAMENTO COMPLETO DE ROTAS ---
+            # --- MAPEAMENTO DE ROTAS ---
             if page.route == "/" or page.route == "/login":
                 page.views.append(criar_tela_login(page))
             
@@ -91,58 +90,58 @@ async def main(page: ft.Page):
                 view = montar_tela_medicao(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Nova Medição")
                 page.views.append(view)
-
+            
             elif page.route == "/qrcodes":
                 view = montar_tela_qrcodes(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Gerar QR Codes")
                 page.views.append(view)
-
+            
             elif page.route == "/relatorios":
                 view = montar_tela_relatorio(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Relatórios")
                 page.views.append(view)
-
+            
             elif page.route == "/dashboard":
                 view = montar_tela_dashboard(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Consumo Mensal")
                 page.views.append(view)
-
+            
             elif page.route == "/dashboard_saude":
-                # Correção do nome da função chamada
+                # Nome da função sincronizado com a importação
                 view = montar_tela_saude(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Saúde do Sistema")
                 page.views.append(view)
-
+            
             elif page.route == "/configuracoes":
                 view = montar_tela_configs(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Configurações")
                 page.views.append(view)
-
+            
             elif page.route == "/ajuda":
                 view = montar_tela_ajuda(page, lambda _: page.go("/configuracoes"))
                 view.appbar = criar_barra("Suporte Técnico")
                 page.views.append(view)
-
+            
             elif page.route == "/recuperar_senha":
                 page.views.append(criar_tela_recuperacao(page))
 
             page.update()
-
+            
         except Exception as err:
-            # Silencia apenas o erro de encerramento do Python 3.14
-            if "Event loop is closed" not in str(err):
+            # Silencia erros de encerramento de loop comuns no Python 3.14
+            if "loop is closed" not in str(err):
                 print(f"[ROTA] Erro ao carregar {page.route}: {err}")
 
-    # Configura o disparador de mudança de rota
+    # Configura o gerenciador de rotas
     page.on_route_change = route_change
     
-    # Inicia o app na rota definida (normalmente / ou /login)
+    # Inicia o fluxo na rota atual
     page.go(page.route)
 
 if __name__ == "__main__":
     try:
-        # assets_dir garante que o Flet localize a pasta assets/ para o logo
+        # assets_dir="assets" é obrigatório para o logo.jpeg carregar
         ft.app(target=main, assets_dir="assets")
     except (RuntimeError, Exception):
-        # Captura e ignora o erro de encerramento forçado do loop no Python 3.14
+        # Ignora exceções de shutdown de threads no encerramento do app
         pass
