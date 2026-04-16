@@ -133,11 +133,13 @@ def criar_tela_login(page: ft.Page):
             ft.Container(
                 content=ft.Column([
                     # Logotipo do ÁguaFlow
+                    # Dentro de criar_tela_login em views/auth.py
                     ft.Image(
-                        src="assets/logo.jpeg",
+                        src="assets/logo.jpeg", # Certifique-se que o arquivo está em C:\AguaFlow\assets\logo.jpeg
                         width=120,
                         height=120,
-                        border_radius=60
+                        border_radius=60,
+                        error_content=ft.Icon(ft.icons.WATER_DROP, size=100, color="blue") # Backup caso a imagem falhe
                     ),
                     ft.Text("AguaFlow", style=st.TEXT_TITLE),
                     ft.Text("Vivere Prudente", style=st.TEXT_SUB),
