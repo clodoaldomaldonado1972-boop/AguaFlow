@@ -84,13 +84,25 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
 
         try:
             v_agua = round(float(txt_agua.value.replace(',', '.')), 2)
-            v_gas = round(float(txt_gas.value.replace(',', '.')), 2) if txt_gas.value else None
 
-            res = Database.registrar_leitura(
+            # Registra leitura de Água
+            res_agua = Database.registrar_leitura(
                 unidade=txt_unidade.value,
-                valor_agua=v_agua,
-                valor_gas=v_gas
+                valor=v_agua,
+                tipo_leitura="Água"
             )
+
+            # Registra leitura de Gás se presente
+            res_gas = None
+            if txt_gas.value:
+                v_gas = round(float(txt_gas.value.replace(',', '.')), 2)
+                res_gas = Database.registrar_leitura(
+                    unidade=txt_unidade.value,
+                    valor=v_gas,
+                    tipo_leitura="Gás"
+                )
+
+            res = {'sucesso': res_agua, 'mensagem': 'OK' if res_agua else 'Falha ao registrar água'}
 
             if res['sucesso']:
                 atual_idx = db_lista.index(txt_unidade.value)
