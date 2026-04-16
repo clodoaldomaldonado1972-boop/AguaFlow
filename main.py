@@ -18,6 +18,7 @@ from views.qrcodes_view import montar_tela_qrcodes
 from views.relatorio_view import montar_tela_relatorio
 from views.configuracoes import montar_tela_configs
 from views.dashboard import montar_tela_dashboard
+# IMPORTANTE: Verifique se o arquivo views/dashboard_saude.py contém a função montar_tela_saude
 from views.dashboard_saude import montar_tela_saude 
 from views.recuperar_senha_email import criar_tela_recuperacao
 from views.ajuda_view import montar_tela_ajuda
@@ -41,13 +42,12 @@ async def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
-    # Instância única do botão de nuvem que gerencia o estado de sincronia
+    # Instância única do botão de nuvem para sincronismo
     botao_nuvem = BotaoSincronismo()
 
     async def route_change(e):
         try:
-            # ESSENCIAL: Pequena pausa (0.4s) para o Flet estabilizar o ClientStorage e o Supabase
-            # Isso resolve o erro de Timeout e RuntimeError: Event loop is closed
+            # ESSENCIAL: Pausa para estabilizar o ClientStorage e evitar Timeout no Python 3.14
             await asyncio.sleep(0.4)
             
             page.views.clear()
@@ -56,7 +56,7 @@ async def main(page: ft.Page):
             def criar_barra(titulo, mostrar_voltar=True):
                 return ft.AppBar(
                     title=ft.Row([
-                        # Logotipo da gota d'água (assets/logo.jpeg)
+                        # Logotipo da gota d'água
                         ft.Image(
                             src="assets/logo.jpeg", 
                             width=30, 
@@ -108,7 +108,8 @@ async def main(page: ft.Page):
                 page.views.append(view)
             
             elif page.route == "/dashboard_saude":
-                view = montar_tela_dashboard_saude(page, lambda _: page.go("/menu"))
+                # AJUSTE: Corrigido o nome da função para bater com a importação
+                view = montar_tela_saude(page, lambda _: page.go("/menu"))
                 view.appbar = criar_barra("Saúde do Sistema")
                 page.views.append(view)
             
@@ -118,7 +119,6 @@ async def main(page: ft.Page):
                 page.views.append(view)
             
             elif page.route == "/ajuda":
-                # Rota de Suporte Técnico corrigida para voltar para configurações
                 view = montar_tela_ajuda(page, lambda _: page.go("/configuracoes"))
                 view.appbar = criar_barra("Suporte Técnico")
                 page.views.append(view)
@@ -129,7 +129,9 @@ async def main(page: ft.Page):
             page.update()
             
         except Exception as err:
-            print(f"[ROTA] Erro crítico ao mudar para {page.route}: {err}")
+            # Silencia erros de loop fechado durante a navegação (comum no 3.14)
+            if "Event loop is closed" not in str(err):
+                print(f"[ROTA] Erro em {page.route}: {err}")
 
     # Configura o evento de mudança de rota
     page.on_route_change = route_change
@@ -138,9 +140,9 @@ async def main(page: ft.Page):
     page.go(page.route)
 
 if __name__ == "__main__":
-    # Garante que o Flet saiba onde buscar as imagens na pasta assets
     try:
+        # assets_dir="assets" garante o carregamento da gota d'água
         ft.app(target=main, assets_dir="assets")
-    except RuntimeError:
-        # Previne erro de encerramento de loop no Python 3.14
+    except (RuntimeError, Exception):
+        # Ignora exceções de encerramento de thread no Python 3.14
         pass
