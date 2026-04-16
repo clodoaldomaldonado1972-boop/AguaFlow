@@ -61,8 +61,8 @@ def montar_tela_scanner(page: ft.Page):
         try:
             res = Database.registrar_leitura(
                 unidade=txt_unidade.value,
-                valor_agua=float(txt_valor.value.replace(',', '.')),
-                valor_gas=None
+                valor=float(txt_valor.value.replace(',', '.')),
+                tipo_leitura="Água"
             )
 
             if res['sucesso']:
