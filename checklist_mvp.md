@@ -161,6 +161,7 @@ elif page.route == "/reset-password":
 | Encoding UTF-8-BOM (Excel PT-BR) | ⚠️ **Não implementado** | Usar `utf-8-sig` |
 | Delimitador ponto-e-vírgula | ⚠️ **Não implementado** | Adicionar `delimiter=';'` |
 
+
 **Ação Recomendada:** Atualizar `gerar_csv_consumo()`:
 ```python
 with open(caminho_csv, "w", newline="", encoding="utf-8-sig") as f:
