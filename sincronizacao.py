@@ -6,6 +6,7 @@ from database.database import Database
 class SincronizadorUI:
     """
     Classe responsável por gerenciar a interface do botão de nuvem.
+    Ajustada para suportar execução assíncrona e evitar travamentos no Python 3.14.
     """
     def __init__(self, page: ft.Page):
         self.page = page
@@ -26,8 +27,8 @@ class SincronizadorUI:
             self.txt_status.value = "Sincronizando..."
             self.page.update()
 
-            # 2. Chama o motor de sincronismo em segundo plano
-            # O to_thread impede que a UI trave durante a comunicação com a nuvem
+            # 2. Chamada assíncrona para não travar a UI
+            # O to_thread é vital para que a rede não bloqueie o loop de eventos
             resultado = await asyncio.to_thread(SyncEngine.sincronizar_agora)
 
             # 3. Feedback visual de conclusão (Sucesso - Verde)
@@ -38,7 +39,8 @@ class SincronizadorUI:
             )
             
         except Exception as ex:
-            # Feedback em caso de erro (Vermelho)
+            # 4. Feedback em caso de erro (Vermelho)
+            # Agora o erro real aparecerá na SnackBar para sabermos o que falhou
             self.btn_sync.icon_color = ft.colors.RED_600
             self.page.snack_bar = ft.SnackBar(
                 content=ft.Text(f"Erro na sincronia: {str(ex)}"),
@@ -46,7 +48,7 @@ class SincronizadorUI:
             )
         
         finally:
-            # 4. Restaura o estado do botão e exibe a mensagem
+            # 5. Restaura o estado do botão e exibe a mensagem
             self.btn_sync.disabled = False
             self.txt_status.value = ""
             self.page.snack_bar.open = True
