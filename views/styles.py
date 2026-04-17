@@ -65,7 +65,7 @@ def campo_estilo(label, icon_name, password=False, on_submit=None, keyboard_type
 
 def criar_mira_scanner():
     """
-    Cria o Viewfinder com a linha horizontal vermelha animada.
+    Cria o Viewfinder com a linha horizontal vermelha animada (Laser).
     """
     # A LINHA VERMELHA (LASER)
     linha_laser = ft.Container(
@@ -75,7 +75,7 @@ def criar_mira_scanner():
         border_radius=5,
         shadow=ft.BoxShadow(blur_radius=15, color=ft.colors.RED_600),
         offset=ft.Offset(0, 0),
-        # Animação suave de 1.5 segundos para o movimento
+        # Animação de 1.5 segundos para o movimento
         animate_offset=ft.animation.Animation(1500, ft.AnimationCurve.EASE_IN_OUT),
     )
 
@@ -96,16 +96,34 @@ def criar_mira_scanner():
     # Motor da Mira: Faz a linha descer e subir infinitamente
     async def animar_laser():
         while True:
-            await asyncio.sleep(1.6)
-            linha_laser.offset = ft.Offset(0, 70) # Desce (valor relativo ao Container)
-            linha_laser.update()
-            await asyncio.sleep(1.6)
-            linha_laser.offset = ft.Offset(0, 0)  # Sobe
-            linha_laser.update()
+            try:
+                await asyncio.sleep(1.6)
+                linha_laser.offset = ft.Offset(0, 70) # Desce
+                linha_laser.update()
+                await asyncio.sleep(1.6)
+                linha_laser.offset = ft.Offset(0, 0)  # Sobe
+                linha_laser.update()
+            except:
+                break # Para a animação se o componente for destruído
 
-    # Inicia a animação quando o controle é renderizado
-    mira_container.on_hover = lambda _: asyncio.create_task(animar_laser())
+    # Inicia a animação quando o controle é renderizado/tocado
+    mira_container.on_click = lambda _: asyncio.create_task(animar_laser())
     
-    # Para mobile, iniciamos no carregamento através de um evento de página se necessário, 
-    # mas o on_hover/on_click costuma ativar o task no Flet.
     return mira_container
+
+def campo_estilo(label, icon_name, password=False, read_only=False, keyboard_type=None, on_submit=None):
+    return ft.TextField(
+        label=label,
+        prefix_icon=icon_name,
+        password=password,
+        can_reveal_password=True,
+        border_color=PRIMARY_BLUE,
+        focused_border_color=WHITE,
+        color=WHITE,
+        width=320,
+        height=60,
+        on_submit=on_submit,
+        border_radius=12,
+        read_only=read_only,
+        keyboard_type=keyboard_type if keyboard_type else ft.KeyboardType.TEXT
+    )
