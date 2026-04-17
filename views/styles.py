@@ -63,34 +63,49 @@ def campo_estilo(label, icon_name, password=False, on_submit=None, keyboard_type
         keyboard_type=keyboard_type if keyboard_type else ft.KeyboardType.TEXT
     )
 
-# --- A MIRA DO SCANNER (VIEWFINDER) ---
 def criar_mira_scanner():
     """
-    Cria um componente visual de 'mira' para orientar o utilizador 
-    a centralizar o hidrómetro e o QR Code.
+    Cria o Viewfinder com a linha horizontal vermelha animada.
     """
-    return ft.Container(
+    # A LINHA VERMELHA (LASER)
+    linha_laser = ft.Container(
+        width=260,
+        height=3,
+        bgcolor=ft.colors.RED_ACCENT_400,
+        border_radius=5,
+        shadow=ft.BoxShadow(blur_radius=15, color=ft.colors.RED_600),
+        offset=ft.Offset(0, 0),
+        # Animação suave de 1.5 segundos para o movimento
+        animate_offset=ft.animation.Animation(1500, ft.AnimationCurve.EASE_IN_OUT),
+    )
+
+    # O QUADRO DA MIRA
+    mira_container = ft.Container(
         width=300,
         height=250,
         border=ft.border.all(2, ACCENT_ORANGE),
         border_radius=20,
-        alignment=ft.alignment.center,
-        bgcolor=ft.colors.with_opacity(0.05, WHITE),
+        bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
+        alignment=ft.alignment.top_center,
+        padding=ft.padding.only(top=20),
         content=ft.Stack([
-            # Linha de Scan "Laser"
-            ft.Container(
-                width=280,
-                height=2,
-                bgcolor=ft.colors.with_opacity(0.4, ERROR_COLOR),
-                top=125
-            ),
-            ft.Text(
-                "POSICIONE O VISOR AQUI", 
-                size=10, 
-                color=ACCENT_ORANGE, 
-                weight="bold",
-                bottom=10,
-                right=80
-            )
+            linha_laser
         ])
     )
+
+    # Motor da Mira: Faz a linha descer e subir infinitamente
+    async def animar_laser():
+        while True:
+            await asyncio.sleep(1.6)
+            linha_laser.offset = ft.Offset(0, 70) # Desce (valor relativo ao Container)
+            linha_laser.update()
+            await asyncio.sleep(1.6)
+            linha_laser.offset = ft.Offset(0, 0)  # Sobe
+            linha_laser.update()
+
+    # Inicia a animação quando o controle é renderizado
+    mira_container.on_hover = lambda _: asyncio.create_task(animar_laser())
+    
+    # Para mobile, iniciamos no carregamento através de um evento de página se necessário, 
+    # mas o on_hover/on_click costuma ativar o task no Flet.
+    return mira_container
