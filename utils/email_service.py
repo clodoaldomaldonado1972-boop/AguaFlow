@@ -14,7 +14,7 @@ def enviar_relatorio_por_email(caminho_pdf):
     email_remetente = os.getenv("EMAIL_USER")
     # IMPORTANTE: Aqui deve estar a "Senha de App" de 16 dígitos do Google
     senha_app = os.getenv("EMAIL_PASS")
-    email_destinatario = os.getenv("EMAIL_DESTINATARIO", "clodoaldomaldonado112@gmail.com")
+    email_destinatario = os.getenv("EMAIL_DESTINATARIO", "clodoaldo.maldonado1972@gmail.com")
 
     # Verifica se as credenciais existem
     if not email_remetente or not senha_app:
