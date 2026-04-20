@@ -6,13 +6,12 @@ from database.database import Database
 
 class SincronizadorUI:
     def __init__(self, page: ft.Page):
-        self.page = page
-        # IHC: Ícone intuitivo com Tooltip para guiar o usuário
+        # Dentro da classe SincronizadorUI ou na função que cria o botão
         self.btn_sync = ft.IconButton(
-            icon=ft.icons.CLOUD_SYNC_ROUNDED,
-            icon_color=ft.colors.GREY_400,
-            tooltip="Sincronizar leituras com o Supabase",
-            on_click=self.executar_sincronismo
+            icon=ft.icons.CLOUD_UPLOAD,
+            tooltip="Sincronizar com Nuvem",
+            # CORREÇÃO AQUI: Use page.run_task para não travar a interface
+            on_click=lambda e: self.page.run_task(SyncService.processar_fila)
         )
         self.txt_status = ft.Text("", size=12, color=ft.colors.BLUE_GREY_400)
 

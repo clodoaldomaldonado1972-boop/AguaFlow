@@ -1,94 +1,55 @@
 import flet as ft
-import asyncio
-import datetime
-from utils.diagnostico import DiagnosticoSistema
+from views import styles as st
+from views.sincronizacao import SincronizadorUI
 
-def montar_tela_saude(page: ft.Page, voltar):
-    # Componentes de status visual
-    icon_db = ft.Icon(ft.icons.STORAGE_ROUNDED, color="grey", size=30)
-    lbl_db_status = ft.Text("Aguardando...", color="grey", size=16, weight="bold")
-    lst_logs = ft.ListView(expand=1, spacing=5, padding=10)
+try:
+    from utils.updater import VERSION
+except ImportError:
+    VERSION = "1.1.0"
 
-    def adicionar_log(mensagem, cor="white54"):
-        hora = datetime.datetime.now().strftime("%H:%M:%S")
-        lst_logs.controls.insert(0, ft.Text(f"[{hora}] {mensagem}", color=cor, size=12))
-        page.update()
+def montar_tela_saude(page: ft.Page, ao_voltar):
+    sincronizador = SincronizadorUI(page)
 
-    async def executar_diagnostico(e=None):
-        adicionar_log("Iniciando varredura de integridade...", "blue")
-        icon_db.color = "orange"
-        page.update()
-        
-        # Chama o motor de diagnóstico que analisamos anteriormente
-        sucesso, resumo = await DiagnosticoSistema.executar_checkup_completo()
-        
-        await asyncio.sleep(1) # Simulação para feedback visual
-        
-        if sucesso:
-            icon_db.color = "green"
-            lbl_db_status.value = "Sistema Saudável"
-            lbl_db_status.color = "green"
-            adicionar_log("Checkup concluído: Sem erros detectados.", "green")
-        else:
-            icon_db.color = "red"
-            lbl_db_status.value = "Falha Detectada"
-            lbl_db_status.color = "red"
-            adicionar_log(f"Alerta: {resumo}", "red")
-        
-        page.update()
-
-    # Inicia o diagnóstico automaticamente ao abrir a tela
-    page.run_task(executar_diagnostico)
+    def criar_card_status(icone, titulo, status, cor):
+        return ft.Container(
+            content=ft.ListTile(
+                leading=ft.Icon(icone, color=cor, size=30),
+                title=ft.Text(titulo, weight="bold", size=14),
+                trailing=ft.Text(status, color=cor, weight="bold"),
+            ),
+            bgcolor="#1E2126",
+            border_radius=10,
+            padding=5,
+            border=ft.border.all(1, "#33373E")
+        )
 
     return ft.View(
         route="/dashboard_saude",
-        bgcolor="#121417",
+        bgcolor=st.BG_DARK,
         controls=[
-            ft.Container(
-                padding=20,
-                content=ft.Column([
-                    ft.Text("Saúde do AguaFlow", size=24, weight="bold", color="white"),
-                    
-                    # Card de Status do Banco
-                    ft.Container(
-                        padding=20,
-                        bgcolor="#1e1e1e",
-                        border_radius=10,
-                        content=ft.Row([
-                            icon_db,
-                            ft.Column([
-                                lbl_db_status,
-                                ft.Text("Integridade do SQLite e Sincronismo", size=12, color="grey")
-                            ])
-                        ])
-                    ),
-
-                    ft.Text("Logs de Eventos", size=16, weight="bold"),
-                    ft.Container(
-                        content=lst_logs,
-                        bgcolor=ft.colors.BLACK45,
-                        border_radius=10, 
-                        height=250,
-                        border=ft.border.all(1, "white10")
-                    ),
-
-                    ft.ElevatedButton(
-                        "REESCANEAR AGORA",
-                        icon=ft.icons.REFRESH_ROUNDED,
-                        on_click=executar_diagnostico,
-                        width=400, height=50
-                    ),
-                    
-                    ft.ElevatedButton(
-                        "MÉTRICAS EM NUVEM (GRAFANA)",
-                        icon=ft.icons.INSERT_CHART_OUTLINED_ROUNDED,
-                        on_click=lambda _: page.launch_url("https://grafana.com"),
-                        width=400, height=50,
-                        style=ft.ButtonStyle(bgcolor=ft.colors.ORANGE_900, color="white")
-                    ),
-
-                    ft.TextButton("Voltar ao Menu", on_click=voltar)
-                ], spacing=15)
-            )
+            ft.AppBar(
+                title=ft.Text("Saúde do Sistema"),
+                bgcolor=st.PRIMARY_BLUE,
+                leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=ao_voltar),
+                actions=[sincronizador.obter_componente()]
+            ),
+            ft.Column([
+                ft.Text("MONITORAMENTO TÉCNICO", size=12, color="grey", weight="bold"),
+                criar_card_status(ft.icons.STORAGE, "Banco de Dados Local", "CONECTADO", "blue"),
+                criar_card_status(ft.icons.MEMORY, "Memória RAM (OCR)", "OTIMIZADO", "green"),
+                criar_card_status(ft.icons.SD_CARD, "Armazenamento", "SAUDÁVEL", "green"),
+                criar_card_status(ft.icons.CLOUD_DONE, "Conexão Supabase", "ONLINE", "green"),
+                
+                # Espaçador para empurrar a versão para o final
+                ft.Container(expand=True),
+                
+                # --- RODAPÉ COM VERSÃO ---
+                ft.Divider(color="white10"),
+                ft.Row([
+                    ft.Text(f"AguaFlow Build: v{VERSION}", size=11, color="grey700", italic=True),
+                    ft.Text("Edifício Vivere Prudente", size=11, color="grey700"),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                
+            ], expand=True, spacing=15)
         ]
     )

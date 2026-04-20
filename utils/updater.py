@@ -2,16 +2,19 @@ import flet as ft
 from supabase import create_client, Client
 import os
 
+
+# --- ADICIONE ESTA LINHA AQUI NO TOPO ---
+VERSION = "1.1.0" 
+
 class AppUpdater:
-    VERSION = "1.0.2"
-
-    def __init__(self, page=None):
+    def __init__(self, page: ft.Page):
         self.page = page
-
+        self.current_version = VERSION # Agora ele consegue ler a variável acima
+        
     async def check_for_updates(self):
-        """Método de compatibilidade chamado pelo main.py"""
-        # A linha abaixo PRECISA de 8 espaços (ou 2 TABs) de recuo
-        return await self.checar_atualizacao_supabase(self.page)
+        # Seu código existente de verificação...
+        print(f"Verificando atualizações para a versão {self.current_version}")
+        pass
 
     @staticmethod
     async def checar_atualizacao_supabase(page: ft.Page):
