@@ -4,7 +4,7 @@ import os
 
 
 # --- ADICIONE ESTA LINHA AQUI NO TOPO ---
-VERSION = "1.1.0" 
+VERSION = "1.1.1" 
 
 class AppUpdater:
     def __init__(self, page: ft.Page):
