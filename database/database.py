@@ -109,14 +109,18 @@ class Database:
 
     @classmethod
     def _gerar_lista_unidades(cls):
-        """Gera a lista de unidades do condomínio (16 andares)."""
+        """Gera a lista de unidades do condomínio em ordem decrescente."""
         lista = []
-        for andar in range(1, 17):
-            for apto in range(1, 7):
+        # Invertemos o range para começar do 16 e ir até o 1
+        for andar in range(16, 0, -1): 
+            # Invertemos o apto para começar do 6 e ir até o 1
+            for apto in range(6, 0, -1):
                 u = f"{andar}{apto}"
+                # Regras Duplex do Vivere
                 if u in ["163", "164"]: u = "163/164"
                 if u in ["23", "24"]: u = "23/24"
-                if u not in lista: lista.append(u)
+                if u not in lista: 
+                    lista.append(u)
         return lista
 
     # --- Métodos de Sincronização (Preservando sua lógica de 184 linhas) ---
