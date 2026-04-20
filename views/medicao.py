@@ -1,5 +1,6 @@
 import flet as ft
 import asyncio
+import re
 from database.database import Database
 from views import styles as st
 from utils.audio_utils import tocar_alerta
@@ -7,169 +8,138 @@ from utils.scanner import ScannerAguaFlow
 
 def montar_tela_medicao(page: ft.Page, on_back_click=None):
     """
-    Constrói a tela de medição com suporte a scanner e salvamento assíncrono.
+    Tela de medição AguaFlow sincronizada:
+    - Suporte a unidades Duplex (163/164 e 23/24)
+    - Trava Água: 7 dígitos (5+2) | Trava Gás: 8 dígitos (5+3)
+    - Scanner OCR com Timeout e Fallback Manual
     """
-    # 1. Gera a lista de unidades (Ex: 166, 165... 11)
     db_lista = Database._gerar_lista_unidades()
     
-    # 2. Define o ponto de partida baseado na última leitura salva
-    try:
-        ultima_lida = Database.buscar_ultima_unidade_lida()
-        if ultima_lida in db_lista:
-            idx = db_lista.index(ultima_lida)
-            unidade_inicial = db_lista[idx + 1] if idx + 1 < len(db_lista) else db_lista[0]
-        else:
-            unidade_inicial = db_lista[0]
-    except Exception:
-        unidade_inicial = "166"
+    # 1. Recupera a última unidade para sequência inteligente
+    ultima_lida = Database.buscar_ultima_unidade_lida()
+    if ultima_lida and ultima_lida in db_lista:
+        unidade_inicial = Database.obter_proxima_unidade(ultima_lida, db_lista)
+    else:
+        unidade_inicial = db_lista[0]
 
-    # --- COMPONENTES DE INTERFACE ---
-    txt_unidade = st.campo_estilo("Unidade Atual", ft.icons.HOME, read_only=True)
-    txt_unidade.value = unidade_inicial
-    
-    txt_agua = st.campo_estilo("Leitura Água (*)", ft.icons.WATER_DROP, keyboard_type=ft.KeyboardType.NUMBER)
-    txt_agua.input_filter = ft.InputFilter(allow=True, regex_string=r"^\d*[.,]?\d{0,2}$", replacement_string="")
-
-    txt_gas = st.campo_estilo("Leitura Gás (Opcional)", ft.icons.LOCAL_GAS_STATION, keyboard_type=ft.KeyboardType.NUMBER)
-    txt_gas.input_filter = ft.InputFilter(allow=True, regex_string=r"^\d*[.,]?\d{0,2}$", replacement_string="")
-
-    lbl_status = ft.Text("", size=14, weight="bold")
-
-    # --- LÓGICA DO SCANNER ---
-    async def processar_retorno_scanner(unidade, valor, sucesso):
-        """Atualiza os campos após a leitura da câmera/arquivo."""
-        if unidade:
-            txt_unidade.value = unidade
-        if valor:
-            txt_agua.value = str(valor)
+    # --- FUNÇÃO DE CALLBACK DO SCANNER (Sincronizada com scanner.py) ---
+    async def processar_retorno_ocr(unidade_ocr, valor_ocr, sucesso):
+        if sucesso and valor_ocr:
+            txt_agua.value = valor_ocr
+            # Dispara a máscara e validação para o valor lido
+            aplicar_trava_e_mascara(ft.ControlEvent(name="change", target=txt_agua.uid, control=txt_agua, data=valor_ocr, page=page))
+            tocar_alerta("sucesso")
+        elif valor_ocr == "TIMEOUT":
+            page.snack_bar = ft.SnackBar(ft.Text("⚠️ OCR demorou demais. Insira manualmente."), bgcolor=ft.colors.ORANGE_800)
+            page.snack_bar.open = True
+            txt_agua.focus()
         
-        if sucesso:
-            lbl_status.value = "✅ Leitura capturada!"
-            lbl_status.color = "green"
-        else:
-            lbl_status.value = "📍 Unidade lida. Insira o valor manualmente."
-            lbl_status.color = "blue"
+        btn_scanner.disabled = False
         page.update()
 
-    # Inicializa o motor do scanner
-    scanner_motor = ScannerAguaFlow(page, processar_retorno_scanner)
+    # --- MOTOR DE VALIDAÇÃO E TRAVAS ---
+    def aplicar_trava_e_mascara(e):
+        campo = e.control
+        valor_limpo = re.sub(r"\D", "", campo.value)
+        
+        if campo == txt_agua:
+            if len(valor_limpo) > 7: valor_limpo = valor_limpo[:7]
+            campo.value = f"{valor_limpo[:-2]},{valor_limpo[-2:]}" if len(valor_limpo) > 2 else valor_limpo
+            
+        elif campo == txt_gas:
+            if len(valor_limpo) > 8: valor_limpo = valor_limpo[:8]
+            campo.value = f"{valor_limpo[:-3]},{valor_limpo[-3:]}" if len(valor_limpo) > 3 else valor_limpo
 
-    async def acionar_scanner(e):
-        """Aciona a câmera de forma assíncrona para evitar erro NoneType."""
+        # Validação do Botão Salvar
+        agua_ok = len(re.sub(r"\D", "", txt_agua.value)) == 7
+        gas_valor_puro = re.sub(r"\D", "", txt_gas.value)
+        gas_ok = len(gas_valor_puro) == 0 or len(gas_valor_puro) == 8
+        
+        btn_salvar.disabled = not (agua_ok and gas_ok)
+        campo.update()
+        btn_salvar.update()
+
+    # --- COMPONENTES ---
+    txt_unidade = st.campo_estilo(label="Unidade", icon_name=ft.icons.APARTMENT, read_only=True)
+    txt_unidade.value = unidade_inicial
+
+    txt_agua = st.campo_estilo(label="Água (5+2)", icon_name=ft.icons.WATER_DROP, keyboard_type=ft.KeyboardType.NUMBER)
+    txt_agua.on_change = aplicar_trava_e_mascara
+
+    txt_gas = st.campo_estilo(label="Gás (5+3)", icon_name=ft.icons.LOCAL_GAS_STATION, keyboard_type=ft.KeyboardType.NUMBER)
+    txt_gas.on_change = aplicar_trava_e_mascara
+
+    # Instancia o Scanner passando o novo callback sincronizado
+    scanner_engine = ScannerAguaFlow(page=page, ao_detectar_leitura=processar_retorno_ocr)
+
+    async def disparar_ocr(e):
+        btn_scanner.disabled = True
+        page.update()
+        await scanner_engine.iniciar_scan(tipo="Água")
+
+    # --- SALVAMENTO COM REGRA DUPLEX ---
+    async def realizar_salvamento(e):
+        progresso.visible = True
+        btn_salvar.disabled = True
+        page.update()
+
+        # Validação e conversão segura dos valores
         try:
-            lbl_status.value = "📷 Abrindo scanner..."
-            lbl_status.color = "blue"
+            agua_f = float(txt_agua.value.replace(",", ".")) if txt_agua.value else None
+            gas_f = float(txt_gas.value.replace(",", ".")) if txt_gas.value else 0.0
+        except ValueError:
+            page.snack_bar = ft.SnackBar(ft.Text("❌ Valores inválidos. Use apenas números."), bgcolor=ft.colors.RED_700)
+            page.snack_bar.open = True
+            progresso.visible = False
             page.update()
-            # Chama o motor de scan
-            await scanner_motor.iniciar_scan(tipo="Água")
-        except Exception as ex:
-            lbl_status.value = f"Erro na câmera: {str(ex)}"
-            lbl_status.color = "red"
-            page.update()
+            return
 
-    def disparar_snack(msg, cor="red"):
-        page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=cor)
+        if agua_f is None:
+            page.snack_bar = ft.SnackBar(ft.Text("❌ Leitura de água é obrigatória."), bgcolor=ft.colors.RED_700)
+            page.snack_bar.open = True
+            progresso.visible = False
+            page.update()
+            return
+
+        unidade_atual = txt_unidade.value
+        sucesso = await asyncio.to_thread(Database.salvar_leitura_local, unidade_atual, agua_f, gas_f, "Mensal")
+
+        if sucesso:
+            tocar_alerta("sucesso")
+            # Lógica Duplex centralizada no Database
+            txt_unidade.value = Database.obter_proxima_unidade(unidade_atual, db_lista)
+
+            txt_agua.value = ""; txt_gas.value = ""; btn_salvar.disabled = True
+            page.snack_bar = ft.SnackBar(ft.Text(f"✅ Unidade {unidade_atual} salva!"), bgcolor=ft.colors.GREEN_700)
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("❌ Erro ao salvar dados."), bgcolor=ft.colors.RED_700)
+
+        progresso.visible = False
         page.snack_bar.open = True
         page.update()
 
-    # --- LÓGICA DE SALVAMENTO ---
-    async def realizar_salvamento(e):
-        """Salva a leitura no SQLite e pula para a próxima unidade."""
-        if not txt_agua.value:
-            disparar_snack("A leitura de ÁGUA é obrigatória!")
-            return
+    # --- BOTÕES ---
+    btn_scanner = ft.ElevatedButton("ABRIR SCANNER OCR", icon=ft.icons.CAMERA_ALT, on_click=disparar_ocr, style=st.BTN_SPECIAL)
+    btn_salvar = ft.ElevatedButton("CONFIRMAR E GUARDAR", icon=ft.icons.SAVE, style=st.BTN_MAIN, width=320, height=60, disabled=True, on_click=realizar_salvamento)
+    progresso = ft.ProgressBar(width=300, color=st.ACCENT_ORANGE, visible=False)
 
-        # Validação de Sequência (Beep se pular unidade)
-        ultima_no_db = Database.buscar_ultima_unidade_lida()
-        if ultima_no_db:
-            idx_esperado = db_lista.index(ultima_no_db) + 1
-            if idx_esperado < len(db_lista):
-                unidade_esperada = db_lista[idx_esperado]
-                if txt_unidade.value != unidade_esperada:
-                    tocar_alerta() # Beep sonoro
-                    lbl_status.value = f"⚠️ Fora de Sequência! Esperado: {unidade_esperada}"
-                    lbl_status.color = "red"
-                    page.update()
-                    return
-
-        try:
-            # Converte valores para o padrão do banco
-            v_agua = round(float(txt_agua.value.replace(',', '.')), 2)
-            
-            # Registro assíncrono para evitar travamento da UI (especialmente no Android/Chrome)
-            res_agua = await asyncio.to_thread(
-                Database.registrar_leitura, 
-                txt_unidade.value, v_agua, "Água"
-            )
-
-            if res_agua:
-                # Se houver leitura de gás
-                if txt_gas.value:
-                    v_gas = round(float(txt_gas.value.replace(',', '.')), 2)
-                    await asyncio.to_thread(Database.registrar_leitura, txt_unidade.value, v_gas, "Gás")
-
-                # Lógica de iteração para a próxima unidade
-                atual_idx = db_lista.index(txt_unidade.value)
-                if atual_idx + 1 < len(db_lista):
-                    proxima = db_lista[atual_idx + 1]
-                    txt_unidade.value = proxima
-                    txt_agua.value = ""
-                    txt_gas.value = ""
-                    lbl_status.value = f"✅ Salvo! Próxima: {proxima}"
-                    lbl_status.color = "green"
-                    txt_agua.focus()
-                else:
-                    lbl_status.value = "🎯 Roteiro de leitura concluído!"
-                    lbl_status.color = "blue"
-                    page.update()
-                    await asyncio.sleep(2)
-                    page.go("/menu")
-            else:
-                disparar_snack("Erro ao salvar no banco local.")
-
-        except ValueError:
-            disparar_snack("Valor numérico inválido!")
-        
-        page.update()
-
-    # --- RETORNA A VIEW ---
     return ft.View(
         route="/medicao",
+        bgcolor=st.BG_DARK,
         controls=[
+            ft.AppBar(title=ft.Text("Nova Medição - Vivere"), center_title=True, leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))),
             ft.Column([
-                ft.Container(
-                    padding=30,
-                    content=ft.Column([
-                        ft.Icon(ft.icons.SPEED, size=50, color="blue"),
-                        ft.Text("Registro de Consumo", size=20, weight="bold"),
-                        
-                        ft.ElevatedButton(
-                            "SCANNER AUTOMÁTICO",
-                            icon=ft.icons.CAMERA_ALT,
-                            bgcolor=ft.colors.BLUE_700,
-                            color=ft.colors.WHITE,
-                            width=320,
-                            height=50,
-                            on_click=acionar_scanner
-                        ),
-                        
-                        ft.Divider(height=10, color="transparent"),
-                        txt_unidade,
-                        txt_agua,
-                        txt_gas,
-                        lbl_status,
-                        
-                        ft.Divider(height=20),
-                        ft.ElevatedButton(
-                            "CONFIRMAR E SALVAR", 
-                            icon=ft.icons.SAVE, 
-                            width=320,
-                            height=50,
-                            on_click=realizar_salvamento
-                        ),
-                        ft.TextButton("Cancelar", on_click=lambda _: page.go("/menu"))
-                    ], horizontal_alignment="center", spacing=15)
-                )
-            ], horizontal_alignment="center", scroll=ft.ScrollMode.AUTO)
+                ft.Container(padding=20, content=ft.Column([
+                    ft.Text("Captação Residencial", style=st.TEXT_TITLE),
+                    ft.Text("Regra Duplex e Travas Ativas", style=st.TEXT_SUB),
+                    ft.Divider(height=20, color="transparent"),
+                    btn_scanner,
+                    ft.Divider(height=10, color="transparent"),
+                    txt_unidade, txt_agua, txt_gas,
+                    progresso, ft.Divider(height=20),
+                    btn_salvar,
+                    ft.TextButton("Voltar", on_click=lambda _: page.go("/menu"), style=ft.ButtonStyle(color=st.GREY))
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
         ]
     )

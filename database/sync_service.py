@@ -1,65 +1,79 @@
 import time
+import asyncio
 from datetime import datetime as dt
 from .database import Database
-from .supabase_client import insert_leitura_supabase
-
 
 class SyncService:
     @classmethod
-    def processar_fila(cls):
-        """Varre a fila local e tenta enviar para a nuvem."""
-        print("🔄 Iniciando ciclo de sincronização...")
+    async def processar_fila(cls):
+        """
+        Varre o SQLite local em busca de leituras não sincronizadas 
+        e tenta enviá-las para o Supabase (Nuvem).
+        """
+        print("🔄 AguaFlow: Iniciando ciclo de sincronização...")
 
+        # 1. Busca no Banco Local apenas o que ainda não subiu para a nuvem (sincronizado = 0)
+        # IHC: Isso evita consumo desnecessário de dados móveis do zelador.
         with Database.get_db() as conn:
             cursor = conn.cursor()
-
-            # 1. Busca leituras pendentes cruzando a fila com a tabela de leituras
-            # Nota: Certifique-se de que a tabela sync_queue foi criada no seu Database.init_db()
             cursor.execute("""
-                SELECT q.id, q.leitura_id, l.unidade, l.valor, l.data_leitura, l.tipo_leitura 
-                FROM sync_queue q
-                JOIN leituras l ON q.leitura_id = l.id
-                WHERE q.status_envio = 'PENDENTE'
+                SELECT id, unidade, leitura_atual, consumo, tipo_leitura, data_hora_coleta 
+                FROM leituras 
+                WHERE sincronizado = 0
             """)
             pendentes = cursor.fetchall()
 
             if not pendentes:
-                print("✅ Nada para sincronizar.")
-                return
+                print("✅ Tudo em dia: Nada para sincronizar.")
+                return 0
 
+            sucessos = 0
             for item in pendentes:
-                sync_id, leitura_id, unidade, valor, data, tipo = item
+                leitura_id = item['id']
+                unidade = item['unidade']
+                
+                print(f"📡 Enviando Unidade {unidade} para a nuvem...")
 
-                print(f"📡 Enviando Unidade {unidade}...")
+                # 2. Tenta enviar para o Supabase usando o método que criamos no Database
+                # O Database.sincronizar_com_supabase já trata a conexão com a nuvem
+                resultado_ok = await cls._enviar_para_nuvem(item)
 
-                # 2. Chama o método de inserção no Supabase
-                # Ajustado para usar os campos que definimos no supabase_client.py
-                resultado = insert_leitura_supabase(
-                    id_unidade=unidade,
-                    valor=valor,
-                    tipo_leitura=tipo
-                )
-
-                if resultado['sucesso']:
-                    # 3. Atualiza o status na fila e marca como sincronizado na tabela principal
+                if resultado_ok:
+                    # 3. Se subiu com sucesso, marca como sincronizado no SQLite local
                     cursor.execute(
-                        "UPDATE sync_queue SET status_envio = 'CONCLUIDO' WHERE id = ?", (sync_id,))
-                    cursor.execute(
-                        "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (leitura_id,))
+                        "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (leitura_id,)
+                    )
+                    sucessos += 1
                     print(f"✔️ Unidade {unidade} sincronizada com sucesso!")
                 else:
-                    print(
-                        f"❌ Falha ao sincronizar {unidade}: {resultado['mensagem']}")
+                    print(f"❌ Falha temporária ao sincronizar {unidade}. Tentará novamente depois.")
 
             conn.commit()
+            return sucessos
+
+    @classmethod
+    async def _enviar_para_nuvem(cls, dados_leitura):
+        """
+        Função interna que faz a ponte real com o Supabase.
+        Retorna True se a nuvem confirmou o recebimento.
+        """
+        try:
+            # Reutiliza a lógica central de sincronismo do seu Database.py
+            # Isso mantém o código limpo e evita repetição de chaves de API
+            registros_enviados = Database.sincronizar_com_supabase()
+            return registros_enviados > 0
+        except Exception as e:
+            print(f"⚠️ Erro de rede no envio: {e}")
+            return False
 
     @classmethod
     def adicionar_a_fila(cls, leitura_id):
-        """Adiciona manualmente um ID de leitura para a fila de processamento."""
+        """
+        Método de apoio para marcar manualmente uma leitura para re-envio se necessário.
+        """
         with Database.get_db() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO sync_queue (leitura_id, status_envio) VALUES (?, 'PENDENTE')",
-                (leitura_id,)
+                "UPDATE leituras SET sincronizado = 0 WHERE id = ?", (leitura_id,)
             )
             conn.commit()
