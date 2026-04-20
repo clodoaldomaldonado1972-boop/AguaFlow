@@ -137,9 +137,8 @@ class Database:
         """
         # Captura o momento exato do salvamento (Dinâmico)
         agora = datetime.now()
-        data_hora_txt = agora.strftime("%Y-%m-%d %H:%M:%S") # Para o campo data_leitura
-        hoje = datetime.now().strftime("%Y-%m-%d")          # Para verificação de duplicidade
-
+        data_hora_txt = agora.strftime("%Y-%m-%d %H:%M:%S") # Correto ✅
+        hoje = datetime.now().strftime("%Y-%m-%d")          # Correto ✅
         max_retries = 3
         retry_delay = 0.5  # segundos
 
