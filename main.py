@@ -12,10 +12,11 @@ warnings.filterwarnings("ignore", category=UserWarning)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from database.database import Database
-from utils.updater import AppUpdater
+# Importação da versão e do Updater
+from utils.updater import AppUpdater, VERSION 
 
 # --- IMPORTAÇÕES DAS VIEWS ---
-from views.auth import criar_tela_login
+from views.auth import criar_tela_login, montar_tela_esqueci_senha
 from views.autenticacao import montar_tela_autenticacao
 from views.menu_principal import montar_menu
 from views.medicao import montar_tela_medicao
@@ -28,55 +29,53 @@ from views.ajuda_usuario import montar_tela_ajuda
 
 async def main(page: ft.Page):
     # 2. CONFIGURAÇÕES GERAIS DA PÁGINA
-    page.title = "AguaFlow - Gestão Residencial"
-    page.theme_mode = ft.ThemeMode.DARK # Alterado para Dark para combinar com o Vivere
-    page.window_width = 400
-    page.window_height = 800
-    
-    # Gerenciador de Mudança de Rotas
+    page.title = f"AguaFlow {VERSION} - Gestão Residencial"
+    page.theme_mode = ft.ThemeMode.DARK 
+    page.window_width = 450
+    page.window_height = 850
+    page.window_resizable = True
+
+    # 3. LÓGICA DE NAVEGAÇÃO (ROUTING)
     def route_change(e):
         try:
-            # Limpa as views atuais para evitar sobreposição
             page.views.clear()
             
-            # --- MAPEAMENTO DE ROTAS ---
-            
-            # ROTA RAIZ / LOGIN
-            if page.route == "/" or page.route == "/login":
+            # Rota Inicial: Login
+            if page.route == "/":
                 page.views.append(criar_tela_login(page))
             
-            # ROTA REGISTRO / AUTENTICAÇÃO (Corrigido)
-            elif page.route == "/registro" or page.route == "/autenticacao":
+            elif page.route == "/esqueci_senha":
+                page.views.append(montar_tela_esqueci_senha(page))
+
+            elif page.route == "/autenticacao":
                 page.views.append(montar_tela_autenticacao(page))
-                
-            # ROTA MENU PRINCIPAL
+
             elif page.route == "/menu":
                 page.views.append(montar_menu(page))
 
-            # ROTA MEDIÇÃO
             elif page.route == "/medicao":
                 page.views.append(montar_tela_medicao(page, lambda _: page.go("/menu")))
-                
-            # ROTA RELATÓRIOS
+
             elif page.route == "/relatorios":
                 page.views.append(montar_tela_relatorio(page, lambda _: page.go("/menu")))
-                
-            # ROTA QR CODES (Sincronizado com qrcodes_view.py)
+
             elif page.route == "/gerar_qrcode":
                 page.views.append(montar_tela_qrcodes(page, lambda _: page.go("/menu")))
+          
+            # No main.py, dentro de route_change:
 
-            # ROTA DASHBOARDS
             elif page.route == "/dashboard":
+                # TELA DE CONSUMO (A de gráficos de barras)
                 page.views.append(montar_tela_dashboard(page, lambda _: page.go("/menu")))
-                
+            
             elif page.route == "/dashboard_saude":
+                # TELA DE SAÚDE (A AZUL da sua imagem)
+                # O erro costuma estar aqui: mude para montar_tela_saude
                 page.views.append(montar_tela_saude(page, lambda _: page.go("/menu")))
-                
-            # ROTA CONFIGURAÇÕES
+                            
             elif page.route == "/configuracoes":
                 page.views.append(montar_tela_configs(page, lambda _: page.go("/menu")))
             
-            # ROTA AJUDA
             elif page.route == "/ajuda":
                 page.views.append(montar_tela_ajuda(page, lambda _: page.go("/configuracoes")))
                         
@@ -85,35 +84,32 @@ async def main(page: ft.Page):
         except Exception as err:
             print(f"[ERRO NAVEGAÇÃO] Rota {page.route}: {err}")
 
-    # Gerenciador do botão "Voltar" (Android)
     def view_pop(e):
         if len(page.views) > 1:
             page.views.pop()
             top_view = page.views[-1]
             page.go(top_view.route)
 
-    # Atribuição dos eventos
     page.on_route_change = route_change
     page.on_view_pop = view_pop
 
-    # 3. INICIALIZAÇÃO DO SISTEMA
+    # 4. INICIALIZAÇÃO DO SISTEMA
     try:
-        # Inicializa o Banco Local
+        # Garante que o banco de dados e as colunas (data_leitura, tipo) existem
         await Database.init_db()
         
-        # Inicia na rota inicial
+        # Inicia na tela de login
         page.go("/")
         
-        # Verificação de Updates (em segundo plano para não travar o início)
+        # Verifica atualizações em background
         try:
             updater = AppUpdater(page)
             await updater.check_for_updates()
         except Exception as up_err:
-            print(f"Aviso Updater: {up_err}")
-        
-    except Exception as e:
-        print(f"Erro crítico na inicialização: {e}")
+            print(f"[UPDATER] Erro na verificação: {up_err}")
 
-# Execução do Aplicativo
+    except Exception as init_err:
+        print(f"[ERRO CRÍTICO] Falha ao iniciar aplicação: {init_err}")
+
 if __name__ == "__main__":
     ft.app(target=main)

@@ -1,107 +1,103 @@
 import flet as ft
 from datetime import datetime
 from database.database import Database
-# Mantém a integração com seu motor de alertas para notificar anomalias
-try:
-    from utils.alertas_engine import enviar_alerta_MESSAGE
-except ImportError:
-    enviar_alerta_MESSAGE = lambda x: print(f"Alerta: {x}")
+from views import styles as st
+# Importa a fábrica de gráficos que vamos criar no ficheiro à parte
+from utils.graficos_factory import criar_grafico_evolucao
 
-def montar_tela_dashboard(page: ft.Page, voltar):
+def montar_tela_dashboard(page: ft.Page, ao_voltar):
     # --- 1. BUSCA DE DADOS ---
-    try:
-        # Busca leituras sincronizadas e locais para compor o gráfico
-        leituras = Database.buscar_historico_cloud()
-    except Exception:
-        leituras = []
+    leituras_feitas = Database.get_leituras_mes_atual()
+    lidas = len(leituras_feitas)
+    todas_unidades = Database._gerar_lista_unidades()
+    unidades_pendentes = len(todas_unidades) - lidas
+    unidades_lidas_nomes = [l['unidade'] for l in leituras_feitas]
 
-    # --- 2. GERAÇÃO DA GRADE DE UNIDADES (96 APARTAMENTOS) ---
-    # IHC: Representação visual clara do progresso da leitura no condomínio
-    unidades_lidas = 0
+    # --- 2. FUNÇÃO PARA EXIBIR DETALHES (Interatividade) ---
+    def abrir_detalhes_unidade(e, unidade):
+        # Busca o histórico real no banco (precisa existir o método no database.py)
+        historico = Database.get_historico_unidade(unidade)
+        
+        # Gera o gráfico usando a nossa factory externa
+        grafico_comp = criar_grafico_evolucao(historico, f"Unidade {unidade}")
+
+        def fechar_bs(e):
+            bs.open = False
+            page.update()
+
+        bs = ft.BottomSheet(
+            ft.Container(
+                padding=20,
+                bgcolor="#1e1e1e",
+                border_radius=ft.border_radius.only(top_left=20, top_right=20),
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text(f"Evolução: Unidade {unidade}", size=20, weight="bold"),
+                        ft.IconButton(ft.icons.CLOSE, on_click=fechar_bs)
+                    ], alignment="spaceBetween"),
+                    ft.Divider(),
+                    ft.Container(content=grafico_comp, height=250, padding=10),
+                    ft.Text("Média mensal calculada com base nos últimos 6 meses.", 
+                            size=12, color="grey", italic=True),
+                ], tight=True, horizontal_alignment="center"),
+            ),
+            open=True,
+        )
+        page.overlay.append(bs)
+        page.update()
+
+    # --- 3. CONSTRUÇÃO DO MAPA DE COLETA ---
     lista_unidades_controles = []
-    
-    # Simulação de leitura para preencher a grade (ou busca real do banco)
-    for andar in range(16, 0, -1):
-        for apto in range(1, 7):
-            id_unidade = f"{andar}{apto}"
-            ja_lida = any(str(l.get("unidade_id")).startswith(id_unidade) for l in leituras)
-            
-            if ja_lida: unidades_lidas += 1
-            
-            lista_unidades_controles.append(
-                ft.Container(
-                    content=ft.Text(id_unidade, size=10, weight="bold"),
-                    alignment=ft.alignment.center,
-                    width=40, height=40,
-                    bgcolor=ft.colors.GREEN_800 if ja_lida else ft.colors.RED_900,
-                    border_radius=5,
-                    tooltip=f"Unidade {id_unidade}: {'Concluída' if ja_lida else 'Pendente'}"
-                )
+    for u in todas_unidades:
+        esta_lida = u in unidades_lidas_nomes
+        lista_unidades_controles.append(
+            ft.Container(
+                content=ft.Text(u, size=10, weight="bold", color="white"),
+                alignment=ft.alignment.center,
+                bgcolor=ft.colors.GREEN_800 if esta_lida else ft.colors.RED_900,
+                border_radius=5,
+                # IHC: Feedback visual ao passar o rato e clique para ver detalhes
+                on_click=lambda e, unidade=u: abrir_detalhes_unidade(e, unidade),
+                tooltip=f"Clique para ver evolução da Unidade {u}",
+                ink=True, # Efeito de clique material design
             )
+        )
 
-    unidades_pendentes = 96 - unidades_lidas
-
-    # --- 3. GRÁFICO DE CONSUMO (Flet Chart) ---
-    chart_data = []
-    if leituras:
-        # Agrupa os últimos 5 registros para o gráfico de barras
-        for i, leitura in enumerate(leituras[:5]):
-            chart_data.append(
-                ft.BarChartGroup(
-                    x=i,
-                    bar_rods=[
-                        ft.BarChartRod(
-                            from_y=0,
-                            to_y=float(leitura.get("consumo_mes", 0)),
-                            width=20,
-                            color=ft.colors.BLUE_400,
-                            border_radius=5,
-                        )
-                    ],
-                )
-            )
-
-    chart = ft.BarChart(
-        bar_groups=chart_data,
-        border=ft.border.all(1, "white10"),
-        left_axis=ft.ChartAxis(labels_size=40, title=ft.Text("m³"), title_size=40),
-        bottom_axis=ft.ChartAxis(labels=[ft.ChartAxisLabel(value=i, label=ft.Text(f"L{i+1}")) for i in range(len(chart_data))]),
-        expand=True,
-    )
-
-    # --- 4. CONSTRUÇÃO DA INTERFACE ---
+    # --- 4. INTERFACE PRINCIPAL ---
     return ft.View(
         route="/dashboard",
-        bgcolor="#121417",
+        bgcolor=st.BG_DARK,
         controls=[
-            ft.ListView(
-                padding=20,
-                spacing=15,
+            ft.AppBar(
+                title=ft.Text("Dashboard de Consumo"),
+                bgcolor=st.PRIMARY_BLUE,
+                leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=ao_voltar)
+            ),
+            ft.Column(
+                scroll=ft.ScrollMode.ADAPTIVE,
                 controls=[
-                    ft.Text("Consumo Vivere Prudente", size=24, weight="bold", color=ft.colors.BLUE_400),
-                    
-                    # Painel de Resumo
+                    ft.Container(height=10),
+                    # Cards de Resumo
                     ft.Row([
                         ft.Container(
                             content=ft.Column([
-                                ft.Text("Lidas", size=12, color="green"),
-                                ft.Text(f"{unidades_lidas}/96", size=20, weight="bold")
-                            ]),
+                                ft.Icon(ft.icons.CHECK_CIRCLE, color="green"),
+                                ft.Text("Lidas"),
+                                ft.Text(str(lidas), size=24, weight="bold")
+                            ], horizontal_alignment="center"),
                             bgcolor="#1e1e1e", padding=15, border_radius=10, expand=True
                         ),
                         ft.Container(
                             content=ft.Column([
-                                ft.Text("Pendentes", size=12, color="amber"),
-                                ft.Text(f"{unidades_pendentes}", size=20, weight="bold")
-                            ]),
+                                ft.Icon(ft.icons.PENDING, color="orange"),
+                                ft.Text("Pendentes"),
+                                ft.Text(str(unidades_pendentes), size=24, weight="bold")
+                            ], horizontal_alignment="center"),
                             bgcolor="#1e1e1e", padding=15, border_radius=10, expand=True
                         ),
                     ], spacing=10),
 
-                    ft.Text("Histórico de Consumo (m³)", size=16, weight="bold"),
-                    ft.Container(content=chart, height=200, padding=15, bgcolor=ft.colors.BLACK26, border_radius=10),
-                    
-                    ft.Text("Mapa do Condomínio", size=16, weight="bold"),
+                    ft.Text("Mapa de Coleta (Clique na unidade para detalhes)", size=16, weight="bold"),
                     ft.Container(
                         content=ft.GridView(
                             controls=lista_unidades_controles,
@@ -110,13 +106,18 @@ def montar_tela_dashboard(page: ft.Page, voltar):
                             spacing=5,
                             run_spacing=5,
                         ),
-                        height=300,
+                        height=400,
                         bgcolor="#1e1e1e",
                         padding=10,
                         border_radius=10
                     ),
                     
-                    ft.ElevatedButton("VOLTAR AO MENU", on_click=voltar, width=400)
+                    ft.ElevatedButton(
+                        "VOLTAR AO MENU", 
+                        on_click=ao_voltar, 
+                        width=400,
+                        style=st.BTN_MAIN
+                    )
                 ]
             )
         ]

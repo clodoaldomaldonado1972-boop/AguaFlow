@@ -18,7 +18,7 @@ class ScannerAguaFlow:
     async def iniciar_scan(self, tipo="Água"):
         self.tipo_leitura = tipo
         try:
-            # CORREÇÃO: pick_files não deve ser awaitado aqui para evitar crash
+            # pick_files não deve ser awaitado aqui para evitar bloqueios de thread
             self.picker.pick_files(
                 allow_multiple=False,
                 file_type=ft.FilePickerFileType.IMAGE
@@ -34,23 +34,27 @@ class ScannerAguaFlow:
 
         caminho_arquivo = e.files[0].path
         try:
+            # PROTEÇÃO: Timeout de 12 segundos para o processamento OCR
             resultado = await asyncio.wait_for(
                 asyncio.to_thread(processar_leitura_completa, caminho_arquivo), 
                 timeout=12.0
             )
+            
             unidade = resultado.get("unidade")
             valor = resultado.get("valor")
             sucesso = resultado.get("status") == "Sucesso"
 
-            await self.ao_detectar_leitura(unidade, valor, sucesso)
-            self.limpar_cache_captura(caminho_arquivo)
+            if self.ao_detectar_leitura:
+                await self.ao_detectar_leitura(unidade, valor, sucesso)
+                
         except Exception as err:
-            print(f"Erro no OCR: {err}")
-            await self.ao_detectar_leitura(None, f"ERRO_{str(err)}", False)
+            print(f"Erro no OCR ou Timeout (12s excedidos): {err}")
+            # Em caso de falha ou tempo excedido, o sucesso=False liberta o modo manual
+            if self.ao_detectar_leitura:
+                await self.ao_detectar_leitura(None, None, False)
 
-    @staticmethod
-    def limpar_cache_captura(caminho):
-        try:
-            if caminho and os.path.exists(caminho):
-                os.remove(caminho)
-        except: pass
+    def limpar_cache_captura(self, caminho):
+        """Remove ficheiros temporários para poupar espaço no dispositivo."""
+        if os.path.exists(caminho) and "temp" in caminho:
+            try: os.remove(caminho)
+            except: pass

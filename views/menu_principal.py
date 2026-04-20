@@ -1,5 +1,10 @@
 import flet as ft
 from views import styles as st 
+# Importação dinâmica da versão para automação total
+try:
+    from utils.updater import VERSION
+except ImportError:
+    VERSION = "1.1.0" # Fallback caso o arquivo não seja encontrado
 
 def montar_menu(page: ft.Page):
     user_name = getattr(page, "user_email", "Operador")
@@ -38,13 +43,20 @@ def montar_menu(page: ft.Page):
                     
                     ft.Column(
                         [
-                            criar_botao_menu("NOVA MEDIÇÃO (ÁGUA/GÁS)", ft.icons.SPEED_ROUNDED, "/medicao"),
+                            # --- BLOCO DE BOTÕES OPERACIONAIS ---
+                            criar_botao_menu("REALIZAR MEDIÇÃO", ft.icons.SPEED_ROUNDED, "/medicao"),
                             
-                            # --- BOTÃO RESTAURADO ---
+                            # Botão de Saúde que contém o Sincronizador para o Supabase
+                            # No ficheiro views/menu_principal.py
+                            criar_botao_menu("SAÚDE DO SISTEMA", ft.icons.DASHBOARD_CUSTOMIZE, "/dashboard_saude"),
+                            
                             criar_botao_menu("GERAR QR CODES", ft.icons.QR_CODE_2_ROUNDED, "/gerar_qrcode"),
                             
                             criar_botao_menu("HISTÓRICO / RELATÓRIO", ft.icons.ASSIGNMENT_OUTLINED, "/relatorios"),
+                            
+                            # Dashboard interativo com gráficos de evolução
                             criar_botao_menu("DASHBOARD DE CONSUMO", ft.icons.DASHBOARD_ROUNDED, "/dashboard"),
+                            
                             criar_botao_menu("CONFIGURAÇÕES", ft.icons.SETTINGS_OUTLINED, "/configuracoes", estilo=st.BTN_SPECIAL),
                         ],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -60,7 +72,8 @@ def montar_menu(page: ft.Page):
                         on_click=lambda _: page.go("/") 
                     ),
                     
-                    ft.Text("Versão 1.0.2 - Grupo 8 - Univesp", size=10, color=ft.colors.GREY_600),
+                    # Rodapé Dinâmico: Altera automaticamente ao mudar o utils/updater.py
+                    ft.Text(f"Versão {VERSION} - Grupo 8 - Univesp", size=10, color=ft.colors.GREY_600),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 scroll=ft.ScrollMode.ADAPTIVE 

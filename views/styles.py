@@ -64,6 +64,7 @@ BTN_SPECIAL = ft.ButtonStyle(
     padding=20,
     shape=ft.RoundedRectangleBorder(radius=15),
 )
+BTN_PRIMARY = ft.ButtonStyle(bgcolor=PRIMARY_BLUE, color="white")
 
 # --- COMPONENTES ---
 

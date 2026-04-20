@@ -1,39 +1,31 @@
-import winsound
-import os
+import flet as ft
 
-def tocar_alerta(tipo="sucesso"):
+def tocar_alerta(page: ft.Page, tipo="sucesso"):
     """
-    Tenta tocar o arquivo físico conforme o tipo de evento.
-    - Se falhar ou for um formato não suportado pelo winsound, 
-      utiliza o Beep do Windows como fallback.
+    No APK, a 'frequência' é substituída pela escolha do arquivo 
+    de áudio correspondente ao evento.
     """
-    # 1. Definição de caminhos e parâmetros de fallback
+    # Em vez de calcular frequência/duração, selecionamos o arquivo gravado
     if tipo == "sucesso":
-        # Som agudo e curto para confirmação
-        caminho_audio = "assets/audio/sucesso.wav"
-        frequencia, duracao = 1000, 300 
+        caminho_audio = "audio/sucesso.wav"  # Grave um som de 1000Hz aqui
     elif tipo == "erro":
-        # Som grave e longo para erro/atenção
-        caminho_audio = "assets/audio/erro.wav"
-        frequencia, duracao = 400, 600  
+        caminho_audio = "audio/erro.wav"     # Grave um som de 400Hz aqui
     else:
-        # Alerta padrão
-        caminho_audio = "assets/audio/alerta.wav"
-        frequencia, duracao = 800, 400
+        caminho_audio = "audio/alerta.wav"
 
-    # 2. Lógica de Execução
-    if os.path.exists(caminho_audio):
-        try:
-            # SND_FILENAME: identifica que é um arquivo
-            # SND_ASYNC: permite que o som toque sem travar a interface (UI) do Flet
-            winsound.PlaySound(
-                caminho_audio, 
-                winsound.SND_FILENAME | winsound.SND_ASYNC
-            )
-        except Exception as e:
-            print(f"[AUDIO] Erro ao reproduzir arquivo: {e}")
-            # Fallback para Beep do sistema
-            winsound.Beep(frequencia, duracao)
-    else:
-        # Se os arquivos de áudio não estiverem na pasta assets, usa o Beep
-        winsound.Beep(frequencia, duracao)
+    # Criar o componente de áudio nativo do Flet (funciona no Android)
+    audio = ft.Audio(
+        src=caminho_audio,
+        autoplay=False,
+    )
+
+    # Adicionar ao overlay da página (necessário para o Flet processar o som)
+    if audio not in page.overlay:
+        page.overlay.append(audio)
+    
+    page.update()
+    
+    try:
+        audio.play()
+    except Exception as e:
+        print(f"Erro ao tocar som no Android: {e}")

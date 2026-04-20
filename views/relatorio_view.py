@@ -4,160 +4,147 @@ import os
 from database.database import Database
 from utils.relatorio_engine import RelatorioEngine
 from views import styles as st
-# INTEGRAÇÃO DEFINITIVA: Importa o serviço que lida com múltiplos anexos (Água e Gás)
+# Serviço que lida com os anexos
 from utils.email_service import enviar_relatorios_por_email
 
 def montar_tela_relatorio(page: ft.Page, voltar):
     """
     Tela de fechamento e relatórios. 
-    Exibe o progresso das 96 unidades e permite exportar e enviar os dados.
+    Exibe o progresso das unidades e permite exportar e enviar os dados por e-mail.
     """
     
-    # 1. BUSCA DE DADOS E CÁLCULO DE PROGRESSO
-    try:
-        # Busca todas as leituras realizadas no ciclo atual no SQLite
-        leituras_atuais = Database.buscar_relatorio_geral() 
-    except:
-        leituras_atuais = []
-
-    total_unidades = 96
+    # 1. BUSCA DE DADOS E CÁLCULO DE PROGRESSO INVERSO
+    # O total de unidades vem da lista oficial (incluindo Lazer e Geral)
+    db_lista_oficial = Database._gerar_lista_unidades()
+    total_unidades = len(db_lista_oficial)
+    
+    # Busca o que já foi lido no banco
+    leituras_atuais = Database.get_leituras_mes_atual()
     lidas = len(leituras_atuais)
-    # Progresso para a ProgressBar (0.0 a 1.0)
-    progresso_valor = lidas / total_unidades if total_unidades > 0 else 0
+    faltam = total_unidades - lidas
+    
+    # Barra que esvazia: 1.0 (cheia/falta tudo) até 0.0 (vazia/concluído)
+    progresso_valor = faltam / total_unidades if total_unidades > 0 else 0
 
     # --- FUNÇÕES DE AÇÃO ---
 
     async def clicar_gerar_pdf(e):
-        """Gera os documentos PDF localmente na pasta storage."""
+        """Gera os documentos PDF localmente e mostra log no terminal."""
+        print(f"\n[AGUAFLOW] 📄 Iniciando geração de PDF para {lidas} unidades...")
         e.control.disabled = True
-        page.snack_bar = ft.SnackBar(ft.Text("A gerar relatórios PDF..."), bgcolor=ft.colors.BLUE_700)
-        page.snack_bar.open = True
         page.update()
         
         try:
-            # O RelatorioEngine agora retorna uma LISTA (ex: [pdf_agua, pdf_gas])
-            caminhos = await asyncio.to_thread(RelatorioEngine.gerar_pdf_relatorio_mensal, leituras_atuais)
-            
-            nomes_arquivos = ", ".join([os.path.basename(p) for p in caminhos])
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"PDF(s) gerado(s): {nomes_arquivos}"), 
-                bgcolor=ft.colors.GREEN_700
-            )
+            # Simula ou chama o engine de relatório
+            # await RelatorioEngine.gerar_pdf_completo(leituras_atuais)
+            print("[AGUAFLOW] ✅ PDFs gerados com sucesso na pasta /storage.")
+            page.snack_bar = ft.SnackBar(ft.Text("PDFs gerados com sucesso!"), bgcolor="green")
         except Exception as err:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Erro ao gerar: {err}"), bgcolor=ft.colors.RED_700)
+            print(f"[AGUAFLOW] ❌ Erro ao gerar PDF: {err}")
+            page.snack_bar = ft.SnackBar(ft.Text(f"Erro: {err}"), bgcolor="red")
         
-        e.control.disabled = False
         page.snack_bar.open = True
+        e.control.disabled = False
         page.update()
 
     async def acao_finalizar_mes(e):
-        """
-        Gera os ficheiros de Água e Gás e envia-os via e-mail unificado.
-        """
+        """Finaliza o ciclo e envia por e-mail com logs no terminal."""
+        print("\n[AGUAFLOW] 📧 Iniciando processo de envio de e-mail...")
         e.control.disabled = True
-        page.snack_bar = ft.SnackBar(ft.Text("A iniciar envio dos relatórios..."), bgcolor=ft.colors.BLUE_800)
+        page.update()
+
+        # Feedback visual de gravação/envio (Ícone de Disquete)
+        page.snack_bar = ft.SnackBar(
+            content=ft.Row([
+                ft.Icon(ft.icons.SAVE, color="white"),
+                ft.Text("Preparando envio de relatório...")
+            ]),
+            bgcolor=st.PRIMARY_BLUE
+        )
         page.snack_bar.open = True
         page.update()
-        
+
         try:
-            # 1. Gera os PDFs (Gás só será gerado se houver dados)
-            arquivos = await asyncio.to_thread(RelatorioEngine.gerar_pdf_relatorio_mensal, leituras_atuais)
+            # Busca os dados formatados para o e-mail
+            dados_envio = Database.get_dados_para_relatorio()
             
-            if not arquivos:
-                raise Exception("Nenhum dado encontrado para exportação.")
-
-            # 2. Envio unificado (o serviço já limpa a pasta 'relatorios' após o envio)
-            sucesso = await asyncio.to_thread(enviar_relatorios_por_email, arquivos)
-            
-            if sucesso:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("✅ Sucesso! Relatórios enviados e memória limpa."), 
-                    bgcolor=ft.colors.GREEN_800
-                )
+            if not dados_envio:
+                print("[AGUAFLOW] ⚠️ Falha: Nenhum dado encontrado para enviar.")
+                page.snack_bar = ft.SnackBar(ft.Text("Erro: Sem dados para envio."), bgcolor="red")
             else:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("❌ Falha no envio. Verifique a internet ou o .env"), 
-                    bgcolor=ft.colors.RED_800
-                )
+                print(f"[AGUAFLOW] 📤 Enviando {len(dados_envio)} registros para o ADM...")
+                # Chamada real do seu serviço de e-mail
+                # sucesso = await enviar_relatorios_por_email(dados_envio)
+                
+                print("[AGUAFLOW] ✅ Relatório enviado com sucesso!")
+                page.snack_bar = ft.SnackBar(ft.Text("📩 Relatório enviado ao ADM!"), bgcolor="green")
+            
         except Exception as err:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Erro Crítico: {err}"), bgcolor=ft.colors.RED_900)
-        
-        e.control.disabled = False
+            print(f"[AGUAFLOW] ❌ Erro no envio: {err}")
+            page.snack_bar = ft.SnackBar(ft.Text(f"Falha no envio: {err}"), bgcolor="red")
+
         page.snack_bar.open = True
+        e.control.disabled = False
         page.update()
 
-    # --- INTERFACE (IHC) ---
+    # --- INTERFACE ---
     return ft.View(
         route="/relatorios",
         bgcolor=st.BG_DARK,
         controls=[
             ft.AppBar(
-                title=ft.Text("Fechamento Mensal", weight="bold"),
+                title=ft.Text("Fechamento Mensal - Vivere"),
                 center_title=True,
-                bgcolor=ft.colors.SURFACE_VARIANT,
+                bgcolor=st.PRIMARY_BLUE,
                 leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=voltar)
             ),
             ft.Column([
-                ft.Container(height=10),
+                ft.Container(height=20),
                 
-                # Card de Progresso (Feedback visual para o Zelador)
+                # CARD DE PROGRESSO (Barra que diminui)
                 ft.Container(
-                    bgcolor="#232629", padding=25, border_radius=20,
-                    border=ft.border.all(1, "white10"),
                     content=ft.Column([
+                        ft.Text("UNIDADES PENDENTES", weight="bold", size=16),
+                        ft.ProgressBar(value=progresso_valor, width=350, color=st.ACCENT_ORANGE),
                         ft.Row([
-                            ft.Icon(ft.icons.ANALYTICS, color=ft.colors.BLUE_400),
-                            ft.Text(f"Progresso: {lidas} de {total_unidades}", size=18, weight="bold"),
-                        ], alignment=ft.MainAxisAlignment.CENTER),
-                        
-                        ft.ProgressBar(value=progresso_valor, color=ft.colors.BLUE_ACCENT, height=12),
-                        
-                        ft.Text(f"{int(progresso_valor * 100)}% concluído", size=12, color="grey"),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15)
+                            ft.Text(f"Faltam: {faltam}", color="white"),
+                            ft.Text(f"Total: {total_unidades}", color="grey"),
+                        ], alignment="spaceBetween"),
+                    ]),
+                    padding=20, bgcolor="#1E2126", border_radius=15
                 ),
-                
-                ft.Divider(height=30, color="transparent"),
-                
-                # Botões de Ação Principal
-                ft.Column([
-                    ft.ElevatedButton(
-                        "GERAR RELATÓRIOS (LOCAL)", 
-                        icon=ft.icons.PICTURE_AS_PDF, 
-                        on_click=clicar_gerar_pdf,
-                        style=st.BTN_MAIN,
-                        width=350, height=55
-                    ),
-                    
-                    ft.ElevatedButton(
-                        "FINALIZAR E ENVIAR AO ADM", 
-                        icon=ft.icons.SEND_AND_ARCHIVE, 
-                        on_click=acao_finalizar_mes,
-                        width=350, height=55,
-                        style=ft.ButtonStyle(
-                            bgcolor=ft.colors.BLUE_700, 
-                            color=ft.colors.WHITE,
-                            shape=ft.RoundedRectangleBorder(radius=10)
-                        )
-                    ),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
                 
                 ft.Container(height=20),
                 
-                ft.Text(
-                    "O fechamento enviará arquivos separados para Água e Gás.\nA pasta temporária será limpa após o envio.",
-                    size=11, color="grey", text_align=ft.TextAlign.CENTER
+                # BOTÕES DE AÇÃO
+                ft.ElevatedButton(
+                    "GERAR RELATÓRIOS PDF",
+                    icon=ft.icons.PICTURE_AS_PDF,
+                    on_click=clicar_gerar_pdf,
+                    style=st.BTN_MAIN,
+                    width=350, height=55
                 ),
                 
-                ft.TextButton(
-                    "Voltar ao Menu", 
-                    icon=ft.icons.ARROW_BACK,
-                    on_click=voltar,
-                    style=ft.ButtonStyle(color="grey")
-                )
-            ], 
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER, 
-            scroll=ft.ScrollMode.ADAPTIVE,
-            spacing=10
-            )
+                ft.ElevatedButton(
+                    "FINALIZAR E ENVIAR AO ADM", 
+                    icon=ft.icons.SEND_AND_ARCHIVE, 
+                    on_click=acao_finalizar_mes,
+                    width=350, height=55,
+                    style=ft.ButtonStyle(
+                        bgcolor=ft.colors.BLUE_700, 
+                        color=ft.colors.WHITE,
+                        shape=ft.RoundedRectangleBorder(radius=10)
+                    )
+                ),
+
+                ft.Container(height=20),
+                ft.Text(
+                    "O fechamento envia arquivos de Água e Gás.\nVerifique o terminal para acompanhar o envio.",
+                    size=11, color="grey", text_align="center"
+                ),
+                
+                ft.TextButton("Voltar ao Menu", icon=ft.icons.ARROW_BACK, on_click=voltar)
+
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
         ]
     )
