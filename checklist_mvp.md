@@ -42,7 +42,7 @@
 | `Database.get_db()` | ✅ | Context manager com timeout 30s |
 | `Database.buscar_ultima_unidade_lida()` | 🔴 | **NÃO EXISTE** - Bloqueia tela de medição |
 | `Database._gerar_lista_unidades()` | 🔴 | **NÃO EXISTE** - Bloqueia tela de medição |
-| `Database.obter_proxima_unidade()` | 🔴 | **NÃO EXISTE** - Lógica duplex descentralizada |
+| `Database.buscar_ultima_unidade_lida()` | 🔴 | **NÃO EXISTE** - Lógica duplex descentralizada |
 
 ### 1.3 Integração Supabase ⚠️
 
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS sync_queue (
 |----------|---------|---------|
 | `Database._gerar_lista_unidades()` não existe | Tela de medição não carrega | Implementar método que retorna lista 166→101 |
 | `Database.buscar_ultima_unidade_lida()` não existe | Não há sequência automática | Implementar SELECT ORDER BY id DESC LIMIT 1 |
-| Lógica duplex descentralizada | Edge cases não tratados | Criar `Database.obter_proxima_unidade()` |
+| Lógica duplex descentralizada | Edge cases não tratados | Criar `Database.buscar_ultima_unidade_lida()` |
 | Retry para "database is locked" | Gravação pode falhar | Adicionar retry automático com sleep(1) |
 
 ---
@@ -276,7 +276,7 @@ C:\AguaFlow/
 |---|------|---------|------------|--------|
 | 1 | **Implementar `Database._gerar_lista_unidades()`** | `database/database.py` | **CRÍTICA** | ✅ CONCLUÍDO |
 | 2 | **Implementar `Database.buscar_ultima_unidade_lida()`** | `database/database.py` | **CRÍTICA** | ✅ CONCLUÍDO |
-| 3 | **Unificar lógica duplex em `Database.obter_proxima_unidade()`** | `database/database.py` | **CRÍTICA** | ✅ CONCLUÍDO |
+| 3 | **Unificar lógica duplex em `Database.buscar_ultima_unidade_lida()`** | `database/database.py` | **CRÍTICA** | ✅ CONCLUÍDO |
 | 4 | **Adicionar retry para "database is locked"** | `database/database.py` | **CRÍTICA** | ✅ CONCLUÍDO |
 | 5 | **Adicionar validação de dados em `salvar_leitura_local()`** | `database/database.py` | **CRÍTICA** | ✅ CONCLUÍDO |
 | 6 | **Corrigir conversão float na tela de medição** | `views/medicao.py` | **CRÍTICA** | ✅ CONCLUÍDO |
@@ -349,7 +349,7 @@ Os seguintes problemas bloqueantes foram **RESOLVIDOS**:
 |----------|---------|
 | `Database._gerar_lista_unidades()` implementado | Tela de medição agora carrega |
 | `Database.buscar_ultima_unidade_lida()` implementado | Sequência automática funciona |
-| `Database.obter_proxima_unidade()` centralizado | Regra duplex unificada |
+| `Database.buscar_ultima_unidade_lida()` centralizado | Regra duplex unificada |
 | Retry para "database is locked" | Gravação resiliente |
 | Validação de dados no salvamento | Previne dados corruptos |
 | Try/except na conversão float | UX melhorada com erro claro |

@@ -1,145 +1,145 @@
-import flet as ft
-import asyncio
-import re
-from database.database import Database
-from views import styles as st
-from utils.audio_utils import tocar_alerta
-from utils.scanner import ScannerAguaFlow
+import os
+import sqlite3
+from contextlib import contextmanager
+from datetime import datetime
 
-def montar_tela_medicao(page: ft.Page, on_back_click=None):
-    """
-    Tela de medição AguaFlow sincronizada:
-    - Suporte a unidades Duplex (163/164 e 23/24)
-    - Trava Água: 7 dígitos (5+2) | Trava Gás: 8 dígitos (5+3)
-    - Scanner OCR com Timeout e Fallback Manual
-    """
-    db_lista = Database._gerar_lista_unidades()
+class Database:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DB_PATH = os.path.join(BASE_DIR, "aguaflow.db")
     
-    # 1. Recupera a última unidade para sequência inteligente
-    ultima_lida = Database.buscar_ultima_unidade_lida()
-    if ultima_lida and ultima_lida in db_lista:
-        unidade_inicial = Database.obter_proxima_unidade(ultima_lida, db_lista)
-    else:
-        unidade_inicial = db_lista[0]
-
-    # --- FUNÇÃO DE CALLBACK DO SCANNER (Sincronizada com scanner.py) ---
-    async def processar_retorno_ocr(unidade_ocr, valor_ocr, sucesso):
-        if sucesso and valor_ocr:
-            txt_agua.value = valor_ocr
-            # Dispara a máscara e validação para o valor lido
-            aplicar_trava_e_mascara(ft.ControlEvent(name="change", target=txt_agua.uid, control=txt_agua, data=valor_ocr, page=page))
-            tocar_alerta("sucesso")
-        elif valor_ocr == "TIMEOUT":
-            page.snack_bar = ft.SnackBar(ft.Text("⚠️ OCR demorou demais. Insira manualmente."), bgcolor=ft.colors.ORANGE_800)
-            page.snack_bar.open = True
-            txt_agua.focus()
-        
-        btn_scanner.disabled = False
-        page.update()
-
-    # --- MOTOR DE VALIDAÇÃO E TRAVAS ---
-    def aplicar_trava_e_mascara(e):
-        campo = e.control
-        valor_limpo = re.sub(r"\D", "", campo.value)
-        
-        if campo == txt_agua:
-            if len(valor_limpo) > 7: valor_limpo = valor_limpo[:7]
-            campo.value = f"{valor_limpo[:-2]},{valor_limpo[-2:]}" if len(valor_limpo) > 2 else valor_limpo
-            
-        elif campo == txt_gas:
-            if len(valor_limpo) > 8: valor_limpo = valor_limpo[:8]
-            campo.value = f"{valor_limpo[:-3]},{valor_limpo[-3:]}" if len(valor_limpo) > 3 else valor_limpo
-
-        # Validação do Botão Salvar
-        agua_ok = len(re.sub(r"\D", "", txt_agua.value)) == 7
-        gas_valor_puro = re.sub(r"\D", "", txt_gas.value)
-        gas_ok = len(gas_valor_puro) == 0 or len(gas_valor_puro) == 8
-        
-        btn_salvar.disabled = not (agua_ok and gas_ok)
-        campo.update()
-        btn_salvar.update()
-
-    # --- COMPONENTES ---
-    txt_unidade = st.campo_estilo(label="Unidade", icon_name=ft.icons.APARTMENT, read_only=True)
-    txt_unidade.value = unidade_inicial
-
-    txt_agua = st.campo_estilo(label="Água (5+2)", icon_name=ft.icons.WATER_DROP, keyboard_type=ft.KeyboardType.NUMBER)
-    txt_agua.on_change = aplicar_trava_e_mascara
-
-    txt_gas = st.campo_estilo(label="Gás (5+3)", icon_name=ft.icons.LOCAL_GAS_STATION, keyboard_type=ft.KeyboardType.NUMBER)
-    txt_gas.on_change = aplicar_trava_e_mascara
-
-    # Instancia o Scanner passando o novo callback sincronizado
-    scanner_engine = ScannerAguaFlow(page=page, ao_detectar_leitura=processar_retorno_ocr)
-
-    async def disparar_ocr(e):
-        btn_scanner.disabled = True
-        page.update()
-        await scanner_engine.iniciar_scan(tipo="Água")
-
-    # --- SALVAMENTO COM REGRA DUPLEX ---
-    async def realizar_salvamento(e):
-        progresso.visible = True
-        btn_salvar.disabled = True
-        page.update()
-
-        # Validação e conversão segura dos valores
+    @classmethod
+    @contextmanager
+    def get_db(cls):
+        """Gerencia a conexão com o banco local com proteção contra travamentos."""
+        os.makedirs(os.path.dirname(cls.DB_PATH), exist_ok=True)
+        # Mantém o timeout de 30s para evitar erros de banco travado
+        conn = sqlite3.connect(cls.DB_PATH, check_same_thread=False, timeout=30)
+        conn.row_factory = sqlite3.Row 
         try:
-            agua_f = float(txt_agua.value.replace(",", ".")) if txt_agua.value else None
-            gas_f = float(txt_gas.value.replace(",", ".")) if txt_gas.value else 0.0
-        except ValueError:
-            page.snack_bar = ft.SnackBar(ft.Text("❌ Valores inválidos. Use apenas números."), bgcolor=ft.colors.RED_700)
-            page.snack_bar.open = True
-            progresso.visible = False
-            page.update()
-            return
+            yield conn
+        finally:
+            conn.close()
 
-        if agua_f is None:
-            page.snack_bar = ft.SnackBar(ft.Text("❌ Leitura de água é obrigatória."), bgcolor=ft.colors.RED_700)
-            page.snack_bar.open = True
-            progresso.visible = False
-            page.update()
-            return
+    @classmethod
+    async def init_db(cls):
+        """Inicializa as tabelas da Versão 1.0.2 com suporte a Água e Gás."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                # Tabela de Leituras - Garantindo a coluna 'tipo'
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS leituras (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        unidade TEXT NOT NULL,
+                        leitura_agua REAL NOT NULL,
+                        leitura_gas REAL DEFAULT 0,
+                        tipo TEXT,
+                        data_hora_coleta TEXT,
+                        sincronizado INTEGER DEFAULT 0
+                    )
+                """)
+                conn.commit()
+                print("✅ Banco de dados SQLite v1.0.2 inicializado.")
+                return True
+        except Exception as e:
+            print(f"❌ Erro crítico na inicialização: {e}")
+            return False
 
-        unidade_atual = txt_unidade.value
-        sucesso = await asyncio.to_thread(Database.salvar_leitura_local, unidade_atual, agua_f, gas_f, "Mensal")
+    @classmethod
+    def salvar_leitura_local(cls, unidade, agua, gas, tipo):
+        """Grava a medição respeitando a regra Duplex (v1.0.2)."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                
+                # Regra Duplex: Unifica 163/164 e 23/24
+                mapeamento = {
+                    "163": "163/164", "164": "163/164",
+                    "23": "23/24", "24": "23/24"
+                }
+                unidade_final = mapeamento.get(unidade, unidade)
 
-        if sucesso:
-            tocar_alerta("sucesso")
-            # Lógica Duplex centralizada no Database
-            txt_unidade.value = Database.obter_proxima_unidade(unidade_atual, db_lista)
+                # INSERT unificado com 5 parâmetros (unidade, agua, gas, tipo, data)
+                cursor.execute("""
+                    INSERT INTO leituras (unidade, leitura_agua, leitura_gas, tipo, data_hora_coleta)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (unidade_final, agua, gas, tipo, datetime.now().isoformat()))
+                
+                conn.commit()
+                print(f"💾 Unidade {unidade_final} ({tipo}) salva localmente.")
+                return True
+        except Exception as e:
+            print(f"❌ Falha ao gravar no SQLite: {e}")
+            return False
 
-            txt_agua.value = ""; txt_gas.value = ""; btn_salvar.disabled = True
-            page.snack_bar = ft.SnackBar(ft.Text(f"✅ Unidade {unidade_atual} salva!"), bgcolor=ft.colors.GREEN_700)
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("❌ Erro ao salvar dados."), bgcolor=ft.colors.RED_700)
+    @classmethod
+    def buscar_ultima_unidade_lida(cls):
+        """Recupera a última unidade para sequência inteligente."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT unidade FROM leituras ORDER BY id DESC LIMIT 1")
+                res = cursor.fetchone()
+                return res["unidade"] if res else None
+        except Exception as e:
+            print(f"Erro ao buscar última unidade: {e}")
+            return None
 
-        progresso.visible = False
-        page.snack_bar.open = True
-        page.update()
+    @classmethod
+    def get_medidores(cls, filtro_tipo="AMBOS"):
+        """Retorna lista de medidores lidos ou a lista mestre padrão."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT DISTINCT unidade FROM leituras")
+                rows = cursor.fetchall()
+                
+                unidades = [row["unidade"] for row in rows] if rows else cls._gerar_lista_unidades()
+                
+                medidores = []
+                for u in unidades:
+                    if filtro_tipo in ["Água", "AMBOS"]:
+                        medidores.append({"unidade": u, "tipo": "Água"})
+                    if filtro_tipo in ["Gás", "AMBOS"]:
+                        medidores.append({"unidade": u, "tipo": "Gás"})
+                return medidores
+        except Exception as e:
+            print(f"❌ Erro ao buscar medidores: {e}")
+            return []
 
-    # --- BOTÕES ---
-    btn_scanner = ft.ElevatedButton("ABRIR SCANNER OCR", icon=ft.icons.CAMERA_ALT, on_click=disparar_ocr, style=st.BTN_SPECIAL)
-    btn_salvar = ft.ElevatedButton("CONFIRMAR E GUARDAR", icon=ft.icons.SAVE, style=st.BTN_MAIN, width=320, height=60, disabled=True, on_click=realizar_salvamento)
-    progresso = ft.ProgressBar(width=300, color=st.ACCENT_ORANGE, visible=False)
+    @classmethod
+    def _gerar_lista_unidades(cls):
+        """Gera a lista de unidades do condomínio (16 andares)."""
+        lista = []
+        for andar in range(1, 17):
+            for apto in range(1, 7):
+                u = f"{andar}{apto}"
+                if u in ["163", "164"]: u = "163/164"
+                if u in ["23", "24"]: u = "23/24"
+                if u not in lista: lista.append(u)
+        return lista
 
-    return ft.View(
-        route="/medicao",
-        bgcolor=st.BG_DARK,
-        controls=[
-            ft.AppBar(title=ft.Text("Nova Medição - Vivere"), center_title=True, leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))),
-            ft.Column([
-                ft.Container(padding=20, content=ft.Column([
-                    ft.Text("Captação Residencial", style=st.TEXT_TITLE),
-                    ft.Text("Regra Duplex e Travas Ativas", style=st.TEXT_SUB),
-                    ft.Divider(height=20, color="transparent"),
-                    btn_scanner,
-                    ft.Divider(height=10, color="transparent"),
-                    txt_unidade, txt_agua, txt_gas,
-                    progresso, ft.Divider(height=20),
-                    btn_salvar,
-                    ft.TextButton("Voltar", on_click=lambda _: page.go("/menu"), style=ft.ButtonStyle(color=st.GREY))
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15))
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
-        ]
-    )
+    # --- Métodos de Sincronização (Preservando sua lógica de 184 linhas) ---
+    
+    @classmethod
+    def get_leituras_pendentes(cls):
+        """Busca leituras que ainda não foram enviadas para o Supabase."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM leituras WHERE sincronizado = 0")
+                return [dict(row) for row in cursor.fetchall()]
+        except:
+            return []
+
+    @classmethod
+    def marcar_como_sincronizado(cls, leitura_id):
+        """Atualiza o status após sucesso no Supabase."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE leituras SET sincronizado = 1 WHERE id = ?", (leitura_id,))
+                conn.commit()
+                return True
+        except:
+            return False

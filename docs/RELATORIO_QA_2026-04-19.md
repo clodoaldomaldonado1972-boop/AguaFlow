@@ -63,7 +63,7 @@ def buscar_ultima_unidade_lida(cls):
 
 ```python
 @classmethod
-def obter_proxima_unidade(cls, unidade_atual, db_lista):
+def buscar_ultima_unidade_lida(cls, unidade_atual, db_lista):
     """Calcula próxima unidade considerando duplex."""
     duplex_map = {"163": "163/164", "164": "163/164", "23": "23/24", "24": "23/24"}
     

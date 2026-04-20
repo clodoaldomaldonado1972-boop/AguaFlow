@@ -3,28 +3,30 @@ from supabase import create_client, Client
 import os
 
 class AppUpdater:
-    # --- VERSÃO LOCAL DO APP ---
     VERSION = "1.0.2"
-    
-    @staticmethod
-    def get_version_info():
-        return f"v{AppUpdater.VERSION}"
+
+    def __init__(self, page=None):
+        self.page = page
+
+    async def check_for_updates(self):
+        """Método de compatibilidade chamado pelo main.py"""
+        # A linha abaixo PRECISA de 8 espaços (ou 2 TABs) de recuo
+        return await self.checar_atualizacao_supabase(self.page)
 
     @staticmethod
     async def checar_atualizacao_supabase(page: ft.Page):
-        """Verifica se a versão na nuvem é diferente da instalada."""
+        """Lógica principal de verificação no Supabase."""
         try:
             url = os.getenv("SUPABASE_URL")
             key = os.getenv("SUPABASE_KEY")
+            if not url or not key: 
+                return False
+            
             supabase: Client = create_client(url, key)
-
-            # Busca a versão mais recente cadastrada
             response = supabase.table("versao_sistema").select("numero_versao").order("id", desc=True).limit(1).execute()
 
             if response.data:
                 versao_nuvem = response.data[0]["numero_versao"]
-                
-                # Se na nuvem estiver '1.0.3' e aqui for '1.0.2', ele avisa
                 if versao_nuvem != AppUpdater.VERSION:
                     AppUpdater.exibir_aviso(page, versao_nuvem)
                     return True
@@ -43,10 +45,10 @@ class AppUpdater:
             bgcolor=ft.colors.INDIGO_900,
             color=ft.colors.WHITE,
             leading=ft.Icon(ft.icons.SYSTEM_UPDATE, color=ft.colors.AMBER, size=40),
-            content=ft.Text(f"Nova versão disponível no servidor: {nova_versao}. Por favor, instale a atualização."),
+            content=ft.Text(f"Nova versão disponível: {nova_versao}. Por favor, atualize o app."),
             actions=[
                 ft.TextButton("Mais tarde", on_click=fechar),
-                ft.TextButton("Baixar APK", on_click=lambda _: page.launch_url("SEU_LINK_DO_GOOGLE_DRIVE")),
+                ft.TextButton("Baixar Agora", on_click=lambda _: print("Link de download")),
             ],
         )
         page.banner.open = True
