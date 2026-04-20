@@ -11,11 +11,11 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 warnings.filterwarnings("ignore", category=UserWarning)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# --- IMPORTAÇÕES DO CORE (Caminhos atualizados) ---
 from database.database import Database
-# Importação da versão e do Updater
 from utils.updater import AppUpdater, VERSION 
 
-# --- IMPORTAÇÕES DAS VIEWS ---
+# --- IMPORTAÇÕES DAS VIEWS (Caminhos atualizados) ---
 from views.auth import criar_tela_login, montar_tela_esqueci_senha
 from views.autenticacao import montar_tela_autenticacao
 from views.menu_principal import montar_menu
@@ -29,48 +29,43 @@ from views.ajuda_usuario import montar_tela_ajuda
 
 async def main(page: ft.Page):
     # 2. CONFIGURAÇÕES GERAIS DA PÁGINA
-    page.title = f"AguaFlow {VERSION} - Gestão Residencial"
-    page.theme_mode = ft.ThemeMode.DARK 
-    page.window_width = 450
-    page.window_height = 850
+    page.title = f"AguaFlow {VERSION} - Edifício Vivere"
+    page.theme_mode = ft.ThemeMode.DARK
+    page.window_width = 400
+    page.window_height = 800
     page.window_resizable = True
 
-    # 3. LÓGICA DE NAVEGAÇÃO (ROUTING)
-    def route_change(e):
+    # 3. SISTEMA DE ROTEAMENTO (Navegação)
+    async def route_change(route):
         try:
             page.views.clear()
             
-            # Rota Inicial: Login
+            # Rota Raiz - Login
             if page.route == "/":
                 page.views.append(criar_tela_login(page))
             
-            elif page.route == "/esqueci_senha":
-                page.views.append(montar_tela_esqueci_senha(page))
-
             elif page.route == "/autenticacao":
                 page.views.append(montar_tela_autenticacao(page))
+
+            elif page.route == "/esqueci_senha":
+                page.views.append(montar_tela_esqueci_senha(page))
 
             elif page.route == "/menu":
                 page.views.append(montar_menu(page))
 
             elif page.route == "/medicao":
-                page.views.append(montar_tela_medicao(page, lambda _: page.go("/menu")))
+                page.views.append(montar_tela_medicao(page))
+
+            elif page.route == "/qrcodes":
+                page.views.append(montar_tela_qrcodes(page))
 
             elif page.route == "/relatorios":
-                page.views.append(montar_tela_relatorio(page, lambda _: page.go("/menu")))
-
-            elif page.route == "/gerar_qrcode":
-                page.views.append(montar_tela_qrcodes(page, lambda _: page.go("/menu")))
-          
-            # No main.py, dentro de route_change:
+                page.views.append(montar_tela_relatorio(page))
 
             elif page.route == "/dashboard":
-                # TELA DE CONSUMO (A de gráficos de barras)
-                page.views.append(montar_tela_dashboard(page, lambda _: page.go("/menu")))
-            
-            elif page.route == "/dashboard_saude":
-                # TELA DE SAÚDE (A AZUL da sua imagem)
-                # O erro costuma estar aqui: mude para montar_tela_saude
+                page.views.append(montar_tela_dashboard(page))
+
+            elif page.route == "/saude":
                 page.views.append(montar_tela_saude(page, lambda _: page.go("/menu")))
                             
             elif page.route == "/configuracoes":
@@ -95,21 +90,22 @@ async def main(page: ft.Page):
 
     # 4. INICIALIZAÇÃO DO SISTEMA
     try:
-        # Garante que o banco de dados e as colunas (data_leitura, tipo) existem
+        # Garante que o banco de dados e as tabelas (leituras, sync_log) existem
         await Database.init_db()
         
         # Inicia na tela de login
         page.go("/")
         
-        # Verifica atualizações em background
+        # Verifica atualizações em background para Android APK
         try:
             updater = AppUpdater(page)
             await updater.check_for_updates()
         except Exception as up_err:
-            print(f"[UPDATER] Erro na verificação: {up_err}")
+            print(f"[UPDATER] Erro ao verificar atualizações: {up_err}")
 
-    except Exception as init_err:
-        print(f"[ERRO CRÍTICO] Falha ao iniciar aplicação: {init_err}")
+    except Exception as e:
+        print(f"[ERRO CRÍTICO] Falha ao iniciar AguaFlow: {e}")
 
+# Início do App
 if __name__ == "__main__":
-    ft.app(target=main)
+    ft.app(target=main, assets_dir="assets")
