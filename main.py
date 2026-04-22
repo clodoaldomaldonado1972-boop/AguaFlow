@@ -83,10 +83,11 @@ async def main(page: ft.Page):
                 view_configs = await montar_tela_configs(page, lambda _: page.go("/menu"))
                 page.views.append(view_configs)
                 
+            # Dentro da sua função route_change no main.py
             elif page.route == "/ajuda":
-                # Agora 'montar_tela_ajuda' está definida ou possui fallback
-                page.views.append(await montar_tela_configs(page, lambda _: page.go("/menu")))
-                
+                # Use await se a função for async, e verifique se o nome do ícone foi corrigido lá dentro
+                page.views.append(montar_tela_ajuda(page, lambda _: page.go("/menu")))
+
             elif page.route == "/reset-password":
                 page.views.append(reset_password_view(page))
 
