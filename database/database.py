@@ -3,7 +3,13 @@ import sqlite3
 import time
 import logging
 from contextlib import contextmanager
-from datetime import datetime, date  # ✅ Adicionado 'date' aqui
+from datetime import datetime, date
+# Importante: certifique-se de que python-dotenv está no seu requirements.txt
+from dotenv import load_dotenv 
+
+# Carrega as variáveis de ambiente do arquivo .env (deve estar na raiz do AguaFlow)
+load_dotenv()
+
 # Importação da versão centralizada do projeto
 try:
     from utils.updater import VERSION
@@ -12,8 +18,13 @@ except ImportError:
 
 # Logger para erros de validação
 logger = logging.getLogger(__name__)
-# Exemplo para Água
 
+# --- CONFIGURAÇÕES CARREGADAS DO .ENV ---
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+# Exemplo para Água
 class Database:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "aguaflow.db")
