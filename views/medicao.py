@@ -54,25 +54,24 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
     )
     # --- CALLBACK DO SCANNER ---
     async def ao_detectar_leitura(unidade, valor, sucesso):
-        """Callback que recebe os dados processados pelo OCR em scanner.py"""
         progresso_barra.visible = False
         if sucesso:
-            # Se o OCR detectou a unidade, atualiza o dropdown
-            if unidade and unidade in db_lista:
+            # Se veio de um QR Code, preenche a unidade e já trava o campo
+            if unidade:
                 txt_unidade.value = unidade
+                txt_unidade.read_only = True # Impede erro humano no Vivere
+                status_text.value = f"📍 Unidade {unidade} identificada! Agora tire a foto do valor."
             
-            # Atualiza o valor da água
+            # Se o OCR detectou o valor numérico do hidrômetro
             if valor:
                 txt_agua.value = str(valor)
-            
-            status_text.value = "✅ Leitura capturada com sucesso!"
-            tocar_alerta(page, tipo="sucesso")
+                status_text.value = "✅ Leitura capturada com sucesso!"
+                tocar_alerta(page, tipo="sucesso")
         else:
-            status_text.value = "⚠️ Falha no OCR. Insira os dados manualmente."
+            status_text.value = "⚠️ Tente novamente ou insira manualmente."
             tocar_alerta(page, tipo="erro")
         
         page.update()
-
     scanner = ScannerAguaFlow(page, ao_detectar_leitura)
 
     def disparar_scanner(e):

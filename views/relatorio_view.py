@@ -29,20 +29,25 @@ def montar_tela_relatorio(page: ft.Page, voltar):
     # --- FUNÇÕES DE AÇÃO ---
 
     async def clicar_gerar_pdf(e):
-        """Gera os documentos PDF localmente e mostra log no terminal."""
+        """Gera os documentos PDF e CSV localmente."""
         print(f"\n[AGUAFLOW] 📄 Iniciando geração de PDF para {lidas} unidades...")
         e.control.disabled = True
         page.update()
-        
+
         try:
-            # Simula ou chama o engine de relatório
-            # await RelatorioEngine.gerar_pdf_completo(leituras_atuais)
-            print("[AGUAFLOW] ✅ PDFs gerados com sucesso na pasta /storage.")
-            page.snack_bar = ft.SnackBar(ft.Text("PDFs gerados com sucesso!"), bgcolor="green")
+            # Gera PDF com as leituras do mês
+            pdf_path = RelatorioEngine.gerar_relatorio_consumo(leituras_atuais)
+            print(f"[AGUAFLOW] ✅ PDF gerado: {pdf_path}")
+
+            # Gera CSV para Excel
+            csv_path = RelatorioEngine.gerar_csv_consumo(leituras_atuais)
+            print(f"[AGUAFLOW] ✅ CSV gerado: {csv_path}")
+
+            page.snack_bar = ft.SnackBar(ft.Text("PDF e CSV gerados com sucesso!"), bgcolor="green")
         except Exception as err:
-            print(f"[AGUAFLOW] ❌ Erro ao gerar PDF: {err}")
+            print(f"[AGUAFLOW] ❌ Erro ao gerar relatórios: {err}")
             page.snack_bar = ft.SnackBar(ft.Text(f"Erro: {err}"), bgcolor="red")
-        
+
         page.snack_bar.open = True
         e.control.disabled = False
         page.update()
@@ -53,7 +58,6 @@ def montar_tela_relatorio(page: ft.Page, voltar):
         e.control.disabled = True
         page.update()
 
-        # Feedback visual de gravação/envio (Ícone de Disquete)
         page.snack_bar = ft.SnackBar(
             content=ft.Row([
                 ft.Icon(ft.icons.SAVE, color="white"),
@@ -65,20 +69,30 @@ def montar_tela_relatorio(page: ft.Page, voltar):
         page.update()
 
         try:
-            # Busca os dados formatados para o e-mail
+            # Gera os arquivos primeiro
             dados_envio = Database.get_dados_para_relatorio()
-            
+
             if not dados_envio:
                 print("[AGUAFLOW] ⚠️ Falha: Nenhum dado encontrado para enviar.")
                 page.snack_bar = ft.SnackBar(ft.Text("Erro: Sem dados para envio."), bgcolor="red")
             else:
-                print(f"[AGUAFLOW] 📤 Enviando {len(dados_envio)} registros para o ADM...")
-                # Chamada real do seu serviço de e-mail
-                # sucesso = await enviar_relatorios_por_email(dados_envio)
-                
-                print("[AGUAFLOW] ✅ Relatório enviado com sucesso!")
-                page.snack_bar = ft.SnackBar(ft.Text("📩 Relatório enviado ao ADM!"), bgcolor="green")
-            
+                print(f"[AGUAFLOW] 📤 Gerando arquivos para {len(dados_envio)} registros...")
+
+                # Gera PDF e CSV
+                pdf_path = RelatorioEngine.gerar_relatorio_consumo(dados_envio)
+                csv_path = RelatorioEngine.gerar_csv_consumo(dados_envio)
+
+                # Envia por e-mail
+                print(f"[AGUAFLOW] 📤 Enviando para {os.getenv('EMAIL_DESTINO', 'ADM')}...")
+                sucesso, msg = RelatorioEngine.enviar_relatorios_por_email(pdf_path, csv_path)
+
+                if sucesso:
+                    print("[AGUAFLOW] ✅ Relatório enviado com sucesso!")
+                    page.snack_bar = ft.SnackBar(ft.Text(f"📩 {msg}"), bgcolor="green")
+                else:
+                    print(f"[AGUAFLOW] ❌ Erro no envio: {msg}")
+                    page.snack_bar = ft.SnackBar(ft.Text(f"Falha no envio: {msg}"), bgcolor="red")
+
         except Exception as err:
             print(f"[AGUAFLOW] ❌ Erro no envio: {err}")
             page.snack_bar = ft.SnackBar(ft.Text(f"Falha no envio: {err}"), bgcolor="red")
