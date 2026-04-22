@@ -39,7 +39,7 @@ def montar_tela_ajuda(page: ft.Page, voltar):
 
                     ft.ExpansionTile(
                         title=ft.Text("Dificuldades com o Scanner?"),
-                        leading=ft.Icon(ft.icons.ERRORS_OUTLINED, color="orange"),
+                        leading=ft.Icon(ft.icons.ERROR_OUTLINED, color="orange"),
                         controls=[
                             ft.ListTile(title=ft.Text("• Limpe a lente da câmara do telemóvel.")),
                             ft.ListTile(title=ft.Text("• Evite reflexos diretos no visor do medidor.")),

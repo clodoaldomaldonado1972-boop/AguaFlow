@@ -85,8 +85,8 @@ async def main(page: ft.Page):
                 
             elif page.route == "/ajuda":
                 # Agora 'montar_tela_ajuda' está definida ou possui fallback
-                page.views.append(montar_tela_ajuda(page, lambda _: page.go("/configuracoes")))
-
+                page.views.append(await montar_tela_configs(page, lambda _: page.go("/menu")))
+                
             elif page.route == "/reset-password":
                 page.views.append(reset_password_view(page))
 
