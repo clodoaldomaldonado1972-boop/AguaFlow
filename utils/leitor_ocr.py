@@ -1,5 +1,5 @@
 import cv2
-import easyocr
+#import easyocr
 import re
 import numpy as np
 

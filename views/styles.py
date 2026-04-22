@@ -59,7 +59,7 @@ BTN_SPECIAL = ft.ButtonStyle(
     color=WHITE,
     bgcolor={
         ft.MaterialState.DEFAULT: ACCENT_ORANGE,
-        ft.MaterialState.PRESSED: "#E68A00",
+        ft.ControlState.PRESSED: "#E68A00",
     },
     padding=20,
     shape=ft.RoundedRectangleBorder(radius=15),
