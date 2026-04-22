@@ -3,7 +3,7 @@ import sqlite3
 import time
 import logging
 from contextlib import contextmanager
-from datetime import datetime, date
+from datetime import datetime, date  # ✅ Adicionado 'date' aqui
 # Importação da versão centralizada do projeto
 try:
     from utils.updater import VERSION
@@ -12,6 +12,7 @@ except ImportError:
 
 # Logger para erros de validação
 logger = logging.getLogger(__name__)
+# Exemplo para Água
 
 class Database:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -206,14 +207,10 @@ class Database:
 
                     # VALIDAÇÕES PASSED: Prosseguir com INSERT
                     data_agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    # Formatação: Água (5.2) e Gás (5.3)
-                    agua_formatado = f"{agua_float:05.2f}"
-                    gas_float = float(gas) if gas else 0.0
-                    gas_formatado = f"{gas_float:05.3f}"
                     cursor.execute("""
                         INSERT INTO leituras (unidade, leitura_agua, leitura_gas, tipo, data_leitura, sincronizado)
                         VALUES (?, ?, ?, ?, ?, 0)
-                    """, (unidade, agua_formatado, gas_formatado, tipo, data_agora))
+                    """, (unidade, agua_float, gas, tipo, data_agora))
                     conn.commit()
 
                     # Log de sucesso
@@ -224,7 +221,7 @@ class Database:
                         'codigo': 'SUCESSO'
                     }
 
-            except (sqlite3.OperationalError, sqlite3.Error) as e:
+            except sqlite3.OperationalError as e:
                 erro_str = str(e)
                 if "database is locked" in erro_str and tentativa < max_retries - 1:
                     logger.warning(f"⚠️ DB LOCKED: Tentativa {tentativa + 1}/{max_retries}. Aguardando {retry_delay}s...")
@@ -289,13 +286,9 @@ class Database:
                 rows = cursor.fetchall()
                 historico = []
                 for row in reversed(rows):
-                    data_leitura = row['data_leitura'] or datetime.now().strftime("%Y-%m-%d")
-                    try:
-                        dt_obj = datetime.strptime(data_leitura, "%Y-%m-%d")
-                        mes_str = dt_obj.strftime("%d/%m")
-                    except:
-                        mes_str = data_leitura[:5] if data_leitura else "N/A"
-                    historico.append({"mes": mes_str, "valor": row['leitura_agua']})
+                    # Correção: extrair a data do banco com segurança
+                    dt_str = row['data_leitura'][:10] # Pega YYYY-MM-DD
+                    historico.append({"mes": dt_str, "valor": row['leitura_agua']})
                 return historico if historico else [{"mes": "Vazio", "valor": 0}]
         except:
             return [{"mes": "Erro", "valor": 0}]
@@ -358,7 +351,7 @@ class Database:
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                data_busca = data or datetime.now().strftime("%Y-%m-%d")
+                data_busca = data or date.now().strftime("%Y-%m-%d")
 
                 cursor.execute("""
                     SELECT id, unidade, leitura_agua, leitura_gas, data_leitura
