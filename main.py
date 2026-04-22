@@ -14,6 +14,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # --- IMPORTAÇÕES DO CORE (Caminhos atualizados) ---
 from database.database import Database
 from utils.updater import AppUpdater, VERSION 
+ 
 
 # --- IMPORTAÇÕES DAS VIEWS (Caminhos atualizados) ---
 from views.auth import criar_tela_login, montar_tela_esqueci_senha
@@ -24,8 +25,8 @@ from views.qrcodes_view import montar_tela_qrcodes
 from views.relatorio_view import montar_tela_relatorio
 from views.configuracoes import montar_tela_configs
 from views.dashboard import montar_tela_dashboard
-from views.dashboard_saude import montar_tela_saude 
-from views.ajuda_usuario import montar_tela_ajuda 
+from views.dashboard_saude import montar_tela_saude
+# No topo do main.py
 
 async def main(page: ft.Page):
     # 2. CONFIGURAÇÕES GERAIS DA PÁGINA
@@ -56,21 +57,26 @@ async def main(page: ft.Page):
             elif page.route == "/medicao":
                 page.views.append(montar_tela_medicao(page))
 
-            elif page.route == "/qrcodes":
-                page.views.append(montar_tela_qrcodes(page))
-
-            elif page.route == "/relatorios":
-                page.views.append(montar_tela_relatorio(page))
-
-            elif page.route == "/dashboard":
-                page.views.append(montar_tela_dashboard(page))
-
+            # Rota Saúde do Sistema ✅
             elif page.route == "/saude":
                 page.views.append(montar_tela_saude(page, lambda _: page.go("/menu")))
+
+            elif page.route == "/qrcodes":
+                # Mesma coisa aqui
+                page.views.append(montar_tela_qrcodes(page, lambda _: page.go("/menu")))
+
+            # Correção Rota Relatórios ✅
+            elif page.route == "/relatorios":
+                page.views.append(montar_tela_relatorio(page, lambda _: page.go("/menu")))
+
+            # RESOLVENDO O ARGUMENTO 'ao_voltar' ✅
+            elif page.route == "/dashboard":
+                page.views.append(montar_tela_dashboard(page, lambda _: page.go("/menu")))
                             
             elif page.route == "/configuracoes":
+                # Proteção contra o timeout do clientStorage
                 page.views.append(montar_tela_configs(page, lambda _: page.go("/menu")))
-            
+                
             elif page.route == "/ajuda":
                 page.views.append(montar_tela_ajuda(page, lambda _: page.go("/configuracoes")))
                         

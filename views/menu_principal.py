@@ -1,10 +1,11 @@
 import flet as ft
 from views import styles as st 
-# Importação dinâmica da versão para automação total
+
+# Importação dinâmica da versão
 try:
     from utils.updater import VERSION
 except ImportError:
-    VERSION = "1.1.0" # Fallback caso o arquivo não seja encontrado
+    VERSION = "1.1.0"
 
 def montar_menu(page: ft.Page):
     user_name = getattr(page, "user_email", "Operador")
@@ -39,24 +40,24 @@ def montar_menu(page: ft.Page):
             ft.Column(
                 [
                     ft.Container(height=20),
-                    ft.Image(src="assets/logo.png", width=150, height=150), # Logo do projeto
+                    # LOGO ✅
+                    ft.Image(
+                        src="logo_agua.png",
+                        width=150,
+                        height=150,
+                        fit=ft.ImageFit.CONTAIN,
+                    ),
+                    ft.Text("Menu Principal", size=20, weight="bold", color="white"),
+                    ft.Container(height=20),
                     
+                    # Coluna Interna para os Botões
                     ft.Column(
                         [
-                            # --- BLOCO DE BOTÕES OPERACIONAIS ---
                             criar_botao_menu("REALIZAR MEDIÇÃO", ft.icons.SPEED_ROUNDED, "/medicao"),
-                            
-                            # Botão de Saúde que contém o Sincronizador para o Supabase
-                            # No ficheiro views/menu_principal.py
-                            criar_botao_menu("SAÚDE DO SISTEMA", ft.icons.DASHBOARD_CUSTOMIZE, "/dashboard_saude"),
-                            
-                            criar_botao_menu("GERAR QR CODES", ft.icons.QR_CODE_2_ROUNDED, "/gerar_qrcode"),
-                            
+                            criar_botao_menu("SAÚDE DO SISTEMA", ft.icons.HEALTH_AND_SAFETY, "/saude"),
+                            criar_botao_menu("GERAR QR CODES", ft.icons.QR_CODE_2_ROUNDED, "/qrcodes"),
                             criar_botao_menu("HISTÓRICO / RELATÓRIO", ft.icons.ASSIGNMENT_OUTLINED, "/relatorios"),
-                            
-                            # Dashboard interativo com gráficos de evolução
                             criar_botao_menu("DASHBOARD DE CONSUMO", ft.icons.DASHBOARD_ROUNDED, "/dashboard"),
-                            
                             criar_botao_menu("CONFIGURAÇÕES", ft.icons.SETTINGS_OUTLINED, "/configuracoes", estilo=st.BTN_SPECIAL),
                         ],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -64,15 +65,12 @@ def montar_menu(page: ft.Page):
                     ),
                     
                     ft.Container(height=30),
-                    
                     ft.TextButton(
                         "Sair do Sistema", 
                         icon=ft.icons.LOGOUT, 
                         icon_color="red",
                         on_click=lambda _: page.go("/") 
                     ),
-                    
-                    # Rodapé Dinâmico: Altera automaticamente ao mudar o utils/updater.py
                     ft.Text(f"Versão {VERSION} - Grupo 8 - Univesp", size=10, color=ft.colors.GREY_600),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,

@@ -38,18 +38,20 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
         label="Leitura Água (m³)",
         hint_text="00000.00",
         width=300,
-        keyboard_type=ft.KeyboardType.NUMBER,
-        icon=ft.icons.WATER_DROP
+        max_length=8, # 5 números + ponto + 2 decimais
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9,.]*$", replacement_string=""),
+        keyboard_type=ft.KeyboardType.NUMBER
     )
 
     txt_gas = ft.TextField(
         label="Leitura Gás (m³)",
         hint_text="00000.000",
         width=300,
+        max_length=9, # 5 números + ponto + 3 decimais
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9,.]*$", replacement_string=""),
         keyboard_type=ft.KeyboardType.NUMBER,
         icon=ft.icons.GAS_METER
     )
-
     # --- CALLBACK DO SCANNER ---
     async def ao_detectar_leitura(unidade, valor, sucesso):
         """Callback que recebe os dados processados pelo OCR em scanner.py"""
@@ -99,24 +101,7 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
         if not txt_unidade.value or not txt_agua.value:
             tocar_alerta(page, tipo="erro")
             page.snack_bar = ft.SnackBar(
-                ft.Text("Erro: Preencha Unidade e Leitura da Água!"),
-                bgcolor="red"
-            )
-            page.snack_bar.open = True
-            page.update()
-            return
-
-        # Sanitização das entradas: converte vírgula para ponto e força float
-        try:
-            agua_sanitizada = str(txt_agua.value).replace(',', '.')
-            gas_sanitizado = str(txt_gas.value or "0").replace(',', '.')
-            # Validação das travas decimais (2 para água, 3 para gás)
-            agua_float = float(agua_sanitizada)
-            gas_float = float(gas_sanitizado)
-        except (ValueError, AttributeError):
-            tocar_alerta(page, tipo="erro")
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Erro: Valores inválidos. Use formato 00000.00 para água."),
+                ft.Text("Erro: Preencha Unidade e Leitura da Água!"), 
                 bgcolor="red"
             )
             page.snack_bar.open = True
@@ -124,18 +109,21 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
             return
 
         progresso_barra.visible = True
-        btn_salvar.disabled = True
         page.update()
 
         # Chama salvar_leitura que agora possui validações de DUPLICADA e DECREMENTO
-        res = Database.salvar_leitura(
+        # Chamada da função que retorna um dicionário agora
+        resultado = Database.salvar_leitura(
             unidade=txt_unidade.value,
-            agua=agua_float,
-            gas=gas_float,
+            agua=txt_agua.value,
+            gas=txt_gas.value or "0",
             tipo=VERSION
         )
 
-        if res == "OK":
+        # AJUSTE DA LÓGICA DE RESPOSTA ✅
+        res_codigo = resultado.get('codigo')
+
+        if resultado.get('sucesso'): # Verifica a chave 'sucesso'
             tocar_alerta(page, tipo="sucesso")
             page.snack_bar = ft.SnackBar(
                 ft.Text(f"Unidade {txt_unidade.value} salva com sucesso! 💾"), 
@@ -144,37 +132,26 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
             page.snack_bar.open = True
             status_text.value = ""
             
-            # Próxima unidade automática baseada na sequência do condomínio
+            # Limpeza e próxima unidade (sua lógica original)
             try:
                 atual_idx = db_lista.index(txt_unidade.value)
                 if atual_idx + 1 < len(db_lista):
                     txt_unidade.value = db_lista[atual_idx + 1]
-                
-                # Limpa os campos de leitura para a próxima entrada
                 txt_agua.value = ""
                 txt_gas.value = ""
-            except ValueError:
-                pass
+            except ValueError: pass
         
-        elif res == "DUPLICADA":
+        elif res_codigo == "DUPLICADA":
             tocar_alerta(page, tipo="erro")
-            status_text.value = f"⚠️ Já existe uma leitura para a unidade {txt_unidade.value} hoje."
-            page.snack_bar = ft.SnackBar(ft.Text("Erro: Leitura duplicada!"), bgcolor="orange")
-            page.snack_bar.open = True
+            status_text.value = f"⚠️ Já existe leitura para {txt_unidade.value} hoje."
             
-        elif res == "DECREMENTO":
+        elif res_codigo == "DECREMENTO":
             tocar_alerta(page, tipo="erro")
-            status_text.value = "❌ Valor informado é menor que a leitura anterior!"
-            page.snack_bar = ft.SnackBar(ft.Text("Erro de integridade: Valor decrescente"), bgcolor="red")
-            page.snack_bar.open = True
+            status_text.value = "❌ Valor menor que a leitura anterior!"
 
-        elif res == "DB_LOCKED":
+        elif res_codigo in ["DB_LOCKED", "ERRO_DB"]:
             tocar_alerta(page, tipo="erro")
-            status_text.value = "⚠️ Banco de dados ocupado. Tente salvar novamente."
-
-        progresso_barra.visible = False
-        btn_salvar.disabled = False
-        page.update()
+            status_text.value = "⚠️ Banco ocupado ou erro técnico. Tente novamente."
 
     btn_salvar = ft.ElevatedButton(
         "SALVAR LEITURA",
