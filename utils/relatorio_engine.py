@@ -4,6 +4,9 @@ import smtplib
 from email.message import EmailMessage
 from fpdf import FPDF
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class RelatorioEngine:
     """Motor de processamento de documentos e comunicações do AguaFlow."""
@@ -48,18 +51,17 @@ class RelatorioEngine:
 
     @staticmethod
     def gerar_csv_consumo(dados):
-        """Gera um arquivo CSV para integração com planilhas (Excel)."""
+        """Gera um arquivo CSV para integração com planilhas (Excel PT-BR)."""
         try:
             caminho_csv = "dados_consumo.csv"
-            campos = ["unidade", "valor", "data_leitura"]
-            
-            with open(caminho_csv, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=campos)
+            campos = ["unidade", "leitura_agua", "leitura_gas", "data_leitura"]
+
+            with open(caminho_csv, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.DictWriter(f, fieldnames=campos, delimiter=';')
                 writer.writeheader()
                 for item in dados:
-                    # Filtra apenas os campos necessários para o CSV
-                    writer.writerow({k: item[k] for k in campos if k in item})
-            
+                    writer.writerow({k: item.get(k, '') for k in campos})
+
             return os.path.abspath(caminho_csv)
         except Exception as e:
             raise Exception(f"Erro ao gerar CSV: {str(e)}")
@@ -67,9 +69,9 @@ class RelatorioEngine:
     @staticmethod
     def enviar_relatorios_por_email(pdf_path, csv_path, destinatario="escritorio@vivereprudente.com.br"):
         """Envia os arquivos gerados via SMTP (E-mail)."""
-        # --- CONFIGURAÇÕES DO SERVIDOR (AJUSTAR COM SEU E-MAIL) ---
-        EMAIL_ORIGEM = "seu_email@gmail.com"
-        SENHA_APP = "sua_senha_app_google" 
+        # --- CONFIGURAÇÕES DO SERVIDOR (variáveis de ambiente) ---
+        EMAIL_ORIGEM = os.getenv("EMAIL_USER", "seu_email@gmail.com")
+        SENHA_APP = os.getenv("EMAIL_PASS", "sua_senha_app_google") 
         
         try:
             msg = EmailMessage()

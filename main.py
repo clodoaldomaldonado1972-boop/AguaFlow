@@ -11,12 +11,11 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 warnings.filterwarnings("ignore", category=UserWarning)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# --- IMPORTAÇÕES DO CORE (Caminhos atualizados) ---
+# --- IMPORTAÇÕES DO CORE ---
 from database.database import Database
 from utils.updater import AppUpdater, VERSION 
- 
 
-# --- IMPORTAÇÕES DAS VIEWS (Caminhos atualizados) ---
+# --- IMPORTAÇÕES DAS VIEWS ---
 from views.auth import criar_tela_login, montar_tela_esqueci_senha
 from views.autenticacao import montar_tela_autenticacao
 from views.menu_principal import montar_menu
@@ -26,7 +25,18 @@ from views.relatorio_view import montar_tela_relatorio
 from views.configuracoes import montar_tela_configs
 from views.dashboard import montar_tela_dashboard
 from views.dashboard_saude import montar_tela_saude
-# No topo do main.py
+from views.reset_password_view import reset_password_view
+
+# Tenta importar a tela de ajuda; se não existir, cria um fallback para não quebrar o app
+try:
+    from views.ajuda_view import montar_tela_ajuda
+except ImportError:
+    def montar_tela_ajuda(page, ao_voltar):
+        return ft.View("/ajuda", controls=[
+            ft.AppBar(title=ft.Text("Central de Ajuda"), bgcolor=ft.colors.SURFACE_VARIANT),
+            ft.Text("Conteúdo de ajuda em desenvolvimento para o Residencial Vivere."),
+            ft.ElevatedButton("Voltar", on_click=ao_voltar)
+        ])
 
 async def main(page: ft.Page):
     # 2. CONFIGURAÇÕES GERAIS DA PÁGINA
@@ -36,12 +46,11 @@ async def main(page: ft.Page):
     page.window_height = 800
     page.window_resizable = True
 
-    # 3. SISTEMA DE ROTEAMENTO (Navegação)
+    # 3. SISTEMA DE ROTEAMENTO (Navegação Assíncrona)
     async def route_change(route):
         try:
             page.views.clear()
             
-            # Rota Raiz - Login
             if page.route == "/":
                 page.views.append(criar_tela_login(page))
             
@@ -57,29 +66,30 @@ async def main(page: ft.Page):
             elif page.route == "/medicao":
                 page.views.append(montar_tela_medicao(page))
 
-            # Rota Saúde do Sistema ✅
             elif page.route == "/saude":
                 page.views.append(montar_tela_saude(page, lambda _: page.go("/menu")))
 
             elif page.route == "/qrcodes":
-                # Mesma coisa aqui
                 page.views.append(montar_tela_qrcodes(page, lambda _: page.go("/menu")))
 
-            # Correção Rota Relatórios ✅
             elif page.route == "/relatorios":
                 page.views.append(montar_tela_relatorio(page, lambda _: page.go("/menu")))
 
-            # RESOLVENDO O ARGUMENTO 'ao_voltar' ✅
             elif page.route == "/dashboard":
                 page.views.append(montar_tela_dashboard(page, lambda _: page.go("/menu")))
                             
             elif page.route == "/configuracoes":
-                # Proteção contra o timeout do clientStorage
-                page.views.append(montar_tela_configs(page, lambda _: page.go("/menu")))
+                # Uso de await para evitar timeout no clientStorage
+                view_configs = await montar_tela_configs(page, lambda _: page.go("/menu"))
+                page.views.append(view_configs)
                 
             elif page.route == "/ajuda":
+                # Agora 'montar_tela_ajuda' está definida ou possui fallback
                 page.views.append(montar_tela_ajuda(page, lambda _: page.go("/configuracoes")))
-                        
+
+            elif page.route == "/reset-password":
+                page.views.append(reset_password_view(page))
+
             page.update()
             
         except Exception as err:
@@ -96,13 +106,9 @@ async def main(page: ft.Page):
 
     # 4. INICIALIZAÇÃO DO SISTEMA
     try:
-        # Garante que o banco de dados e as tabelas (leituras, sync_log) existem
         await Database.init_db()
-        
-        # Inicia na tela de login
         page.go("/")
         
-        # Verifica atualizações em background para Android APK
         try:
             updater = AppUpdater(page)
             await updater.check_for_updates()
@@ -112,6 +118,5 @@ async def main(page: ft.Page):
     except Exception as e:
         print(f"[ERRO CRÍTICO] Falha ao iniciar AguaFlow: {e}")
 
-# Início do App
 if __name__ == "__main__":
     ft.app(target=main, assets_dir="assets")
