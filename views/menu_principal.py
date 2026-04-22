@@ -42,7 +42,7 @@ def montar_menu(page: ft.Page):
                     ft.Container(height=20),
                     # LOGO ✅
                     ft.Image(
-                        src="logo_agua.png",
+                        src="logo.jpeg",
                         width=150,
                         height=150,
                         fit=ft.ImageFit.CONTAIN,
