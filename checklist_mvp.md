@@ -1,6 +1,6 @@
 # Checklist MVP - AguaFlow
 
-**Data da Última Atualização:** 2026-04-20  
+**Data da Última Atualização:** 2026-04-21  
 **Técnico Responsável:** Claude Code  
 **Status Geral:** ✅ MVP PRODUÇÃO - VALIDAÇÕES E APK PRONTOS
 
@@ -518,6 +518,130 @@ def get_leituras_mes_atual(cls):
 *Atualizado em 2026-04-20 - Validações de integridade e instruções APK adicionadas*
 
 ---
+
+## 15. ATUALIZAÇÕES 2026-04-21 - VALIDAÇÃO CHECKLIST MVP
+
+**Data da Atualização:** 2026-04-21  
+**Técnico:** Claude Code
+
+### ✅ Correções Aplicadas (Validação checklist_mvp.md)
+
+| # | Funcionalidade | Arquivo | Status |
+|---|---------------|---------|--------|
+| 1 | sqlite3.Error para 'database is locked' | `database/database.py` | ✅ CONCLUÍDO |
+| 2 | Sanitização de entradas (.replace e float) | `views/medicao.py` | ✅ CONCLUÍDO |
+| 3 | btn_salvar.disabled durante progresso | `views/medicao.py` | ✅ CONCLUÍDO |
+| 4 | Paths de áudio em assets/ | `utils/audio_utils.py` | ✅ CONCLUÍDO |
+
+### 15.1 Detalhamento das Correções
+
+#### 1. sqlite3.Error para 'database is locked' ✅
+
+**Arquivo:** `database/database.py` (linha ~227)
+
+**Alteração:**
+```python
+# Antes:
+except sqlite3.OperationalError as e:
+
+# Depois:
+except (sqlite3.OperationalError, sqlite3.Error) as e:
+```
+
+**Justificativa:** Captura explícita de `sqlite3.Error` garante tratamento adequado para todos os erros SQLite, incluindo 'database is locked'.
+
+---
+
+#### 2. Sanitização de Entradas ✅
+
+**Arquivo:** `views/medicao.py` (linha ~98)
+
+**Implementação:**
+```python
+# Sanitização das entradas: converte vírgula para ponto e força float
+try:
+    agua_sanitizada = str(txt_agua.value).replace(',', '.')
+    gas_sanitizado = str(txt_gas.value or "0").replace(',', '.')
+    # Validação das travas decimais (2 para água, 3 para gás)
+    agua_float = float(agua_sanitizada)
+    gas_float = float(gas_sanitizado)
+except (ValueError, AttributeError):
+    # Exibe erro e retorna
+```
+
+**Benefícios:**
+- Previne erro de conversão quando usuário usa vírgula
+- Valida formato numérico antes de enviar ao banco
+- Mensagem de erro clara para o usuário
+
+---
+
+#### 3. btn_salvar Desativado Durante Progresso ✅
+
+**Arquivo:** `views/medicao.py`
+
+**Implementação:**
+```python
+# Ao iniciar salvamento:
+progresso_barra.visible = True
+btn_salvar.disabled = True
+page.update()
+
+# Ao finalizar (qualquer resultado):
+progresso_barra.visible = False
+btn_salvar.disabled = False
+page.update()
+```
+
+**Benefícios:**
+- Previne duplo clique acidental
+- Feedback visual claro de operação em andamento
+- UX mais profissional
+
+---
+
+#### 4. Paths de Áudio Corrigidos ✅
+
+**Arquivo:** `utils/audio_utils.py`
+
+**Implementação:**
+```python
+def get_audio_path(nome_audio: str) -> str:
+    """Retorna o caminho relativo para arquivos de áudio compatível com APK."""
+    return os.path.join("assets", "audio", nome_audio)
+```
+
+**Estrutura de Pastas:**
+```
+C:\AguaFlow/
+├── assets/
+│   └── audio/
+│       ├── sucesso.wav
+│       ├── erro.wav
+│       └── alerta.wav
+└── utils/
+    └── audio_utils.py
+```
+
+**Benefícios:**
+- Paths relativos funcionam em desktop e APK
+- Sem paths absolutos do Windows (C:\...)
+- Compatível com sandbox do Android
+
+---
+
+### 15.2 Status Atualizado do MVP
+
+| Módulo | Status | Observação |
+|--------|--------|------------|
+| Banco de Dados | ✅ **COMPLETO** | sqlite3.Error implementado |
+| Medição | ✅ **COMPLETO** | Sanitização + btn_salvar.disabled |
+| Audio/Feedback | ✅ **COMPLETO** | Paths em assets/audio/ |
+| Sincronização | ✅ **COMPLETO** | Transação atômica + log |
+
+---
+
+*Atualizado em 2026-04-21 - Validação checklist_mvp.md concluída*
 
 ## 12. SINCRONIZAÇÃO ATÔMICA - IMPLEMENTAÇÃO 2026-04-20
 
