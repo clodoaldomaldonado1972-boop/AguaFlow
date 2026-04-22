@@ -99,7 +99,24 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
         if not txt_unidade.value or not txt_agua.value:
             tocar_alerta(page, tipo="erro")
             page.snack_bar = ft.SnackBar(
-                ft.Text("Erro: Preencha Unidade e Leitura da Água!"), 
+                ft.Text("Erro: Preencha Unidade e Leitura da Água!"),
+                bgcolor="red"
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        # Sanitização das entradas: converte vírgula para ponto e força float
+        try:
+            agua_sanitizada = str(txt_agua.value).replace(',', '.')
+            gas_sanitizado = str(txt_gas.value or "0").replace(',', '.')
+            # Validação das travas decimais (2 para água, 3 para gás)
+            agua_float = float(agua_sanitizada)
+            gas_float = float(gas_sanitizado)
+        except (ValueError, AttributeError):
+            tocar_alerta(page, tipo="erro")
+            page.snack_bar = ft.SnackBar(
+                ft.Text("Erro: Valores inválidos. Use formato 00000.00 para água."),
                 bgcolor="red"
             )
             page.snack_bar.open = True
@@ -107,13 +124,14 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
             return
 
         progresso_barra.visible = True
+        btn_salvar.disabled = True
         page.update()
 
         # Chama salvar_leitura que agora possui validações de DUPLICADA e DECREMENTO
         res = Database.salvar_leitura(
             unidade=txt_unidade.value,
-            agua=txt_agua.value,
-            gas=txt_gas.value or "0",
+            agua=agua_float,
+            gas=gas_float,
             tipo=VERSION
         )
 
@@ -155,6 +173,7 @@ def montar_tela_medicao(page: ft.Page, on_back_click=None):
             status_text.value = "⚠️ Banco de dados ocupado. Tente salvar novamente."
 
         progresso_barra.visible = False
+        btn_salvar.disabled = False
         page.update()
 
     btn_salvar = ft.ElevatedButton(

@@ -1,17 +1,25 @@
 import flet as ft
+import os
+
+def get_audio_path(nome_audio: str) -> str:
+    """Retorna o caminho relativo para arquivos de áudio compatível com APK."""
+    # Usa path relativo para funcionar tanto no desktop quanto no APK
+    return os.path.join("assets", "audio", nome_audio)
 
 def tocar_alerta(page: ft.Page, tipo="sucesso"):
     """
-    No APK, a 'frequência' é substituída pela escolha do arquivo 
-    de áudio correspondente ao evento.
+    Toca áudio de feedback sonoro usando ft.Audio nativo do Flet (compatível APK).
+    Os arquivos de áudio devem estar na pasta assets/audio/ do projeto.
     """
-    # Em vez de calcular frequência/duração, selecionamos o arquivo gravado
+    # Seleciona o arquivo de áudio baseado no tipo de evento
     if tipo == "sucesso":
-        caminho_audio = "audio/sucesso.wav"  # Grave um som de 1000Hz aqui
+        nome_arquivo = "sucesso.wav"
     elif tipo == "erro":
-        caminho_audio = "audio/erro.wav"     # Grave um som de 400Hz aqui
+        nome_arquivo = "erro.wav"
     else:
-        caminho_audio = "audio/alerta.wav"
+        nome_arquivo = "alerta.wav"
+
+    caminho_audio = get_audio_path(nome_arquivo)
 
     # Criar o componente de áudio nativo do Flet (funciona no Android)
     audio = ft.Audio(
@@ -22,9 +30,9 @@ def tocar_alerta(page: ft.Page, tipo="sucesso"):
     # Adicionar ao overlay da página (necessário para o Flet processar o som)
     if audio not in page.overlay:
         page.overlay.append(audio)
-    
+
     page.update()
-    
+
     try:
         audio.play()
     except Exception as e:
