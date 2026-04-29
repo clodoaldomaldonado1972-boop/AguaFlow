@@ -1,113 +1,67 @@
 import flet as ft
-import asyncio
 
-# --- PALETA DE CORES (Nomes novos + Sinônimos para evitar ImportError) ---
+# --- 1. CORES BASE ---
 BG_DARK = "#121417"
-BG_COLOR = BG_DARK
 PRIMARY_BLUE = "#2196F3"
-PRIMARY_COLOR = PRIMARY_BLUE
-DARK_BLUE = "#1976D2"
-
-# Cores de texto forçadas para alto contraste
-WHITE = "#FFFFFF" 
-GREY_TEXT = "#BDBDBD" 
-GREY = GREY_TEXT  # Mantido para compatibilidade com outros arquivos
-
+WHITE = "#FFFFFF"
+GREY_TEXT = "#BDBDBD"
 ACCENT_ORANGE = "#FF9800"
-SUCCESS_GREEN = "#4CAF50"
-ERROR_COLOR = "#FF5252"
+RED_ERROR = "#FF5252"
+SUCCESS_GREEN = "#2E7D32"
 
-# --- CONFIGURAÇÕES DE PÁGINA ---
+# --- 2. APELIDOS DE COMPATIBILIDADE ---
+BG_COLOR = BG_DARK
+PRIMARY_COLOR = PRIMARY_BLUE
+TEXT_COLOR = WHITE
+GREY = GREY_TEXT
+ERROR_COLOR = RED_ERROR
+SECUNDARY_COLOR = ACCENT_ORANGE
+TEXT_TITLE = ft.TextStyle(size=22, weight="bold", color=WHITE)
+TEXT_SUB = ft.TextStyle(size=16, color=GREY_TEXT)
+TEXT_BODY = ft.TextStyle(size=14, color=WHITE)
+
+# --- 3. ESTILOS (CORREÇÃO: Transformado em função) ---
+def campo_estilo(label, icon=None, password=False):
+    return ft.TextField(
+        label=label,
+        prefix_icon=icon if icon is not None else None,
+        password=password,
+        can_reveal_password=password,
+        border_color=PRIMARY_BLUE,
+        focused_border_color=ACCENT_ORANGE,
+        label_style=ft.TextStyle(color=GREY_TEXT),
+        color=WHITE,
+        border_radius=10,
+        bgcolor="#25282D"
+    )
+
 STYLE_PAGE_CONTAINER = {
     "padding": 20,
-    "alignment": ft.Alignment(0, 0),
+    "border_radius": 15,
     "expand": True,
-    "bgcolor": BG_DARK
+    "bgcolor": "#1E2126"
 }
 
-# --- ESTILOS DE TEXTO (Aumentados para melhor leitura no APK) ---
-TEXT_TITLE = ft.TextStyle(
-    size=28, 
-    weight=ft.FontWeight.BOLD, 
-    color=WHITE
-)
+# --- 4. ELEMENTOS VISUAIS ---
+def criar_mira_scanner():
+    return ft.Container(
+        content=ft.Stack([
+            ft.Container(width=300, height=220, border=ft.border.all(2, PRIMARY_BLUE), border_radius=20),
+            ft.Container(
+                width=280, height=2, bgcolor=RED_ERROR,
+                animate_offset=ft.animation.Animation(1500, ft.AnimationCurve.EASE_IN_OUT)
+            )
+        ], alignment=ft.alignment.center),
+        margin=ft.margin.only(top=20, bottom=20)
+    )
 
-TEXT_SUB = ft.TextStyle(
-    size=16, 
-    color=GREY_TEXT
-)
-
-TEXT_LABEL = ft.TextStyle(
-    size=14, 
-    weight=ft.FontWeight.W_500, 
-    color=PRIMARY_BLUE
-)
-
-# --- ESTILOS DE BOTÕES ---
-# --- ESTILOS DE BOTÕES ---
+# --- 5. ESTILOS DE BOTÕES ---
 BTN_MAIN = ft.ButtonStyle(
-    color=WHITE,
-    bgcolor={
-        ft.ControlState.DEFAULT: PRIMARY_BLUE,
-        ft.ControlState.HOVERED: DARK_BLUE, # Mudei para HOVERED para fazer sentido
-    },
-    padding=20,
-    shape=ft.RoundedRectangleBorder(radius=15),
-    elevation={"pressed": 0, "": 5},
+    color=WHITE, bgcolor=PRIMARY_BLUE, 
+    shape=ft.RoundedRectangleBorder(radius=15), elevation=5
 )
 
 BTN_SPECIAL = ft.ButtonStyle(
-    color=WHITE,
-    bgcolor={
-        ft.ControlState.DEFAULT: ACCENT_ORANGE, # Corrigido: removido o ":" extra
-        ft.ControlState.PRESSED: "#E68A00",
-    },
-    padding=20,
-    shape=ft.RoundedRectangleBorder(radius=15),
+    color=WHITE, bgcolor=ACCENT_ORANGE, 
+    shape=ft.RoundedRectangleBorder(radius=15)
 )
-BTN_PRIMARY = ft.ButtonStyle(
-    color=WHITE,
-    bgcolor={
-        ft.ControlState.DEFAULT: PRIMARY_BLUE,
-        ft.ControlState.PRESSED: DARK_BLUE,
-    },
-    shape=ft.RoundedRectangleBorder(radius=10),
-)
-
-# --- COMPONENTES ---
-
-def campo_estilo(label, icon_name, password=False, read_only=False, keyboard_type=None, on_submit=None):
-    """Campo de texto com cores forçadas para evitar sumir no Android."""
-    return ft.TextField(
-        label=label,
-        prefix_icon=icon_name,
-        password=password,
-        can_reveal_password=True,
-        read_only=read_only,
-        keyboard_type=keyboard_type if keyboard_type else ft.KeyboardType.TEXT,
-        border_color=PRIMARY_BLUE,
-        focused_border_color=ACCENT_ORANGE,
-        border_radius=12,
-        color=WHITE, 
-        label_style=ft.TextStyle(color=GREY_TEXT),
-        bgcolor=ft.colors.with_opacity(0.1, WHITE),
-        content_padding=15,
-        on_submit=on_submit
-    )
-
-def card_informativo(titulo, valor, icone, cor=PRIMARY_BLUE):
-    """Card de Dashboard com alto contraste."""
-    return ft.Container(
-        content=ft.Column([
-            ft.Row([
-                ft.Icon(icone, color=cor, size=20), 
-                ft.Text(titulo, size=12, color=GREY_TEXT)
-            ]),
-            ft.Text(valor, size=24, weight=ft.FontWeight.BOLD, color=WHITE)
-        ], spacing=5),
-        padding=15,
-        bgcolor="#1E2126",
-        border_radius=15,
-        border=ft.border.all(1, ft.colors.with_opacity(0.1, WHITE)),
-        width=170
-    )
