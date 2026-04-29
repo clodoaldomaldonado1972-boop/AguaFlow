@@ -1,9 +1,13 @@
 import flet as ft
-from views.auth import supabase
+from database.database import Database, get_supabase_client
 from views import styles as st
+
+# Cliente Supabase centralizado
+supabase = get_supabase_client()
 
 def criar_tela_recuperacao(page: ft.Page):
     txt_email = st.campo_estilo("E-mail cadastrado", ft.icons.EMAIL)
+    txt_email.width = 320
     lbl_status = ft.Text("", size=14)
 
     async def enviar_link(e):
@@ -13,11 +17,17 @@ def criar_tela_recuperacao(page: ft.Page):
             page.update()
             return
 
+        if not supabase:
+            lbl_status.value = "Erro: Conexão com banco não configurada."
+            lbl_status.color = st.ERROR_COLOR
+            page.update()
+            return
+
         try:
             # Comando oficial do Supabase para disparar o e-mail
             supabase.auth.reset_password_for_email(
                 txt_email.value,
-                {"redirect_to": "http://localhost:8550/reset-password"} # Ajuste a porta se necessário
+                {"redirect_to": "http://localhost:8550/reset-password"}
             )
             lbl_status.value = "Link enviado! Verifique sua caixa de entrada."
             lbl_status.color = "green"
@@ -48,7 +58,7 @@ def criar_tela_recuperacao(page: ft.Page):
                         height=50,
                         style=st.BTN_MAIN
                     ),
-                    ft.TextButton("Voltar ao Login", on_click=lambda _: page.go("/login"))
+                    ft.TextButton("Voltar ao Login", on_click=lambda _: page.go("/"))
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
                 padding=20
             )
