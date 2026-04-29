@@ -1,11 +1,8 @@
 import os
 from database.database import Database
-# --- IMPORT CORRIGIDO PARA A NOVA ESTRUTURA ---
-from database.backup import executar_backup_seguranca
-# Função que agora está em utils/
-from utils.exportador import gerar_pdf_csv as gerar_relatorio_consumo
-# Serviço que agora está em utils/
-from utils.email_service import enviar_relatorio_por_email
+from utils.backup import executar_backup_seguranca
+from relatorio_engine import RelatorioEngine
+from utils.email_service import enviar_relatorios_por_email
 
 
 def finalizar_mes_e_enviar(email_destino=None):
@@ -19,23 +16,23 @@ def finalizar_mes_e_enviar(email_destino=None):
             print("ERRO: Falha no backup. Operação cancelada por segurança.")
             return False
 
-        # 2. Lógica de Negócio: Busca leituras já realizadas[cite: 13]
-        dados_resp = Database.get_leituras()  # Busca todas as leituras do mês atual
-        if not dados_resp.get("sucesso"):
+        # 2. Busca leituras do mês corrente
+        dados = Database.get_leituras_mes_atual()
+        if not dados:
             return False
 
-        dados = dados_resp.get("dados") or []
+        # 3. Gera ambos os relatórios para envio
+        caminho_pdf = RelatorioEngine.gerar_relatorio_consumo(dados)
+        caminho_csv = RelatorioEngine.gerar_csv_consumo(dados)
+        if not caminho_pdf or not caminho_csv:
+            return False
 
-        # Gera o arquivo PDF/CSV usando a lógica da pasta utils/[cite: 1, 2, 13]
-        caminho_arquivo = gerar_relatorio_consumo(dados)
-
-        # Envia o relatório por e-mail[cite: 1, 13]
-        # Se email_destino for None, o serviço usa o e-mail padrão do .env
-        enviou = enviar_relatorio_por_email(
-            caminho_arquivo, destinatario=email_destino)
+        # 4. Envia por e-mail usando serviço centralizado
+        # (destino customizado pode ser implementado no serviço posteriormente)
+        enviou = enviar_relatorios_por_email([caminho_pdf, caminho_csv])
 
         if enviou:
-            # 3. Sucesso: Reseta o banco para o novo mês[cite: 13]
+            # 5. Sucesso: prepara ciclo seguinte
             return resetar_banco_para_novo_mes()
 
         return False
@@ -51,12 +48,14 @@ def resetar_banco_para_novo_mes():
     try:
         with Database.get_db() as conn:
             cursor = conn.cursor()
-            # Atualiza os estados para o próximo mês[cite: 13]
+            # Limpa leituras do período mantendo a estrutura
             cursor.execute("""
                 UPDATE leituras SET
-                valor = NULL,
+                leitura_agua = NULL,
+                leitura_gas = NULL,
                 sincronizado = 0,
-                data_leitura = NULL
+                data_leitura_atual = NULL,
+                tipo = COALESCE(tipo, 'manual')
             """)
             conn.commit()
         print("SUCESSO: Banco de dados preparado para o novo mês!")
