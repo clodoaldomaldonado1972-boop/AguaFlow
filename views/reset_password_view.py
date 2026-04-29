@@ -1,6 +1,9 @@
 import flet as ft
-from views.auth import supabase # Importa o cliente centralizado
-import time
+import asyncio
+from database.database import get_supabase_client
+
+# Cliente Supabase centralizado
+supabase = get_supabase_client()
 
 def reset_password_view(page: ft.Page):
     # 1. ESTILIZAÇÃO DOS CAMPOS (Padronizado com o restante do app)

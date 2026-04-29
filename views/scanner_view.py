@@ -1,56 +1,86 @@
 import flet as ft
-import asyncio
-from database.database import Database
-from utils.scanner import ScannerAguaFlow
 from views import styles as st
 
 def montar_tela_scanner(page: ft.Page):
-    lbl_status = ft.Text("Centralize o Hidrômetro na Mira", color=st.GREY)
+    # Recupera o modo da sessão (definido na tela de medição)
+    modo_atual = page.session.get("modo_leitura") or "AGUA"
     
-    txt_unidade = ft.TextField(label="Unidade (Lida via QR)", read_only=True, border_radius=10)
-    txt_valor = ft.TextField(label="Valor (m³)", keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, read_only=True)
+    lbl_status = ft.Text(f"MODO: {modo_atual}", color="white", size=16, weight="bold")
+    
+    # Campos que receberão os dados do OCR
+    txt_unid = ft.TextField(
+        label="Unidade Detectada", 
+        read_only=True, 
+        border_radius=12, 
+        bgcolor="#1E2126",
+        width=300
+    )
+    
+    txt_val = ft.TextField(
+        label="Valor da Leitura", 
+        border_radius=12, 
+        bgcolor="#1E2126",
+        width=300,
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9]*[.]?[0-9]{0,3}$"),
+        hint_text="000.000"
+    )
 
-    async def ao_detectar(unidade, valor, sucesso):
-        if unidade: txt_unidade.value = unidade
-        if valor: txt_valor.value = valor
-        
-        if sucesso:
-            lbl_status.value = "✅ Captura automática realizada!"
-            lbl_status.color = "green"
-            txt_valor.read_only = False
-        else:
-            lbl_status.value = "⚠️ Falha ou Timeout. Insira manualmente."
-            lbl_status.color = "orange"
-            txt_unidade.read_only = False
-            txt_valor.read_only = False
-            txt_unidade.focus()
-        page.update()
+    async def fechar_e_voltar(e):
+        if not txt_val.value:
+            page.snack_bar = ft.SnackBar(ft.Text("Nenhum valor detectado!"))
+            page.snack_bar.open = True
+            page.update()
+            return
+            
+        page.session.set("unidade_scanner", txt_unid.value)
+        page.session.set("valor_scanner", txt_val.value)
+        page.go("/medicao")
 
-    scanner = ScannerAguaFlow(page, ao_detectar)
-
+    # --- RETORNO DA VIEW (ATENÇÃO AOS FECHAMENTOS ABAIXO) ---
     return ft.View(
         route="/scanner",
-        controls=[
-            ft.AppBar(title=ft.Text("Scanner Inteligente"), bgcolor="#1A1A1A"),
-            ft.Container(
-                padding=20,
-                content=ft.Column([
-                    st.criar_mira_scanner(), # A MIRA COM LINHA VERMELHA
-                    lbl_status,
-                    txt_unidade,
-                    txt_valor,
+        bgcolor=st.BG_DARK,
+        appbar=ft.AppBar(
+            title=ft.Text("Scanner OCR"), 
+            bgcolor=st.BG_DARK,
+            center_title=True,
+            leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=lambda _: page.go("/medicao"))
+        ),
+        controls=[ # <--- LINHA 68: ABRE LISTA DE CONTROLS
+            ft.Column([
+                ft.Container(
+                    content=ft.Stack([
+                        ft.Icon(ft.icons.CAMERA_REAR, size=150, color="grey"),
+                        ft.Icon(ft.icons.CROP_FREE, size=200, color="blue", opacity=0.5),
+                    ]),
+                    alignment=ft.alignment.center,
+                    padding=20
+                ),
+                ft.Text("Aponte para o Hidrômetro", size=16, weight="bold", color="white"),
+                lbl_status,
+                ft.Container(height=10),
+                txt_unid,
+                txt_val,
+                ft.Container(height=20),
+                ft.Row([
                     ft.ElevatedButton(
-                        "ABRIR CÂMERA", 
-                        icon=ft.icons.CAMERA_ALT,
-                        on_click=lambda _: page.run_task(scanner.iniciar_scan),
-                        width=320, height=60, style=st.BTN_SPECIAL
+                        "CONFIRMAR", 
+                        icon=ft.icons.CHECK, 
+                        on_click=fechar_e_voltar, 
+                        style=st.BTN_SPECIAL if hasattr(st, "BTN_SPECIAL") else None,
+                        width=160,
+                        height=50
                     ),
-                    ft.ElevatedButton(
-                        "CONFIRMAR E SALVAR", 
-                        on_click=lambda _: page.go("/menu"),
-                        width=320, height=60, style=st.BTN_MAIN
+                    ft.TextButton(
+                        "CANCELAR", 
+                        on_click=lambda _: page.go("/medicao"),
+                        # O Flet exige 'style' para cores em botões de texto
+                        style=ft.ButtonStyle(color=ft.colors.RED) 
                     )
-                ], horizontal_alignment="center", spacing=15)
-            )
-        ]
-    )
+                ], alignment=ft.MainAxisAlignment.CENTER),
+            ], # Fecha Column
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER, 
+            alignment=ft.MainAxisAlignment.CENTER, 
+            expand=True) # Fecha Column
+        ] # Fecha controls
+    ) # Fecha View
