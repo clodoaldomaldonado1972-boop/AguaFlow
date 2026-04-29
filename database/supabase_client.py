@@ -2,17 +2,7 @@ import os
 import sqlite3
 import logging
 from pathlib import Path
-from datetime import datetime
-from dotenv import load_dotenv
-from supabase import create_client, Client
-
-# --- CONFIGURAÇÃO DE AMBIENTE ---
-env_path = Path(__file__).parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
-
-SUPABASE_URL = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
-SUPABASE_API_KEY = os.getenv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
-DB_PATH = Path(__file__).parent.parent / 'aguaflow.db'  # Caminho do seu SQLite
+from database.database import get_supabase_client
 
 # Logger dedicado para erros de sincronização
 SYNC_LOG_DIR = Path(__file__).parent.parent / "storage" / "logs_sync"
@@ -20,27 +10,8 @@ SYNC_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger(__name__)
 
-_supabase_client: Client | None = None
-
-
-def get_supabase_client():
-    """
-    Obtém ou cria cliente Supabase.
-    Retorna None se não houver credenciais ou falha na conexão.
-    """
-    global _supabase_client
-    if not _supabase_client:
-        try:
-            if SUPABASE_URL and SUPABASE_API_KEY:
-                _supabase_client = create_client(
-                    SUPABASE_URL, SUPABASE_API_KEY)
-                logger.info("Cliente Supabase inicializado com sucesso.")
-            else:
-                logger.warning("Credenciais do Supabase não configuradas (.env)")
-        except Exception as e:
-            logger.error(f"❌ Erro ao conectar no Supabase: {e}")
-            _supabase_client = None
-    return _supabase_client
+# DB_PATH para operações locais
+DB_PATH = Path(__file__).parent.parent / 'aguaflow.db'
 
 
 def testar_conexao_supabase():
