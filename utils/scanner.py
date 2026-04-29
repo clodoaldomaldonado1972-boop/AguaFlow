@@ -7,7 +7,9 @@ class ScannerAguaFlow:
     def __init__(self, page: ft.Page, ao_detectar_leitura):
         self.page = page
         self.ao_detectar_leitura = ao_detectar_leitura
-        self.tipo_leitura = "Água"
+        # O modo será definido no momento do clique (ÁGUA ou GÁS)
+        self.modo_atual = "AGUA" 
+        
         self.picker = ft.FilePicker(on_result=self._processar_resultado)
         
         if self.picker not in self.page.overlay:
@@ -15,16 +17,15 @@ class ScannerAguaFlow:
         
         self.page.update()
 
-    async def iniciar_scan(self, tipo="Água"):
-        self.tipo_leitura = tipo
+    async def iniciar_scan(self):
+        # Pega o modo que está salvo na sessão da página (definido na medicao.py)
+        self.modo_atual = self.page.session.get("modo_leitura") or "AGUA"
+        
         try:
-            # pick_files não deve ser awaitado aqui para evitar bloqueios de thread
-            self.picker.pick_files(
-                allow_multiple=False,
-                file_type=ft.FilePickerFileType.IMAGE
-            )
+            # pick_files abre a câmera nativa do Android
+            self.picker.take_photo() 
         except Exception as e:
-            print(f"Erro na interface de captura: {e}")
+            print(f"Erro ao abrir câmera: {e}")
 
     async def _processar_resultado(self, e: ft.FilePickerResultEvent):
         if not e.files or e.files[0].path is None:
@@ -34,27 +35,25 @@ class ScannerAguaFlow:
 
         caminho_arquivo = e.files[0].path
         try:
-            # PROTEÇÃO: Timeout de 12 segundos para o processamento OCR
+            # Processamento em thread separada com o MODO correto (Água ou Gás)
+            # Passamos o self.modo_atual para o leitor_ocr respeitar as casas decimais
             resultado = await asyncio.wait_for(
-                asyncio.to_thread(processar_leitura_completa, caminho_arquivo), 
+                asyncio.to_thread(processar_leitura_completa, caminho_arquivo, self.modo_atual), 
                 timeout=12.0
             )
             
             unidade = resultado.get("unidade")
-            valor = resultado.get("valor")
+            valor = resultado.get("consumo") # Mudamos para 'consumo' para alinhar com leitor_ocr.py
             sucesso = resultado.get("status") == "Sucesso"
 
             if self.ao_detectar_leitura:
                 await self.ao_detectar_leitura(unidade, valor, sucesso)
                 
+            # Limpa a foto da memória do celular após o uso
+            if os.path.exists(caminho_arquivo):
+                os.remove(caminho_arquivo)
+                
         except Exception as err:
-            print(f"Erro no OCR ou Timeout (12s excedidos): {err}")
-            # Em caso de falha ou tempo excedido, o sucesso=False liberta o modo manual
+            print(f"Erro no OCR ou Timeout: {err}")
             if self.ao_detectar_leitura:
                 await self.ao_detectar_leitura(None, None, False)
-
-    def limpar_cache_captura(self, caminho):
-        """Remove ficheiros temporários para poupar espaço no dispositivo."""
-        if os.path.exists(caminho) and "temp" in caminho:
-            try: os.remove(caminho)
-            except: pass

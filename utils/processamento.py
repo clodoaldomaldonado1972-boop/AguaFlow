@@ -1,27 +1,54 @@
 import cv2
 import numpy as np
+import gc  # Garbage Collector para libertar RAM imediatamente
+from utils.ocr_engine import extrair_leitura_hidrometro
 
-def processar_foto_hidrometro(caminho_foto, tipo_leitura="AGUA"):
-    img = cv2.imread(caminho_foto)
-    if img is None: return None, None
+def processar_foto_hidrometro(caminho_foto, modo="AGUA"):
+    """
+    Processa a foto para extrair Unidade (QR) e Consumo (OCR).
+    Aplica redução de resolução para evitar 'Tela Preta' no Android.
+    """
+    # 1. Carregamento da Imagem
+    img_raw = cv2.imread(caminho_foto)
+    if img_raw is None: 
+        return None, None
 
-    # Redimensiona para HD para manter proporção da mira
-    largura_alvo = 1280
-    fator = largura_alvo / img.shape[1]
-    img = cv2.resize(img, (largura_alvo, int(img.shape[0] * fator)))
+    # 2. REDIMENSIONAMENTO AGRESSIVO (Segurança para APK)
+    # Reduzimos para 1080px de largura para economizar memória sem perder precisão
+    largura_alvo = 1080
+    fator = largura_alvo / img_raw.shape[1]
+    img = cv2.resize(img_raw, (largura_alvo, int(img_raw.shape[0] * fator)))
 
-    # Melhora o contraste especificamente na linha horizontal central (onde está a mira)
+    # Libertar a foto original da memória imediatamente
+    del img_raw
+    gc.collect()
+
+    # 3. Tratamento para OCR
     cinza = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # Filtro adaptativo para destacar os números pretos no fundo branco/metal
+    # Filtro de Nitidez para o Gás (os dígitos costumam ser menores)
+    if modo == "GAS":
+        kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+        cinza = cv2.filter2D(cinza, -1, kernel)
+
     blur = cv2.medianBlur(cinza, 3)
+    
+    # Threshold Adaptativo: Ideal para lidar com a lanterna do telemóvel no shaft
     processada = cv2.adaptiveThreshold(
         blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
         cv2.THRESH_BINARY_INV, 11, 2
     )
 
-    # Detecção de QR Code
+    # 4. Detecção de Unidade (QR Code)
     detector = cv2.QRCodeDetector()
-    dados_qr, _, _ = detector.detectAndDecode(img)
+    unidade, _, _ = detector.detectAndDecode(img)
 
-    return dados_qr, processada
+    # 5. Extração de Consumo (OCR)
+    # Passamos o modo para validar se são 2 ou 3 decimais
+    consumo = extrair_leitura_hidrometro(processada, modo=modo)
+
+    # Limpeza de memória antes de retornar
+    del cinza, blur, processada, img
+    gc.collect()
+
+    return unidade, consumo

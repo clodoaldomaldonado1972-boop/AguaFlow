@@ -1,10 +1,10 @@
 import flet as ft
-from supabase import create_client, Client
 import os
+from database.database import get_supabase_client
 
 
 # --- ADICIONE ESTA LINHA AQUI NO TOPO ---
-VERSION = "1.1.1" 
+VERSION = "1.1.2"
 
 class AppUpdater:
     def __init__(self, page: ft.Page):
@@ -20,12 +20,10 @@ class AppUpdater:
     async def checar_atualizacao_supabase(page: ft.Page):
         """Lógica principal de verificação no Supabase."""
         try:
-            url = os.getenv("SUPABASE_URL")
-            key = os.getenv("SUPABASE_KEY")
-            if not url or not key: 
+            supabase = get_supabase_client()
+            if not supabase:
                 return False
-            
-            supabase: Client = create_client(url, key)
+
             response = supabase.table("versao_sistema").select("numero_versao").order("id", desc=True).limit(1).execute()
 
             if response.data:
