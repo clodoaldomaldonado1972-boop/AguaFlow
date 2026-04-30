@@ -1,4 +1,3 @@
-from utils.vision import processar_foto_hidrometro
 from database.database import Database
 import os
 import sys
@@ -24,6 +23,7 @@ def teste_fluxo_leitura():
     print(f"📍 Unidade selecionada para teste: {unidade_id}")
 
     # 3. Simula o processamento da visão computacional
+    from utils.vision import processar_foto_hidrometro  # Lazy loading
     # Passamos um caminho fictício pois o MODO_SIMULADOR no vision.py ignora a imagem
     print("📸 Simulando leitura do hidrômetro...")
     unidade_ocr, valor_ocr = processar_foto_hidrometro("caminho/fake/foto.jpg")

@@ -45,38 +45,45 @@ class Database:
 
     @classmethod
     def inicializar_tabelas(cls):
-        """Cria a estrutura e realiza migrações de colunas necessárias."""
+        """Cria a estrutura e realiza migrações de colunas necessárias para o Vivere."""
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                
-                # 1. Cria a tabela base
+                    
+                # 1. Cria a tabela base com os campos fundamentais
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS leituras (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        unidade TEXT NOT NULL,
+                        unidade_id TEXT NOT NULL,
                         tipo TEXT NOT NULL,
                         sincronizado INTEGER DEFAULT 0,
-                        data_leitura_atual TEXT
+                        data_hora_coleta TEXT
                     )
                 """)
 
-                # 2. Migrações Individuais (Adiciona colunas se não existirem)
-                # Garante compatibilidade com o SyncService
-                novas_colunas = [
+                # 2. Migrações Individuais: Garante compatibilidade total com o Supabase
+                # Lista atualizada com os nomes de colunas que vimos no seu esquema visual
+                migracoes = [
+                    "ALTER TABLE leituras ADD COLUMN valor_leitura REAL",
                     "ALTER TABLE leituras ADD COLUMN leitura_agua REAL",
                     "ALTER TABLE leituras ADD COLUMN leitura_gas REAL",
-                    "ALTER TABLE leituras ADD COLUMN data_leitura_atual TEXT"
+                    "ALTER TABLE leituras ADD COLUMN tipo_registro TEXT",
+                    "ALTER TABLE leituras ADD COLUMN leiturista TEXT",
+                    "ALTER TABLE leituras ADD COLUMN foto_url TEXT",
+                    "ALTER TABLE leituras ADD COLUMN consumo REAL",
+                    "ALTER TABLE leituras ADD COLUMN path_foto TEXT" # Crucial para o SyncService
                 ]
 
-                for comando in novas_colunas:
+                for comando in migracoes:
                     try:
                         cursor.execute(comando)
-                    except sqlite3.OperationalError:
-                        pass # Coluna já existe
+                    except Exception:
+                        # Se der erro (ex: sqlite3.OperationalError), a coluna já existe
+                        pass 
 
                 conn.commit()
-                logger.info("🚀 Estrutura do banco de dados verificada.")
+                # Esta linha abaixo estava com erro de indentação
+                logger.info("🚀 Estrutura do banco de dados (SQLite) sincronizada.")
         except Exception as e:
             logger.error(f"Erro ao inicializar banco: {e}")
 

@@ -67,11 +67,13 @@ class RelatorioEngine:
             raise Exception(f"Erro ao gerar CSV: {str(e)}")
 
     @staticmethod
-    def enviar_relatorios_por_email(pdf_path, csv_path, destinatario="escritorio@vivereprudente.com.br"):
+    def enviar_relatorios_por_email(pdf_path, csv_path, destinatario=None):
         """Envia os arquivos gerados via SMTP (E-mail)."""
         # --- CONFIGURAÇÕES DO SERVIDOR (variáveis de ambiente) ---
         EMAIL_ORIGEM = os.getenv("EMAIL_USER", "seu_email@gmail.com")
-        SENHA_APP = os.getenv("EMAIL_PASS", "sua_senha_app_google") 
+        SENHA_APP = os.getenv("EMAIL_PASS", "sua_senha_app_google")
+        EMAIL_DESTINO = os.getenv("EMAIL_DESTINO", destinatario or "escritorio@vivereprudente.com.br")
+        destinatario = destinatario or EMAIL_DESTINO 
         
         try:
             msg = EmailMessage()

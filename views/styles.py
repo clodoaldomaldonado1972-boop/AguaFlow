@@ -51,7 +51,7 @@ def criar_mira_scanner():
                 width=280, height=2, bgcolor=RED_ERROR,
                 animate_offset=ft.animation.Animation(1500, ft.AnimationCurve.EASE_IN_OUT)
             )
-        ], alignment=ft.alignment.center),
+        ], alignment="center"),
         margin=ft.margin.only(top=20, bottom=20)
     )
 
