@@ -1,6 +1,7 @@
 import flet as ft
 from database.database import Database
 # Importamos os estilos para manter o padrão visual do AguaFlow
+from utils.updater import AppUpdater # Certifique-se do caminho correto do import
 from views import styles as st 
 
 def montar_tela_autenticacao(page: ft.Page):
@@ -60,8 +61,8 @@ def montar_tela_autenticacao(page: ft.Page):
         bgcolor="#121417",
         controls=[
             ft.Column([
-                # Usando ícone caso a logo.jpeg falhe
-                ft.Icon(ft.icons.PERSON_ADD_ROUNDED, size=80, color="blue"),
+                # Usando ícone caso a logo.jpeg falhe (ft.icons.PERSON_ADD_ROUNDED)
+                ft.Icon("person_add_rounded", size=80, color="blue"),
                 ft.Text("Novo Cadastro", size=26, weight="bold", color="white"),
                 ft.Text("Crie sua conta para acesso offline", size=14, color="grey"),
                 
@@ -85,7 +86,7 @@ def montar_tela_autenticacao(page: ft.Page):
                 ft.TextButton("Já tenho conta? Entrar", on_click=lambda _: page.go("/")),
                 
                 # Rodapé do Vivere
-                ft.Text("AguaFlow v1.0.2 - Residencial Vivere Prudente", size=10, color="grey")
+                ft.Text(AppUpdater.get_version_footer(), size=10, color="grey")
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         ]
     )

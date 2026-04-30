@@ -1,62 +1,100 @@
 import flet as ft
-from views import styles as st
+import os
+import base64
+import cv2 
+import numpy as np
+# Importação da automação de versão centralizada
+from utils.updater import AppUpdater
 
 def montar_tela_scanner(page: ft.Page):
-    # Recupera o modo da sessão (definido na tela de medição)
-    modo_atual = page.session.get("modo_leitura") or "AGUA"
+    if not page.user_data:
+        page.user_data = {}
+        
+    # Elementos de UI
+    modo_atual = page.user_data.get("modo_leitura", "AGUA")
+    img_preview = ft.Image(src="", visible=False, width=300)
+    lbl_status = ft.Text(f"MODO: {modo_atual}", color="white", weight="bold")
+    pr_envio = ft.ProgressBar(visible=False, color="blue")
     
-    lbl_status = ft.Text(f"MODO: {modo_atual}", color="white", size=16, weight="bold")
-    
-    # Campos que receberão os dados do OCR
+    # CORREÇÃO: Removido prefix_icon_color e usado ft.Icon dentro de prefix_icon[cite: 1, 3]
     txt_unid = ft.TextField(
-        label="Unidade Detectada", 
-        read_only=True, 
-        border_radius=12, 
-        bgcolor="#1E2126",
-        width=300
+        label="Unidade", 
+        prefix_icon=ft.Icon(ft.icons.HOME, color="blue"),
+        border_radius=10
     )
-    
     txt_val = ft.TextField(
         label="Valor da Leitura", 
-        border_radius=12, 
-        bgcolor="#1E2126",
-        width=300,
-        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9]*[.]?[0-9]{0,3}$"),
-        hint_text="000.000"
+        prefix_icon=ft.Icon(ft.icons.SPEED, color="blue"),
+        border_radius=10
     )
+
+    async def capturar_foto(e):
+        try:
+            pr_envio.visible = True
+            page.update()
+
+            cap = cv2.VideoCapture(0)
+            ret, frame = cap.read()
+            cap.release()
+
+            if ret:
+                # Otimização para o Supabase: 640px e 60% de qualidade[cite: 3, 6]
+                nova_largura = 640
+                altura, largura = frame.shape[:2]
+                proporcao = nova_largura / float(largura)
+                frame_redim = cv2.resize(frame, (nova_largura, int(altura * proporcao)))
+
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+                _, buffer = cv2.imencode('.jpg', frame_redim, encode_param)
+                
+                path_temp = os.path.join(os.getcwd(), "temp_leitura.jpg")
+                with open(path_temp, "wb") as f:
+                    f.write(buffer)
+                
+                img_preview.src_base64 = base64.b64encode(buffer).decode('utf-8')
+                img_preview.visible = True
+                lbl_status.value = "✅ Foto capturada! Processando..."
+                page.user_data["path_foto_pendente"] = path_temp 
+            
+            pr_envio.visible = False
+            page.update()
+        except Exception as ex:
+            lbl_status.value = f"Erro na captura: {str(ex)}"
+            pr_envio.visible = False
+            page.update()
 
     async def fechar_e_voltar(e):
         if not txt_val.value:
-            page.snack_bar = ft.SnackBar(ft.Text("Nenhum valor detectado!"))
+            page.snack_bar = ft.SnackBar(ft.Text("Por favor, insira o valor manualmente."))
             page.snack_bar.open = True
             page.update()
             return
             
-        page.session.set("unidade_scanner", txt_unid.value)
-        page.session.set("valor_scanner", txt_val.value)
+        page.user_data["unidade_scanner"] = txt_unid.value
+        page.user_data["valor_scanner"] = txt_val.value
         page.go("/medicao")
 
-    # --- RETORNO DA VIEW (ATENÇÃO AOS FECHAMENTOS ABAIXO) ---
     return ft.View(
         route="/scanner",
-        bgcolor=st.BG_DARK,
+        bgcolor="#121417", # Cor escura padrão para o Residencial Vivere[cite: 3, 5]
         appbar=ft.AppBar(
-            title=ft.Text("Scanner OCR"), 
-            bgcolor=st.BG_DARK,
+            title=ft.Text("Scanner AguaFlow"), 
             center_title=True,
             leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=lambda _: page.go("/medicao"))
         ),
-        controls=[ # <--- LINHA 68: ABRE LISTA DE CONTROLS
+        controls=[
             ft.Column([
                 ft.Container(
                     content=ft.Stack([
-                        ft.Icon(ft.icons.CAMERA_REAR, size=150, color="grey"),
-                        ft.Icon(ft.icons.CROP_FREE, size=200, color="blue", opacity=0.5),
+                        ft.Icon(ft.icons.CAMERA_REAR, size=120, color="grey"), 
+                        ft.Icon(ft.icons.CROP_FREE, size=150, color="blue", opacity=0.3),
                     ]),
-                    alignment=ft.alignment.center,
-                    padding=20
+                    alignment=ft.alignment.center, # Alinhamento robusto
+                    on_click=capturar_foto
                 ),
-                ft.Text("Aponte para o Hidrômetro", size=16, weight="bold", color="white"),
+                img_preview,
+                pr_envio,
+                ft.Text("Toque no ícone para capturar", size=14, color="grey"),
                 lbl_status,
                 ft.Container(height=10),
                 txt_unid,
@@ -67,20 +105,28 @@ def montar_tela_scanner(page: ft.Page):
                         "CONFIRMAR", 
                         icon=ft.icons.CHECK, 
                         on_click=fechar_e_voltar, 
-                        style=st.BTN_SPECIAL if hasattr(st, "BTN_SPECIAL") else None,
                         width=160,
                         height=50
                     ),
                     ft.TextButton(
                         "CANCELAR", 
                         on_click=lambda _: page.go("/medicao"),
-                        # O Flet exige 'style' para cores em botões de texto
-                        style=ft.ButtonStyle(color=ft.colors.RED) 
+                        style=ft.ButtonStyle(color="red") # Uso de string evita crash de modulo[cite: 3]
                     )
                 ], alignment=ft.MainAxisAlignment.CENTER),
-            ], # Fecha Column
+                
+                # RODAPÉ DE VERSÃO AUTOMÁTICO
+                # Adicione ao final da coluna principal de cada tela:
+                ft.Divider(color="white10"),
+                ft.Text(
+                    AppUpdater.get_footer(), 
+                    size=11, 
+                    color="grey", 
+                    italic=True
+                )
+            ], 
             horizontal_alignment=ft.CrossAxisAlignment.CENTER, 
             alignment=ft.MainAxisAlignment.CENTER, 
-            expand=True) # Fecha Column
-        ] # Fecha controls
-    ) # Fecha View
+            scroll=ft.ScrollMode.ADAPTIVE)
+        ]
+    )
