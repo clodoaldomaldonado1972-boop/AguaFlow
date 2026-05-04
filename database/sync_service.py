@@ -2,10 +2,11 @@ import asyncio
 import logging
 import os  # Necessário para remover arquivos físicos
 from datetime import datetime as dt
-import pytz 
+import pytz
 from .database import Database
 
 logger = logging.getLogger(__name__)
+
 
 class SyncService:
     # Fuso horário para garantir que o servidor (EUA) não mude a data da leitura[cite: 5]
@@ -42,11 +43,18 @@ class SyncService:
         while True:
             try:
                 logger.info("🔄 AguaFlow: Iniciando ciclo de sincronização...")
-                
+
                 with Database.get_db() as conn:
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT id, unidade, leitura_agua, leitura_gas, tipo, data_leitura_atual, path_foto
+                        SELECT 
+                            id, 
+                            unidade_id, 
+                            valor_leitura, 
+                            tipo_registro, 
+                            tipo, 
+                            data_hora_coleta, 
+                            path_foto
                         FROM leituras 
                         WHERE sincronizado = 0 
                         ORDER BY id ASC
@@ -57,39 +65,46 @@ class SyncService:
                         logger.info("✅ Tudo em dia: Nada para sincronizar.")
                         # Limpeza de manutenção de logs antigos (ex: 30 dias)
                         cls.limpar_logs_antigos(30)
-                        await asyncio.sleep(60) 
+                        await asyncio.sleep(60)
                         continue
 
                     for item in pendentes:
                         data_sp = dt.now(cls.TZ_SP).isoformat()[cite: 5]
-                        
+
                         # 1. Tenta o envio para o Supabase
                         resultado = await cls._upload_completo_supabase(item, data_sp)
-                        
+
                         if resultado['sucesso']:
                             # 2. Sucesso: Marca localmente e registra log
-                            cursor.execute("UPDATE leituras SET sincronizado = 1 WHERE id = ?", (item['id'],))
-                            cls._registrar_log_sync(cursor, conn, item['id'], item['unidade'], "SUCESSO")
+                            cursor.execute(
+                                "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (item['id'],))
+                            cls._registrar_log_sync(
+                                cursor, conn, item['id'], item['unidade'], "SUCESSO")
                             conn.commit()
-                            
+
                             # --- LIMPEZA DE ARQUIVO TEMPORÁRIO (Implementado Agora) ---
                             # Remove a foto do celular para liberar espaço
                             path_foto = item.get('path_foto')
                             if path_foto and os.path.exists(path_foto):
                                 try:
                                     os.remove(path_foto)
-                                    logger.info(f"🗑️ Espaço liberado: Foto removida ({path_foto})")
+                                    logger.info(
+                                        f"🗑️ Espaço liberado: Foto removida ({path_foto})")
                                 except Exception as err_os:
-                                    logger.error(f"Falha ao apagar arquivo: {err_os}")
-                            
-                            logger.info(f"✔️ Unidade {item['unidade']} sincronizada.")
+                                    logger.error(
+                                        f"Falha ao apagar arquivo: {err_os}")
+
+                            logger.info(
+                                f"✔️ Unidade {item['unidade']} sincronizada.")
                         else:
                             # 3. Falha: Registra erro para nova tentativa posterior[cite: 6]
-                            cls._registrar_log_sync(cursor, conn, item['id'], item['unidade'], "FALHA", resultado.get('erro'))
+                            cls._registrar_log_sync(
+                                cursor, conn, item['id'], item['unidade'], "FALHA", resultado.get('erro'))
                             conn.commit()
-                            logger.warning(f"❌ Falha na unidade {item['unidade']}: {resultado.get('erro')}")
+                            logger.warning(
+                                f"❌ Falha na unidade {item['unidade']}: {resultado.get('erro')}")
 
-                await asyncio.sleep(60) 
+                await asyncio.sleep(60)
             except Exception as e:
                 logger.error(f"Erro crítico no ciclo de sync: {e}")
                 await asyncio.sleep(30)
@@ -120,11 +135,12 @@ class SyncService:
         try:
             with Database.get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM sync_log WHERE datetime(criado_em) < datetime('now', ?)", 
-                             (f'-{dias_reter} days',))
+                cursor.execute("DELETE FROM sync_log WHERE datetime(criado_em) < datetime('now', ?)",
+                               (f'-{dias_reter} days',))
                 conn.commit()
                 if cursor.rowcount > 0:
-                    logger.info(f"🧹 Manutenção: {cursor.rowcount} logs antigos removidos.")
+                    logger.info(
+                        f"🧹 Manutenção: {cursor.rowcount} logs antigos removidos.")
         except Exception as e:
             logger.error(f"Erro na limpeza de logs: {e}")
 
