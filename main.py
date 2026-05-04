@@ -5,7 +5,7 @@ import warnings
 import asyncio
 import flet as ft
 import gc
-from flet import icons # Explicitly import flet.icons module
+from flet import icons  # Explicitly import flet.icons module
 
 # 1. AJUSTE DE PATH E COMPATIBILIDADE
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -13,6 +13,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Ensure ft.icons refers to the imported icons module
 ft.icons = icons
+
 
 async def main(page: ft.Page):
     is_mobile = page.platform in [ft.PagePlatform.ANDROID, ft.PagePlatform.IOS]
@@ -95,24 +96,37 @@ async def main(page: ft.Page):
             page.update()
 
     async def bootstrap_background():
-        """Inicialização e Verificação de Atualização"""
+        """Inicialização e Verificação de Atualização"""  # <-- Esta linha deve ter 4 espaços a mais que a de cima
         try:
             await asyncio.sleep(0.1)
-            # VERIFICAÇÃO AUTOMÁTICA NO SUPABASE
+            # Resto do seu código...
+
+            # 1. ESTA LINHA: Verifica se há uma nova versão no Supabase
             await AppUpdater.checar_atualizacao_supabase(page)
 
+            # 2. ESTA LINHA: Cria o banco e as tabelas locais (SQLite)
             await asyncio.to_thread(Database.inicializar_tabelas)
+
             await SyncService.init_sync_log_table()
             page.run_task(SyncService.processar_fila)
         except Exception as e:
             print(f"Erro no bootstrap: {e}")
 
+   # --- TUDO ISSO ABAIXO DEVE ESTAR DENTRO DA FUNÇÃO main(page: ft.Page) ---
+
+    # 1. Configura a navegação
     page.on_route_change = lambda e: page.run_task(route_change, e)
 
-    page.views.clear()
-    page.views.append(auth_view.criar_tela_login(page))
-    page.go("/")
+    # 2. Inicializa o bootstrap em segundo plano
     page.run_task(bootstrap_background)
 
+    # 3. Força a entrada na primeira tela (Login)
+    # Note que aqui usamos 'await' porque route_change é uma função async
+    await route_change(None)
+
+    # 4. Atualiza a página para exibir a interface
+    page.update()
+
+# O comando abaixo é o ÚNICO que fica fora da função, na margem esquerda
 if __name__ == "__main__":
     ft.app(target=main)
