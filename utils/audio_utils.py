@@ -1,36 +1,57 @@
 import flet as ft
 import os
 
+
 def get_audio_path(nome_audio: str) -> str:
     """Retorna o caminho relativo para arquivos de áudio compatível com APK."""
     # Usa path relativo para funcionar tanto no desktop quanto no APK
     return os.path.join("assets", "audio", nome_audio)
 
+
 def tocar_alerta(page: ft.Page, tipo="sucesso"):
     """
-    Toca áudio de feedback sonoro usando ft.Audio nativo do Flet (compatível APK).
-    Os arquivos de áudio devem estar na pasta assets/audio/ do projeto.
+    Toca áudio de feedback sonoro usando ft.Audio nativo do Flet (compatível APK)
+    e exibe uma SnackBar para feedback visual na interface.
     """
-    # Seleciona o arquivo de áudio baseado no tipo de evento
+    # OTIMIZAÇÃO: Remove áudios anteriores do overlay para evitar vazamento de memória
+    for control in page.overlay[:]:
+        if isinstance(control, ft.Audio):
+            page.overlay.remove(control)
+
+    # Configurações de feedback visual (SnackBar) e sonoro (Audio)
     if tipo == "sucesso":
         nome_arquivo = "sucesso.wav"
+        mensagem = "✅ Operação concluída com sucesso!"
+        cor = ft.colors.GREEN_700
     elif tipo == "erro":
         nome_arquivo = "erro.wav"
+        mensagem = "❌ Erro ao processar solicitação."
+        cor = ft.colors.RED_700
     else:
         nome_arquivo = "alerta.wav"
+        mensagem = "⚠️ Atenção: Verifique as informações."
+        cor = ft.colors.ORANGE_700
 
     caminho_audio = get_audio_path(nome_arquivo)
 
-    # Criar o componente de áudio nativo do Flet (funciona no Android)
+    # Configurar e abrir o SnackBar na interface
+    page.snack_bar = ft.SnackBar(
+        content=ft.Text(mensagem, color=ft.colors.WHITE),
+        bgcolor=cor,
+        duration=3000  # Exibe por 3 segundos
+    )
+    page.snack_bar.open = True
+
+    # Criar o componente de áudio nativo do Flet
     audio = ft.Audio(
         src=caminho_audio,
         autoplay=False,
     )
 
     # Adicionar ao overlay da página (necessário para o Flet processar o som)
-    if audio not in page.overlay:
-        page.overlay.append(audio)
+    page.overlay.append(audio)
 
+    # Atualiza a página para refletir as mudanças (SnackBar e Audio Overlay)
     page.update()
 
     try:

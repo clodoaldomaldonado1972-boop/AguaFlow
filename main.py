@@ -5,7 +5,10 @@ import warnings
 import asyncio
 import flet as ft
 import gc
-from flet import icons  # Explicitly import flet.icons module
+from flet import icons
+import views.auth as auth_view
+from database.database import Database
+from database.sync_service import SyncService
 
 # 1. AJUSTE DE PATH E COMPATIBILIDADE
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -28,16 +31,13 @@ async def main(page: ft.Page):
         page.window_height = 850
         page.window_resizable = True
 
-    import views.auth as auth_view
-    from database.database import Database
-    from database.sync_service import SyncService
-
+    # --- 1. DEFINA A FUNÇÃO PRIMEIRO ---
     async def route_change(e):
         try:
-            gc.collect()  # Limpa a RAM em cada mudança de rota
-            print(f"Mudando rota para: {page.route}")
+            print(f"🛣️ Navegando para: {page.route}")
+            gc.collect()  # Otimização agressiva de RAM para o APK
             page.views.clear()
-
+            # ... suas outras rotas ...
             # 1. ROTAS INICIAIS
             if page.route == "/":
                 page.views.append(auth_view.criar_tela_login(page))
@@ -63,6 +63,10 @@ async def main(page: ft.Page):
                 from views.sincronizacao import montar_tela_sincronizacao
                 page.views.append(montar_tela_sincronizacao(page))
 
+            elif page.route == "/relatorios":
+                from views.reports import montar_tela_relatorios
+                page.views.append(montar_tela_relatorios(page))
+
             # 3. ROTAS ADMINISTRATIVAS
             elif page.route in ["/dashboard_saude", "/configuracoes"]:
                 if page.route == "/dashboard_saude":
@@ -74,59 +78,43 @@ async def main(page: ft.Page):
                     page.views.append(montar_tela_configs(page))
 
             page.update()
-
         except Exception as ex:
-            # O 'except' deve apenas tratar o erro, sem elifs operacionais dentro dele
-            print(f"ERRO CRITICO NA ROTA {page.route}: {ex}")
-            page.views.append(
-                ft.View(
-                    route=page.route,
-                    controls=[
-                        ft.Icon("error_outline", color="red", size=50),
-                        ft.Text("Falha ao carregar tela",
-                                size=20, weight="bold"),
-                        ft.Text(str(ex), color="white70", text_align="center"),
-                        ft.ElevatedButton("Voltar ao Menu",
-                                          on_click=lambda _: page.go("/menu")),
-                    ],
-                    vertical_alignment="center",
-                    horizontal_alignment="center",
-                )
-            )
-            page.update()
+            print(f"Erro na rota: {ex}")
 
-    async def bootstrap_background():
-        """Inicialização e Verificação de Atualização"""  # <-- Esta linha deve ter 4 espaços a mais que a de cima
+    # --- 2. DEPOIS ATRIBUA E CHAME ---
+    page.on_route_change = route_change
+
+    # 3. BOOTSTRAP DE FUNDO (TELEMETRIA E BANCO)
+    async def bootstrap_seguro():
         try:
-            await asyncio.sleep(0.1)
-            # Resto do seu código...
+            await asyncio.sleep(1)  # Delay para a UI carregar primeiro
 
-            # 1. ESTA LINHA: Verifica se há uma nova versão no Supabase
-            await AppUpdater.checar_atualizacao_supabase(page)
-
-            # 2. ESTA LINHA: Cria o banco e as tabelas locais (SQLite)
+            # Inicializa tabelas e logs (Offline-First)
             await asyncio.to_thread(Database.inicializar_tabelas)
-
             await SyncService.init_sync_log_table()
-            page.run_task(SyncService.processar_fila)
+
+            # Inicia sincronização em background (não bloqueante)
+            asyncio.create_task(SyncService.processar_fila())
+
+            print("🚀 AguaFlow: Sistemas de Telemetria Ativos.")
         except Exception as e:
-            print(f"Erro no bootstrap: {e}")
+            print(f"Erro no boot: {e}")
 
-   # --- TUDO ISSO ABAIXO DEVE ESTAR DENTRO DA FUNÇÃO main(page: ft.Page) ---
-
-    # 1. Configura a navegação
+    # --- 4. EXECUÇÃO E RENDERIZAÇÃO ---
     page.on_route_change = lambda e: page.run_task(route_change, e)
 
-    # 2. Inicializa o bootstrap em segundo plano
-    page.run_task(bootstrap_background)
+    # Inicia os serviços de telemetria e banco de dados em segundo plano
+    page.run_task(bootstrap_seguro)
 
-    # 3. Força a entrada na primeira tela (Login)
-    # Note que aqui usamos 'await' porque route_change é uma função async
-    await route_change(None)
+    # Força a carga da tela inicial (Login) antes de finalizar a main
+    page.go("/")
 
-    # 4. Atualiza a página para exibir a interface
+    # Atualiza a página para garantir que a interface saia do buffer para a tela
     page.update()
 
-# O comando abaixo é o ÚNICO que fica fora da função, na margem esquerda
+# 5. INICIALIZAÇÃO DO MOTOR FLET (FORA DA FUNÇÃO MAIN)
 if __name__ == "__main__":
+    import asyncio
+    # O comando abaixo abre o aplicativo.
+    # Para o APK final, o Flet gerencia isso automaticamente.
     ft.app(target=main)

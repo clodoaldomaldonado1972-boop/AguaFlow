@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class RelatorioEngine:
     """Motor de processamento de documentos e comunicações do AguaFlow."""
 
@@ -18,25 +19,28 @@ class RelatorioEngine:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
-            
+
             # Cabeçalho
-            pdf.cell(200, 10, txt="AguaFlow - Relatório de Consumo Mensal", ln=True, align='C')
+            pdf.cell(
+                200, 10, txt="AguaFlow - Relatório de Consumo Mensal", ln=True, align='C')
             pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, txt=f"Condomínio Vivere Prudente - Data: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
+            pdf.cell(
+                200, 10, txt=f"Condomínio Vivere Prudente - Data: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
             pdf.ln(10)
 
             # --- TABELA DE DADOS (CORRIGIDA) ---
             pdf.set_font("Arial", "B", 10)
             pdf.cell(40, 10, "Unidade", 1)
             pdf.cell(60, 10, "Data Leitura", 1)
-            pdf.cell(45, 10, "Leitura Água (m3)", 1) # Mudança de nome no cabeçalho
+            # Mudança de nome no cabeçalho
+            pdf.cell(45, 10, "Leitura Água (m3)", 1)
             pdf.cell(45, 10, "Leitura Gás (m3)", 1)  # Adição da coluna de Gás
             pdf.ln()
 
             pdf.set_font("Arial", size=10)
             for item in dados:
-                pdf.cell(40, 10, str(item.get('unidade', 'N/A')), 1)
-                pdf.cell(60, 10, str(item.get('data_leitura', 'N/A')), 1)
+                pdf.cell(40, 10, str(item.get('unidade_id', 'N/A')), 1)
+                pdf.cell(60, 10, str(item.get('data_hora_coleta', 'N/A')), 1)
                 # AJUSTE: Busca agora 'leitura_agua' em vez de 'valor'
                 pdf.cell(45, 10, str(item.get('leitura_agua', '0.00')), 1)
                 # AJUSTE: Busca 'leitura_gas'
@@ -54,7 +58,8 @@ class RelatorioEngine:
         """Gera um arquivo CSV para integração com planilhas (Excel PT-BR)."""
         try:
             caminho_csv = "dados_consumo.csv"
-            campos = ["unidade", "leitura_agua", "leitura_gas", "data_leitura"]
+            campos = ["unidade_id", "leitura_agua",
+                      "leitura_gas", "data_hora_coleta"]
 
             with open(caminho_csv, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.DictWriter(f, fieldnames=campos, delimiter=';')
@@ -72,29 +77,33 @@ class RelatorioEngine:
         # --- CONFIGURAÇÕES DO SERVIDOR (variáveis de ambiente) ---
         EMAIL_ORIGEM = os.getenv("EMAIL_USER", "seu_email@gmail.com")
         SENHA_APP = os.getenv("EMAIL_PASS", "sua_senha_app_google")
-        EMAIL_DESTINO = os.getenv("EMAIL_DESTINO", destinatario or "escritorio@vivereprudente.com.br")
-        destinatario = destinatario or EMAIL_DESTINO 
-        
+        EMAIL_DESTINO = os.getenv(
+            "EMAIL_DESTINO", destinatario or "escritorio@vivereprudente.com.br")
+        destinatario = destinatario or EMAIL_DESTINO
+
         try:
             msg = EmailMessage()
             msg['Subject'] = f"Relatório de Consumo Água/Gás - {datetime.now().strftime('%m/%Y')}"
             msg['From'] = EMAIL_ORIGEM
             msg['To'] = destinatario
-            msg.set_content(f"Prezados,\n\nSegue em anexo o relatório de fechamento de leituras do Condomínio Vivere Prudente.\n\nGerado automaticamente pelo AguaFlow.")
+            msg.set_content(
+                f"Prezados,\n\nSegue em anexo o relatório de fechamento de leituras do Condomínio Vivere Prudente.\n\nGerado automaticamente pelo AguaFlow.")
 
             # Anexar PDF
             with open(pdf_path, 'rb') as f:
-                msg.add_attachment(f.read(), maintype='application', subtype='pdf', filename=os.path.basename(pdf_path))
+                msg.add_attachment(f.read(), maintype='application',
+                                   subtype='pdf', filename=os.path.basename(pdf_path))
 
             # Anexar CSV
             with open(csv_path, 'rb') as f:
-                msg.add_attachment(f.read(), maintype='text', subtype='csv', filename=os.path.basename(csv_path))
+                msg.add_attachment(
+                    f.read(), maintype='text', subtype='csv', filename=os.path.basename(csv_path))
 
             # Envio via Gmail (exemplo)
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
                 smtp.login(EMAIL_ORIGEM, SENHA_APP)
                 smtp.send_message(msg)
-            
+
             return True, "Relatórios enviados com sucesso para o escritório!"
         except Exception as e:
             return False, f"Falha no envio do e-mail: {str(e)}"
