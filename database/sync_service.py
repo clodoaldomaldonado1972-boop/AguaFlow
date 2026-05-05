@@ -22,7 +22,7 @@ class SyncService:
                     CREATE TABLE IF NOT EXISTS sync_log (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         leitura_id INTEGER NOT NULL,
-                        unidade TEXT NOT NULL,
+                        unidade_id TEXT NOT NULL,
                         status TEXT NOT NULL,
                         erro_mensagem TEXT,
                         tentativas INTEGER DEFAULT 1,
@@ -79,7 +79,7 @@ class SyncService:
                             cursor.execute(
                                 "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (item['id'],))
                             cls._registrar_log_sync(
-                                cursor, conn, item['id'], item['unidade'], "SUCESSO")
+                                cursor, conn, item['id'], item['unidade_id'], "SUCESSO")
                             conn.commit()
 
                             # --- LIMPEZA DE ARQUIVO TEMPORÁRIO (Implementado Agora) ---
@@ -95,14 +95,14 @@ class SyncService:
                                         f"Falha ao apagar arquivo: {err_os}")
 
                             logger.info(
-                                f"✔️ Unidade {item['unidade']} sincronizada.")
+                                f"✔️ Unidade {item['unidade_id']} sincronizada.")
                         else:
                             # 3. Falha: Registra erro para nova tentativa posterior[cite: 6]
                             cls._registrar_log_sync(
-                                cursor, conn, item['id'], item['unidade'], "FALHA", resultado.get('erro'))
+                                cursor, conn, item['id'], item['unidade_id'], "FALHA", resultado.get('erro'))
                             conn.commit()
                             logger.warning(
-                                f"❌ Falha na unidade {item['unidade']}: {resultado.get('erro')}")
+                                f"❌ Falha na unidade {item['unidade_id']}: {resultado.get('erro')}")
 
                 await asyncio.sleep(60)
             except Exception as e:
@@ -151,9 +151,9 @@ class SyncService:
             with Database.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT unidade, status, COUNT(*) as quantidade, MAX(ultima_tentativa) as ultima 
+                    SELECT unidade_id, status, COUNT(*) as quantidade, MAX(ultima_tentativa) as ultima 
                     FROM sync_log WHERE datetime(criado_em) >= datetime('now', ?)
-                    GROUP BY unidade, status
+                    GROUP BY unidade_id, status
                 """, (f'-{limite_dias} days',))
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
