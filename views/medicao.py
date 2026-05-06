@@ -43,15 +43,15 @@ def montar_tela_medicao(page: ft.Page):
         if last_read_gas_value: txt_gas.value = last_read_gas_value
 
     # 2. Recuperação de dados do Scanner OCR (takes precedence if available)
-    unidade_ocr = page.session.get("unidade_scanner")
-    valor_ocr = page.session.get("valor_scanner")
+    unidade_ocr = page.session["unidade_scanner"] if "unidade_scanner" in page.session else None
+    valor_ocr = page.session["valor_scanner"] if "valor_scanner" in page.session else None
 
     if unidade_ocr: # OCR takes precedence
         initial_unit_value = unidade_ocr # Overwrite if OCR has a unit
-        page.session.set("unidade_scanner", None)
+        page.session["unidade_scanner"] = None
     if valor_ocr:
         txt_agua.value = valor_ocr
-        page.session.set("valor_scanner", None)
+        page.session["valor_scanner"] = None
 
     # 1. Elementos Visuais com cores em string para evitar erro de 'colors not defined'[cite: 1]
     img_icon = ft.Icon("water", color="blue", size=140)
