@@ -56,8 +56,8 @@ def montar_tela_autenticacao(page: ft.Page):
 
     return ft.View(
         route="/registro", # ALTERADO: Sincronizado com o botão do login
-        vertical_alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        vertical_alignment="center",
+        horizontal_alignment="center",
         bgcolor="#121417",
         controls=[
             ft.Column([
@@ -87,6 +87,6 @@ def montar_tela_autenticacao(page: ft.Page):
                 
                 # Rodapé do Vivere
                 ft.Text(AppUpdater.get_version_footer(), size=10, color="grey")
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            ], horizontal_alignment="center")
         ]
     )

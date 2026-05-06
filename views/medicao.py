@@ -4,15 +4,54 @@ import pytz  # Para garantir o horário de Brasília
 from datetime import datetime
 from database.database import Database
 import views.styles as st  # Importando seus estilos personalizados
+from utils.auth_utils import validar_sessao
 
 
 def montar_tela_medicao(page: ft.Page):
+    # Proteção de Rota
+    auth_check = validar_sessao(page, "/medicao")
+    if auth_check:
+        return auth_check
+
     # Recupera a lista de unidades (ex: 98 unidades do Vivere)[cite: 2]
     db_lista = Database._gerar_lista_unidades()
     state = {"modo": "AGUA", "lidas_no_hall": 0}
 
     # Configuração de fuso horário para a coleta
     fuso_sp = pytz.timezone('America/Sao_Paulo')
+
+    # Helper function to check if a unit has been read for the current month
+    def is_unit_read(unit_id_to_check):
+        leituras_mes = Database.get_leituras_mes_atual()
+        for leitura in leituras_mes:
+            if leitura.get('unidade_id') == unit_id_to_check:
+                return True
+        return False
+
+    # Determine initial unit value for the dropdown
+    # 1. Check for last_read_unit_id in client_storage
+    last_read_unit_id = page.client_storage.get("last_read_unit_id") # Key for last unit read
+    last_read_agua_value = page.client_storage.get("last_read_agua_value") # Key for last water value
+    last_read_gas_value = page.client_storage.get("last_read_gas_value") # Key for last gas value
+
+    initial_unit_value = db_lista[0] if db_lista else None
+
+    if last_read_unit_id and last_read_unit_id in db_lista:
+        initial_unit_value = last_read_unit_id
+        # If unit is restored, try to restore values too
+        if last_read_agua_value: txt_agua.value = last_read_agua_value
+        if last_read_gas_value: txt_gas.value = last_read_gas_value
+
+    # 2. Recuperação de dados do Scanner OCR (takes precedence if available)
+    unidade_ocr = page.session.get("unidade_scanner")
+    valor_ocr = page.session.get("valor_scanner")
+
+    if unidade_ocr: # OCR takes precedence
+        initial_unit_value = unidade_ocr # Overwrite if OCR has a unit
+        page.session.set("unidade_scanner", None)
+    if valor_ocr:
+        txt_agua.value = valor_ocr
+        page.session.set("valor_scanner", None)
 
     # 1. Elementos Visuais com cores em string para evitar erro de 'colors not defined'[cite: 1]
     img_icon = ft.Icon("water", color="blue", size=140)
@@ -23,7 +62,7 @@ def montar_tela_medicao(page: ft.Page):
         label="Unidade",
         options=[ft.dropdown.Option(u) for u in db_lista],
         width=320,
-        value=db_lista[0] if db_lista else None,
+        value=initial_unit_value, # Use the determined initial value
         border_color="blue"
     )
 
@@ -33,9 +72,9 @@ def montar_tela_medicao(page: ft.Page):
         width=320,
         keyboard_type=ft.KeyboardType.NUMBER,
         input_filter=ft.InputFilter(
-            allow=True, regex_string=r"^\d{0,5}(\.\d{0,2})?$"),
+            allow=True, regex_string=r"^\d{0,5}(\.\d{0,3})?$"),
         text_align=ft.TextAlign.CENTER,
-        hint_text="00000.00"
+        hint_text="00000.000"
     )
 
     txt_gas = ft.TextField(
@@ -50,23 +89,16 @@ def montar_tela_medicao(page: ft.Page):
         hint_text="00000.000"
     )
 
-    # 2. Recuperação de dados do Scanner OCR[cite: 2]
-    unidade_ocr = page.session.get("unidade_scanner")
-    valor_ocr = page.session.get("valor_scanner")
-
-    if unidade_ocr:
-        txt_unidade.value = unidade_ocr
-        page.session.set("unidade_scanner", None)
-    if valor_ocr:
-        txt_agua.value = valor_ocr
-        page.session.set("valor_scanner", None)
-
     # --- FUNÇÕES DE LÓGICA ---
     def avancar():
         try:
             idx = db_lista.index(txt_unidade.value)
             if idx + 1 < len(db_lista):
-                txt_unidade.value = db_lista[idx + 1]
+                next_unit = db_lista[idx + 1]
+                # Skip units already read if advancing
+                while is_unit_read(next_unit) and db_lista.index(next_unit) + 1 < len(db_lista):
+                    next_unit = db_lista[db_lista.index(next_unit) + 1]
+                txt_unidade.value = next_unit
                 txt_agua.value = ""
                 txt_gas.value = ""
             page.update()
@@ -112,6 +144,21 @@ def montar_tela_medicao(page: ft.Page):
             page.update()
             return
 
+        current_unit = txt_unidade.value
+
+        # --- Validação da Unidade Anterior (Offline-First) ---
+        current_unit_index = db_lista.index(current_unit)
+        if current_unit_index > 0: # If it's not the very first unit
+            previous_unit = db_lista[current_unit_index - 1]
+            if not is_unit_read(previous_unit):
+                page.snack_bar = ft.SnackBar(
+                    ft.Text(f"Atenção: A unidade anterior ({previous_unit}) não foi lida. Por favor, siga a sequência."),
+                    bgcolor=st.ACCENT_ORANGE
+                )
+                page.snack_bar.open = True
+                page.update()
+                return
+
         try:
             v_agua = float(valor_agua)
             v_gas = float(valor_gas) if valor_gas else None
@@ -124,13 +171,19 @@ def montar_tela_medicao(page: ft.Page):
             return
 
         # Salva no banco local para o SyncService sincronizar depois
+        # Use current_unit for saving
         res = Database.salvar_leitura(
-            unidade=txt_unidade.value,
+            unidade=current_unit,
             valor_agua=v_agua,
             valor_gas=v_gas,
             modo=state["modo"],
             data_hora=data_coleta  # Passando a data formatada
         )
+        # Update last read unit in client storage for resuming
+        # Also store the values for potential restoration/clearing
+        page.client_storage.set("last_read_unit_id", current_unit)
+        page.client_storage.set("last_read_agua_value", valor_agua)
+        page.client_storage.set("last_read_gas_value", valor_gas)
 
         if res["sucesso"]:
             img_icon.visible, icon_save.visible = False, True
@@ -143,6 +196,28 @@ def montar_tela_medicao(page: ft.Page):
                 abrir_dialogo_gas()
             else:
                 avancar()
+        # Ensure the clear button visibility is updated
+        btn_limpar_ultima_leitura.visible = True
+        page.update()
+
+    async def limpar_ultima_leitura(e):
+        """Remove as chaves de última leitura do client_storage e reseta os campos."""
+        page.client_storage.remove("last_read_unit_id")
+        page.client_storage.remove("last_read_agua_value")
+        page.client_storage.remove("last_read_gas_value")
+
+        txt_unidade.value = db_lista[0] if db_lista else None
+        txt_agua.value = ""
+        txt_gas.value = ""
+        btn_limpar_ultima_leitura.visible = False # Hide button after clearing
+        page.update()
+
+    # Botão para limpar a última leitura, visível apenas se houver uma última leitura salva
+    btn_limpar_ultima_leitura = ft.TextButton(
+        "Limpar Última Leitura",
+        icon=ft.icons.HIGHLIGHT_OFF,
+        on_click=limpar_ultima_leitura,
+        visible=page.client_storage.get("last_read_unit_id") is not None
         page.update()
 
     return ft.View(
@@ -164,7 +239,8 @@ def montar_tela_medicao(page: ft.Page):
                 txt_unidade,
                 txt_agua,
                 txt_gas,
-                ft.Container(height=10),
+                ft.Container(height=5),
+                btn_limpar_ultima_leitura, # Add the new button here
                 ft.ElevatedButton(
                     "GRAVAR LEITURA", on_click=salvar_clique, width=320, height=65),
                 ft.TextButton("ABRIR SCANNER OCR", icon=ft.icons.CAMERA_ALT,

@@ -3,13 +3,21 @@ import os
 import shutil
 import platform
 from views import styles as st
-from flet import colors # Importar colors para uso direto
+from flet import colors  # Importar colors para uso direto
 from views.sincronizacao import SincronizadorUI
 from database.database import Database, get_supabase_client
+from utils.auth_utils import validar_sessao
 # IMPORTAÇÃO DA AUTOMAÇÃO DE VERSÃO
 from utils.updater import AppUpdater
 
+
 def montar_tela_saude(page: ft.Page, ao_voltar):
+    # Proteção de Rota
+    auth_check = validar_sessao(
+        page, "/dashboard_saude", required_role="admin")
+    if auth_check:
+        return auth_check
+
     sincronizador = SincronizadorUI(page)
 
     # --- FUNÇÕES DE DIAGNÓSTICO ---
@@ -17,7 +25,8 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         try:
             with Database.get_db() as conn:
                 conn.execute("SELECT 1")
-            return ("CONECTADO", "green") # Usando strings para estabilidade[cite: 3]
+            # Usando strings para estabilidade[cite: 3]
+            return ("CONECTADO", "green")
         except:
             return ("ERRO", "red")
 
@@ -40,7 +49,7 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
     def criar_card_status(icone, titulo, func_check):
         status_texto, cor = func_check()
         return ft.Container(
-            content=ft.ListTile( # icone is already a string here
+            content=ft.ListTile(  # icone is already a string here
                 leading=ft.Icon(icone, color=cor, size=30),
                 title=ft.Text(titulo, weight="bold", size=14, color="white"),
                 trailing=ft.Text(status_texto, color=cor, weight="bold"),
@@ -52,36 +61,45 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         )
 
     # Componentes de interface atualizados
-    status_db = criar_card_status(ft.icons.STORAGE, "Banco de Dados Local", checar_db_local)
-    status_cloud = criar_card_status(ft.icons.CLOUD_DONE, "Conexão Supabase", checar_supabase)
-    status_disk = criar_card_status(ft.icons.SD_CARD, "Armazenamento", checar_armazenamento)
+    status_db = criar_card_status(
+        ft.icons.STORAGE, "Banco de Dados Local", checar_db_local)
+    status_cloud = criar_card_status(
+        ft.icons.CLOUD_DONE, "Conexão Supabase", checar_supabase)
+    status_disk = criar_card_status(
+        ft.icons.SD_CARD, "Armazenamento", checar_armazenamento)
 
     return ft.View(
         route="/dashboard_saude",
-        bgcolor="#121417", # Cor direta para evitar erro de modulo 'styles'[cite: 3]
+        # Cor direta para evitar erro de modulo 'styles'[cite: 3]
+        bgcolor="#121417",
         controls=[
             ft.AppBar(
                 title=ft.Text("Saúde do Sistema"),
-                bgcolor="blue", # String literal para evitar NameError[cite: 1, 3]
+                # String literal para evitar NameError[cite: 1, 3]
+                bgcolor="blue",
                 leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=ao_voltar),
                 actions=[sincronizador.btn_sync]
             ),
             ft.Column([
                 ft.Container(height=10),
-                ft.Text(" MONITORAMENTO TÉCNICO", size=12, color="grey", weight="bold"),
+                ft.Text(" MONITORAMENTO TÉCNICO", size=12,
+                        color="grey", weight="bold"),
                 status_db,
                 status_cloud,
                 status_disk,
-                
+
                 ft.Container(height=20),
-                ft.Text(" INFORMAÇÕES DO DISPOSITIVO", size=12, color="grey", weight="bold"),
-                ft.Text(f"Sistema: {platform.system()} {platform.release()}", size=12, color="white70"),
-                
+                ft.Text(" INFORMAÇÕES DO DISPOSITIVO",
+                        size=12, color="grey", weight="bold"),
+                ft.Text(
+                    f"Sistema: {platform.system()} {platform.release()}", size=12, color="white70"),
+
                 ft.Container(expand=True),
                 ft.Divider(color="white10"),
                 ft.Row([
                     # VERSÃO AUTOMÁTICA: Puxa direto do updater.py
-                    ft.Text(AppUpdater.get_version_footer(), size=11, color="grey70"),
+                    ft.Text(AppUpdater.get_version_footer(),
+                            size=11, color="grey70"),
                 ], alignment=ft.MainAxisAlignment.CENTER)
             ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         ]

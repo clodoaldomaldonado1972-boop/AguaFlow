@@ -3,7 +3,7 @@ import sqlite3
 import logging
 from datetime import datetime
 from pathlib import Path
-from database.database import get_supabase_client
+from database.database import get_supabase_client, get_supabase_admin_client # Import admin client
 
 # Logger dedicado para erros de sincronização
 SYNC_LOG_DIR = Path(__file__).parent.parent / "storage" / "logs_sync"
@@ -161,3 +161,25 @@ def insert_leitura_supabase(id_unidade: str, valor: float, tipo_leitura: str = "
     except Exception as e:
         print(f"⚠️ Falha na sincronia: {e}")
         return {'sucesso': False, 'mensagem': f'Erro: {e}'}
+
+def deletar_usuario_supabase(email: str):
+    """Deleta um usuário do Supabase usando o cliente admin."""
+    admin_cliente = get_supabase_admin_client()
+    if not admin_cliente:
+        return {'sucesso': False, 'mensagem': 'Cliente Supabase Admin não disponível.'}
+    try:
+        # Supabase admin client pode deletar usuários por email
+        # Esta operação é poderosa e deve ser usada com cautela.
+        response = admin_cliente.auth.admin.delete_user(email)
+        if response.data: # Supabase retorna data mesmo se usuário não encontrado, verificar objeto user
+            if response.data.user:
+                logger.info(f"🗑️ Usuário deletado do Supabase: {email}")
+                return {'sucesso': True, 'mensagem': 'Usuário deletado da nuvem.'}
+            else:
+                logger.warning(f"⚠️ Tentativa de deletar usuário não encontrado no Supabase: {email}")
+                return {'sucesso': False, 'mensagem': 'Usuário não encontrado na nuvem.'}
+        else:
+            return {'sucesso': False, 'mensagem': 'Resposta vazia do Supabase ao tentar deletar.'}
+    except Exception as e:
+        logger.error(f"❌ Erro ao deletar usuário do Supabase: {e}")
+        return {'sucesso': False, 'mensagem': f'Erro na nuvem: {e}'}
