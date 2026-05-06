@@ -10,10 +10,18 @@ from utils.graficos_factory import criar_grafico_evolucao
 def montar_tela_dashboard(page: ft.Page, ao_voltar):
     # --- 1. BUSCA DE DADOS ---
     leituras_feitas = Database.get_leituras_mes_atual()  # Busca dados do mês no SQLite
-    lidas = len(leituras_feitas)
     todas_unidades = Database._gerar_lista_unidades()  # Lista das 98 unidades
+
+    # Cálculos Analíticos
+    lidas = len({l['unidade_id'] for l in leituras_feitas})
     unidades_pendentes = len(todas_unidades) - lidas
-    unidades_lidas_nomes = [l['unidade'] for l in leituras_feitas]
+    unidades_lidas_nomes = [l['unidade_id'] for l in leituras_feitas]
+
+    total_agua = sum(item.get('leitura_agua', 0)
+                     or 0 for item in leituras_feitas)
+    total_gas = sum(item.get('leitura_gas', 0)
+                    or 0 for item in leituras_feitas)
+    media_agua = total_agua / lidas if lidas > 0 else 0
 
     # --- 2. FUNÇÃO PARA EXIBIR DETALHES (Interatividade) ---
     def abrir_detalhes_unidade(e, unidade):
@@ -36,12 +44,13 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
                     ft.Row([
                         ft.Text(
                             f"Evolução: Unidade {unidade}", size=20, weight="bold"),
-                        ft.IconButton(ft.icons.CLOSE, on_click=fechar_bs)
+                        ft.IconButton(ft.icons.CLOSE,
+                                      on_click=fechar_bs, icon_color="red")
                         # Corrigido alinhamento, padronizado ícone
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, icon="close"),
                     ft.Divider(),
                     ft.Container(content=grafico_comp, height=250, padding=10),
-                    ft.Text("Média mensal calculada com base nos últimos 6 meses.",
+                    ft.Text(f"Acumulado no mês: {total_agua:.2f} m³",
                             size=12, color="grey", italic=True),
                     # Corrigido alinhamento
                 ], tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -78,8 +87,8 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
         bgcolor=st.BG_DARK,
         controls=[
             ft.AppBar(
-                title=ft.Text("Dashboard de Consumo"),
-                bgcolor="blue",  # Sugestão: usar string ou st.PRIMARY_BLUE
+                title=ft.Text("Análise Vivere Prudente"),
+                bgcolor=st.PRIMARY_BLUE,
                 leading=ft.IconButton("arrow_back", on_click=ao_voltar)
             ),
             ft.Column(
@@ -87,25 +96,16 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
                 controls=[
                     ft.Container(height=10),
                     # Cards de Resumo
-                    ft.Row([
-                        ft.Container(
-                            content=ft.Column([  # ft.icons.CHECK_CIRCLE
-                                ft.Icon("check_circle", color="green"),
-                                ft.Text("Lidas"),
-                                ft.Text(str(lidas), size=24, weight="bold")
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),  # Corrigido alinhamento
-                            bgcolor="#1e1e1e", padding=15, border_radius=10, expand=True
-                        ),
-                        ft.Container(
-                            content=ft.Column([  # ft.icons.PENDING
-                                ft.Icon("pending", color="orange"),
-                                ft.Text("Pendentes"),
-                                ft.Text(str(unidades_pendentes),
-                                        size=24, weight="bold")
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),  # Corrigido alinhamento
-                            bgcolor="#1e1e1e", padding=15, border_radius=10, expand=True
-                        ),
-                    ], spacing=10),
+                    ft.ResponsiveRow([
+                        st.criar_card_metrica("Lidas", str(
+                            lidas), ft.icons.CHECK_CIRCLE, "green", 3),
+                        st.criar_card_metrica("Pendentes", str(
+                            unidades_pendentes), ft.icons.PENDING, st.ACCENT_ORANGE, 3),
+                        st.criar_card_metrica(
+                            "Total Água", f"{total_agua:.1f}m³", ft.icons.WATER_DROP, st.PRIMARY_BLUE, 3),
+                        st.criar_card_metrica(
+                            "Total Gás", f"{total_gas:.1f}m³", ft.icons.LOCAL_FIRE_DEPARTMENT, st.ACCENT_ORANGE, 3),
+                    ]),
 
                     ft.Text("Mapa de Coleta (Clique na unidade)",
                             size=16, weight="bold"),

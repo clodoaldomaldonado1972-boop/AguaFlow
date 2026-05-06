@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os  # Necessário para remover arquivos físicos
 from datetime import datetime as dt
+import traceback
 import pytz
 from .database import Database
 
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class SyncService:
-    # Fuso horário para garantir que o servidor (EUA) não mude a data da leitura[cite: 5]
+    # Fuso horário para garantir que o servidor (EUA) não mude a data da leitura
     TZ_SP = pytz.timezone('America/Sao_Paulo')
 
     @classmethod
@@ -32,13 +33,13 @@ class SyncService:
                 """)
                 conn.commit()
         except Exception as e:
-            logger.error(f"Erro ao iniciar tabela de logs: {e}")
+            logger.error(f"❌ Erro ao iniciar tabela sync_log: {e}", exc_info=True)
 
     @classmethod
     async def processar_fila(cls):
         """
         Versão Consolidada: Varre o SQLite local e envia metadados e fotos para a nuvem.
-        Gerencia a limpeza de arquivos temporários após o sucesso[cite: 3, 6].
+        Gerencia a limpeza de arquivos temporários após o sucesso.
         """
         while True:
             try:
@@ -50,8 +51,8 @@ class SyncService:
                         SELECT 
                             id, 
                             unidade_id, 
-                            valor_leitura, 
-                            tipo_registro, 
+                            leitura_agua, 
+                            leitura_gas, 
                             tipo, 
                             data_hora_coleta, 
                             path_foto
@@ -69,10 +70,24 @@ class SyncService:
                         continue
 
                     for item in pendentes:
-                        data_sp = dt.now(cls.TZ_SP).isoformat()[cite: 5]
+                        data_sp = dt.now(cls.TZ_SP).isoformat()
 
                         # 1. Tenta o envio para o Supabase
-                        resultado = await cls._upload_completo_supabase(item, data_sp)
+                        # Garantia: Tenta enviar Água e Gás separadamente se existirem no mesmo registro
+                        sucesso_sync = True
+
+                        if item['leitura_agua'] is not None:
+                            res_agua = await cls._upload_individual(item, item['leitura_agua'], "Água", data_sp)
+                            if not res_agua['sucesso']:
+                                sucesso_sync = False
+
+                        if item['leitura_gas'] is not None:
+                            res_gas = await cls._upload_individual(item, item['leitura_gas'], "Gás", data_sp)
+                            if not res_gas['sucesso']:
+                                sucesso_sync = False
+
+                        # O registro local só é marcado como sincronizado se ambos subirem com sucesso
+                        resultado = {'sucesso': sucesso_sync}
 
                         if resultado['sucesso']:
                             # 2. Sucesso: Marca localmente e registra log
@@ -104,16 +119,23 @@ class SyncService:
                             logger.warning(
                                 f"❌ Falha na unidade {item['unidade_id']}: {resultado.get('erro')}")
 
+                            # Gatilho de E-mail para falha específica de upload
+                            from utils.logger_config import enviar_report_erro
+                            enviar_report_erro(resultado.get('erro'), unidade=item['unidade_id'])
+
                 await asyncio.sleep(60)
             except Exception as e:
-                logger.error(f"Erro crítico no ciclo de sync: {e}")
+                logger.error(f"❌ ERRO CRÍTICO NO SYNC SERVICE: {str(e)}", exc_info=True)
+                # Gatilho de E-mail para crash do serviço de sincronia
+                from utils.logger_config import enviar_report_erro
+                enviar_report_erro(traceback.format_exc(), unidade="SYNC LOOP")
                 await asyncio.sleep(30)
 
     @classmethod
-    async def _upload_completo_supabase(cls, item, data_iso):
-        """Lógica de upload de Foto e Metadados (Simulação da API Cloud)[cite: 5]"""
+    async def _upload_individual(cls, item, valor, tipo_reg, data_iso):
+        """Lógica de upload individual para cada tipo de leitura (Água ou Gás)"""
         try:
-            # Integração real com Supabase Storage (Bucket 'hidrometros') e Database[cite: 5]
+            # Aqui a lógica deve mapear os dados para o formato esperado pelo Supabase
             return {'sucesso': True}
         except Exception as e:
             return {'sucesso': False, 'erro': str(e)}
@@ -128,6 +150,56 @@ class SyncService:
             """, (leitura_id, unidade, status, erro, dt.now(cls.TZ_SP).isoformat()))
         except Exception as e:
             logger.error(f"Erro ao registrar log: {e}")
+
+    @classmethod
+    async def executar_sincronismo_manual(cls):
+        """Executa uma rodada de sincronização e retorna a quantidade de itens processados."""
+        total_sincronizado = 0
+        try:
+            with Database.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, unidade_id, valor_leitura, tipo_registro, tipo, data_hora_coleta, path_foto
+                    FROM leituras WHERE sincronizado = 0
+                """)
+                pendentes = cursor.fetchall()
+
+                for item in pendentes:
+                    data_sp = dt.now(cls.TZ_SP).isoformat()
+                    resultado = await cls._upload_individual(item, item.get('leitura_agua'), "Manual", data_sp)
+
+                    if resultado['sucesso']:
+                        cursor.execute(
+                            "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (item['id'],))
+                        cls._registrar_log_sync(
+                            cursor, conn, item['id'], item['unidade_id'], "SUCESSO")
+
+                        path_foto = item.get('path_foto')
+                        if path_foto and os.path.exists(path_foto):
+                            try:
+                                os.remove(path_foto)
+                            except:
+                                pass
+                        total_sincronizado += 1
+                conn.commit()
+            return total_sincronizado
+        except Exception as e:
+            logger.error(f"Erro no sincronismo manual: {e}")
+            return 0
+
+    @classmethod
+    def limpar_leituras_locais(cls):
+        """Remove todas as leituras sincronizadas para iniciar um novo ciclo."""
+        try:
+            with Database.get_db() as conn:
+                cursor = conn.cursor()
+                # Removemos apenas o que já foi enviado para a nuvem
+                cursor.execute("DELETE FROM leituras WHERE sincronizado = 1")
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Erro ao limpar banco local: {e}")
+            return False
 
     @classmethod
     def limpar_logs_antigos(cls, dias_reter=30):

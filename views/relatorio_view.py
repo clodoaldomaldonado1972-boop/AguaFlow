@@ -4,7 +4,6 @@ import gc
 from database.database import Database
 from views import styles as st
 from database.gestao_periodos import finalizar_mes_e_enviar
-from flet import colors  # Importar colors para uso direto
 from utils.export_manager import ExportManager
 from utils.auth_utils import validar_sessao
 
@@ -101,7 +100,7 @@ def montar_tela_relatorio(page: ft.Page):
                         "QR GÁS", icon="local_fire_department",  # Padronizado para string
                         on_click=lambda _: page.run_task(
                             acao_gerar_qrs, "Gás"),
-                        expand=True, bgcolor=colors.ORANGE_900, color=colors.WHITE
+                        expand=True, bgcolor="orange900", color="white"
                     ),
                 ], spacing=10),
                 ft.Container(height=20),

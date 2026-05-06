@@ -1,7 +1,6 @@
 import flet as ft
 from database.database import Database
 from utils.report_generator import ReportGenerator
-from flet import colors  # Importar colors para uso direto
 from utils.email_service import enviar_relatorios_por_email  # Importação adicionada
 
 
@@ -63,7 +62,7 @@ async def montar_tela_historico(page: ft.Page):
                         on_click=processar_envio_final,
                         visible=ciclo_concluido,  # SÓ APARECE SE CONCLUÍDO
                         style=ft.ButtonStyle(
-                            color=colors.WHITE, bgcolor=colors.GREEN_800)
+                            color="white", bgcolor="green800")
                     ),
                 ])
             ])
