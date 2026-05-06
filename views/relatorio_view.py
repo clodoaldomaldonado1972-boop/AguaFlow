@@ -1,13 +1,20 @@
 import flet as ft
 import asyncio
+import gc
 from database.database import Database
 from views import styles as st
 from database.gestao_periodos import finalizar_mes_e_enviar
 from flet import colors  # Importar colors para uso direto
 from utils.export_manager import ExportManager
+from utils.auth_utils import validar_sessao
 
 
 def montar_tela_relatorio(page: ft.Page):
+    # Proteção de Rota
+    auth_check = validar_sessao(page, "/relatorios")
+    if auth_check:
+        return auth_check
+
     # --- 1. ELEMENTOS DE FEEDBACK VISUAL ---
     # Texto que informa ao Marco Aurélio o que o sistema está fazendo
     lbl_status = ft.Text("Pronto para processar", color="grey700", size=14)
@@ -30,7 +37,7 @@ def montar_tela_relatorio(page: ft.Page):
             lbl_status.value = f"❌ Erro: {str(ex)}"
             lbl_status.color = "red"
         pr.visible = False
-        gc.collect() # Liberar memória após geração de QR codes
+        gc.collect()  # Liberar memória após geração de QR codes
         page.update()
 
     async def acao_virada_ciclo(_):
@@ -49,7 +56,7 @@ def montar_tela_relatorio(page: ft.Page):
         except Exception as ex:
             lbl_status.value = f"❌ Erro na virada de ciclo: {ex}"
             lbl_status.color = "red"
-        gc.collect() # Liberar memória após virada de ciclo
+        gc.collect()  # Liberar memória após virada de ciclo
         pr.visible = False
         page.update()
 
@@ -100,6 +107,6 @@ def montar_tela_relatorio(page: ft.Page):
                 ft.Container(height=20),
                 ft.TextButton("Voltar ao Menu Principal",
                               on_click=lambda _: page.go("/menu")),
-            ], scroll=ft.ScrollMode.AUTO, spacing=20, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            ], scroll="auto", spacing=20, horizontal_alignment="center")
         ]
     )

@@ -2,22 +2,10 @@ import flet as ft
 import asyncio
 import os
 from supabase import create_client, Client
-from dotenv import load_dotenv
 import views.styles as st
+from database.database import Database, get_supabase_client
 # 1. IMPORTAÇÃO DA AUTOMAÇÃO DE VERSÃO
 from utils.updater import AppUpdater
-
-load_dotenv()
-
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
-
-# Configuração do Cliente Supabase
-if url and key:
-    supabase_client = create_client(url, key)
-else:
-    supabase_client = None
-    print("⚠️ Aviso: Supabase não configurado no auth.py")
 
 
 def montar_tela_esqueci_senha(page: ft.Page):
@@ -53,25 +41,79 @@ def criar_tela_login(page: ft.Page):
     txt_pass = st.campo_estilo("Senha", password=True)
     txt_pass.can_reveal_password = True
 
+    progress_ring_login = ft.ProgressRing(width=16, height=16, stroke_width=2, color=ft.colors.WHITE)
+    text_loading_login = ft.Text("CARREGANDO SISTEMA...", size=14)
+
+    btn_entrar = ft.ElevatedButton(
+        content=ft.Row( # O conteúdo inicial do botão é um Row com o ProgressRing e o texto
+            [
+                progress_ring_login,
+                text_loading_login,
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=10,
+            tight=True
+        ),
+        on_click=realizar_login,
+        width=320,
+        height=50,
+        disabled=True  # Inicia travado até o DB estar pronto
+    )
+    # Armazena a referência para o main.py habilitar depois
+    page.session.set("btn_login", btn_entrar)
+    page.session.set("progress_ring_login", progress_ring_login)
+    page.session.set("text_loading_login", text_loading_login)
+
     lbl_erro = ft.Text("", color="red", size=12,
-                       weight=ft.FontWeight.BOLD, visible=False)
+                       weight="bold", visible=False)
 
     async def realizar_login(e):
+        email = txt_user.value
+        senha = txt_pass.value
+        supabase_client = get_supabase_client()
         try:
-            auth_response = supabase_client.auth.sign_in_with_password({
-                "email": txt_user.value,
-                "password": txt_pass.value
-            })
+            # 1. Tenta Login Online (Supabase)
+            if supabase_client:
+                try:
+                    auth_response = supabase_client.auth.sign_in_with_password({
+                        "email": email,
+                        "password": senha
+                    })
 
-            if auth_response.user:
-                page.user_data = {"email": txt_user.value}
-                print(f"✅ Login aprovado para: {txt_user.value}")
+                    if auth_response.user:
+                        # Extrai a role do metadata do Supabase (definido via SQL ou script admin)
+                        role = auth_response.user.user_metadata.get(
+                            "role", "user")
+                        page.user_data = {"email": email, "role": role}
+                        print(f"✅ Login online aprovado: {email} ({role})")
+                        page.go("/menu")
+                        return
+                except Exception as ex:
+                    print(
+                        f"⚠️ Falha no login online, tentando offline... ({ex})")
+
+            # 2. Fallback: Tenta Login Offline (SQLite)
+            user_local = Database.validar_login_offline(email, senha)
+            if user_local:
+                page.user_data = {
+                    "email": email,
+                    "nome": user_local.get('nome'),
+                    "role": user_local.get('role', 'user'),
+                    "offline": True
+                }
+                print(
+                    f"✅ Login offline aprovado: {email} ({page.user_data['role']})")
                 page.go("/menu")
                 return
 
-        except Exception as ex:
-            print(f"❌ Erro no login: {ex}")
+            # 3. Se ambos falharem
             lbl_erro.value = "E-mail ou senha incorretos."
+            lbl_erro.visible = True
+            page.update()
+
+        except Exception as ex:
+            print(f"❌ Erro crítico no login: {ex}")
+            lbl_erro.value = "Erro técnico ao acessar o sistema."
             lbl_erro.visible = True
             page.update()
 
@@ -83,21 +125,17 @@ def criar_tela_login(page: ft.Page):
         controls=[
             ft.Container(
                 content=ft.Column([
-                    # Usando string para evitar AttributeError
-                    ft.Icon("water", size=96, color="blue"),
-                    ft.Text("AguaFlow", style=st.TEXT_TITLE),
-                    ft.Text("Vivere Prudente", style=st.TEXT_SUB),
+                    # logo = ft.Image(src="logo.jpeg", width=220, height=220), # COMENTE ESTA LINHA
+                    # ft.Icon(ft.icons.WATER, size=96, color="blue"), # COMENTADO TAMBÉM
+                    ft.Text("AguaFlow", size=32, weight="bold", color="white"),
+                    ft.Text("CONDOMÍNIO EDIF. VIVERE PRUDENTE",
+                            weight="bold", color="#0D47A1"),  # Usando Hex para 'blue900' mais seguro
                     ft.Divider(height=20, color="transparent"),
                     txt_user,
                     txt_pass,
                     lbl_erro,
                     ft.Divider(height=10, color="transparent"),
-                    ft.ElevatedButton(
-                        "ENTRAR",
-                        on_click=realizar_login,
-                        width=320,
-                        height=50
-                    ),
+                    btn_entrar,
                     ft.Row([
                         ft.TextButton("Criar nova conta",
                                       on_click=lambda _: page.go("/registro")),
