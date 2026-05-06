@@ -2,6 +2,7 @@ import os
 import sqlite3
 import logging
 import csv
+import traceback
 from contextlib import contextmanager
 from datetime import datetime
 from supabase import create_client, Client
@@ -10,8 +11,8 @@ from dotenv import load_dotenv
 # Carrega variáveis do arquivo .env
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("AguaFlow_DB")
+# Utiliza o logger configurado centralmente
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -111,10 +112,13 @@ class Database:
 
                 conn.commit()
                 # Esta linha abaixo estava com erro de indentação
-                logger.info(
-                    "🚀 Estrutura do banco de dados (SQLite) sincronizada.")
+                logger.info("🚀 Estrutura do banco de dados (SQLite) sincronizada.")
         except Exception as e:
-            logger.error(f"Erro ao inicializar banco: {e}")
+            logger.critical(f"❌ FALHA CRÍTICA NA INICIALIZAÇÃO DO SQLITE: {str(e)}", exc_info=True)
+            # Gatilho de E-mail para falha no Boot
+            from utils.logger_config import enviar_report_erro
+            enviar_report_erro(traceback.format_exc(), unidade="BOOT SYSTEM")
+            raise e
 
     @classmethod
     def criar_usuario(cls, nome, email, senha, role='user'):
@@ -273,19 +277,38 @@ class Database:
     def salvar_leitura(cls, unidade, valor_agua, valor_gas, modo, data_hora):
         """Salva uma nova leitura no banco de dados local."""
         try:
+            # Lógica para Unidades Duplex: Replica o valor se houver "/"
+            unidades_alvo = [unidade]
+            if unidade and "/" in unidade:
+                unidades_alvo = [u.strip() for u in unidade.split("/")]
+                logger.info(f"Replicando leitura duplex para: {unidades_alvo}")
+
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (unidade, valor_agua, valor_gas, modo, data_hora, 0))
+                for u_id in unidades_alvo:
+                    if not u_id: continue
+                    
+                    # Adiciona nota de Duplex no tipo de registro para o relatório
+                    tipo_final = f"{modo} (Duplex)" if len(
+                        unidades_alvo) > 1 else modo
+
+                    cursor.execute("""
+                        INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado, valor_leitura) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (u_id.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_agua))
+
+                cursor.close()
                 conn.commit()
-                logger.info(
-                    f"Leitura salva: Unidade {unidade}, Água {valor_agua}, Gás {valor_gas}, Modo {modo}")
-                return {"sucesso": True, "id": cursor.lastrowid}
+                logger.debug(f"💾 Leitura salva localmente para unidade {unidade}")
+                return {"sucesso": True}
 
         except Exception as e:
-            logger.error(f"Erro ao inicializar banco: {e}")
+            logging.error(e)
+            logger.error(f"❌ Erro ao salvar leitura no SQLite (Unidade {unidade}): {str(e)}", exc_info=True)
+            # Gatilho de E-mail para falha na gravação local
+            from utils.logger_config import enviar_report_erro
+            enviar_report_erro(traceback.format_exc(), unidade=unidade)
+            return {"sucesso": False, "erro": str(e)}
 
     @classmethod
     def buscar_historico(cls, unidade):
@@ -294,10 +317,10 @@ class Database:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT data_leitura_atual, leitura_agua, leitura_gas 
+                    SELECT data_hora_coleta, leitura_agua, leitura_gas 
                     FROM leituras 
-                    WHERE unidade = ? 
-                    ORDER BY data_leitura_atual DESC 
+                    WHERE unidade_id = ? 
+                    ORDER BY data_hora_coleta DESC 
                     LIMIT 6
                 """, (unidade,))
                 return [dict(row) for row in cursor.fetchall()][::-1]
@@ -311,26 +334,26 @@ class Database:
         try:
             unidades = []
 
-            # ÁREAS COMUNS (As strings devem ser EXATAS)
-            unidades.append("TERREO GERAL ÁGUA")
-            unidades.append("LAZER GÁS")
-
-            # APARTAMENTOS (16 andares, final 1 a 6)
+            # APARTAMENTOS (16 andares, final 6 a 1 - Ordem de descida do hall)
             for andar in range(16, 0, -1):
-                for final in range(1, 7):
-                    u_id = f"{andar}{final}"
+                for final in range(6, 0, -1):
+                    u_raw = f"{andar}{final}"
 
                     # Regra dos Duplex
-                    if u_id in ["163", "164"]:
+                    if u_raw in ["163", "164"]:
                         if "163/164" not in unidades:
                             unidades.append("163/164")
                         continue
-                    if u_id in ["23", "24"]:
+                    if u_raw in ["23", "24"]:
                         if "23/24" not in unidades:
                             unidades.append("23/24")
                         continue
 
-                    unidades.append(u_id)
+                    unidades.append(u_raw)
+
+            # ÁREAS COMUNS ao final para encerramento do ciclo
+            unidades.append("LAZER GÁS")
+            unidades.append("TERREO GERAL ÁGUA")
 
             # Segurança: Se a lista estiver vazia por algum motivo, não retorna None
             return unidades if unidades else ["ERRO_LISTA_VAZIA"]
@@ -347,9 +370,9 @@ class Database:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT * FROM leituras 
-                    WHERE data_leitura_atual LIKE ? 
-                    ORDER BY data_leitura_atual DESC
+                    SELECT id, unidade_id, leitura_agua, leitura_gas, data_hora_coleta, consumo FROM leituras 
+                    WHERE data_hora_coleta LIKE ? 
+                    ORDER BY data_hora_coleta DESC
                 """, (f"{mes_atual}%",))
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
@@ -377,19 +400,38 @@ class Database:
         try:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                query = "SELECT * FROM leituras WHERE date(data_leitura_atual) BETWEEN ? AND ?"
+                # Garantimos que a comparação seja feita apenas na parte da data 'YYYY-MM-DD'
+                # para evitar sobreposição de horas em viradas de ciclo.
+                query = "SELECT * FROM leituras WHERE substr(data_hora_coleta, 1, 10) BETWEEN ? AND ?"
                 params = [data_inicio, data_fim]
 
                 if unidade and unidade != "Geral":
-                    query += " AND unidade = ?"
+                    query += " AND unidade_id = ?"
                     params.append(unidade)
 
-                query += " ORDER BY data_leitura_atual DESC"
+                query += " ORDER BY data_hora_coleta DESC"
                 cursor.execute(query, params)
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             logger.error(f"Erro ao buscar período: {e}")
             return []
+
+    @classmethod
+    async def registrar_log_erro(cls, erro, contexto, usuario=None, screenshot_url=None):
+        """Registra um erro no Supabase para análise técnica remota."""
+        logger.debug(f"📡 Tentando registrar log de erro remoto. Contexto: {contexto} | Erro: {erro}")
+        try:
+            if cls.supabase:
+                dados = {
+                    "mensagem": str(erro),
+                    "contexto": contexto,
+                    "usuario": usuario,
+                    "data_hora": datetime.now().isoformat()
+                }
+                cls.supabase.table("logs_erro").insert(dados).execute()
+                logger.info("✅ Log de erro enviado para o Supabase com sucesso.")
+        except Exception as e:
+            logger.error(f"❌ Falha ao enviar log para o Supabase: {e}", exc_info=True)
 # --- FUNÇÃO GLOBAL DE ACESSO ---
 # --- FUNÇÃO GLOBAL DE ACESSO ---
 

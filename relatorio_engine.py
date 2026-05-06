@@ -28,24 +28,49 @@ class RelatorioEngine:
                 200, 10, txt=f"Condomínio Vivere Prudente - Data: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
             pdf.ln(10)
 
-            # --- TABELA DE DADOS (CORRIGIDA) ---
+            # --- TABELA 1: ÁGUA ---
+            pdf.set_font("Arial", "B", 12)
+            pdf.set_text_color(13, 71, 161)  # Azul Escuro
+            pdf.cell(200, 10, txt="QUADRO DE CONSUMO: ÁGUA", ln=True, align='L')
+
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(40, 10, "Unidade", 1)
-            pdf.cell(60, 10, "Data Leitura", 1)
-            # Mudança de nome no cabeçalho
-            pdf.cell(45, 10, "Leitura Água (m3)", 1)
-            pdf.cell(45, 10, "Leitura Gás (m3)", 1)  # Adição da coluna de Gás
-            pdf.ln()
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_fill_color(200, 220, 255)  # Fundo Azul Claro
+            pdf.cell(40, 10, "Unidade", 1, 0, 'C', True)
+            pdf.cell(90, 10, "Data/Hora Coleta", 1, 0, 'C', True)
+            pdf.cell(60, 10, "Leitura (m3)", 1, 1, 'C', True)
 
             pdf.set_font("Arial", size=10)
             for item in dados:
-                pdf.cell(40, 10, str(item.get('unidade_id', 'N/A')), 1)
-                pdf.cell(60, 10, str(item.get('data_hora_coleta', 'N/A')), 1)
-                # AJUSTE: Busca agora 'leitura_agua' em vez de 'valor'
-                pdf.cell(45, 10, str(item.get('leitura_agua', '0.00')), 1)
-                # AJUSTE: Busca 'leitura_gas'
-                pdf.cell(45, 10, str(item.get('leitura_gas', '-')), 1)
-                pdf.ln()
+                if item.get('leitura_agua') is not None:
+                    pdf.cell(40, 10, str(item.get('unidade_id', 'N/A')), 1)
+                    pdf.cell(90, 10, str(
+                        item.get('data_hora_coleta', 'N/A')), 1)
+                    pdf.cell(60, 10, f"{item.get('leitura_agua', 0.0):.2f}", 1)
+                    pdf.ln()
+
+            pdf.ln(10)
+
+            # --- TABELA 2: GÁS ---
+            pdf.set_font("Arial", "B", 12)
+            pdf.set_text_color(230, 81, 0)  # Laranja Escuro
+            pdf.cell(200, 10, txt="QUADRO DE CONSUMO: GÁS", ln=True, align='L')
+
+            pdf.set_font("Arial", "B", 10)
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_fill_color(255, 224, 178)  # Fundo Laranja Claro
+            pdf.cell(40, 10, "Unidade", 1, 0, 'C', True)
+            pdf.cell(90, 10, "Data/Hora Coleta", 1, 0, 'C', True)
+            pdf.cell(60, 10, "Leitura (m3)", 1, 1, 'C', True)
+
+            pdf.set_font("Arial", size=10)
+            for item in dados:
+                if item.get('leitura_gas') is not None:
+                    pdf.cell(40, 10, str(item.get('unidade_id', 'N/A')), 1)
+                    pdf.cell(90, 10, str(
+                        item.get('data_hora_coleta', 'N/A')), 1)
+                    pdf.cell(60, 10, f"{item.get('leitura_gas', 0.0):.2f}", 1)
+                    pdf.ln()
 
             caminho_pdf = "relatorio_consumo.pdf"
             pdf.output(caminho_pdf)

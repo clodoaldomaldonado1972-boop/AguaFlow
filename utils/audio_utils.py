@@ -22,24 +22,20 @@ def tocar_alerta(page: ft.Page, tipo="sucesso"):
     if tipo == "sucesso":
         nome_arquivo = "sucesso.wav"
         mensagem = "✅ Operação concluída com sucesso!"
-        cor = ft.colors.GREEN_700
         cor = "green700"
     elif tipo == "erro":
         nome_arquivo = "erro.wav"
         mensagem = "❌ Erro ao processar solicitação."
-        cor = ft.colors.RED_700
         cor = "red700"
     else:
         nome_arquivo = "alerta.wav"
         mensagem = "⚠️ Atenção: Verifique as informações."
-        cor = ft.colors.ORANGE_700
         cor = "orange700"
 
     caminho_audio = get_audio_path(nome_arquivo)
 
     # Configurar e abrir o SnackBar na interface
     page.snack_bar = ft.SnackBar(
-        content=ft.Text(mensagem, color=ft.colors.WHITE),
         content=ft.Text(mensagem, color="white"),
         bgcolor=cor,
         duration=3000  # Exibe por 3 segundos

@@ -4,7 +4,6 @@ import asyncio
 from database.sync_service import SyncService
 from utils.backup import executar_backup_seguranca
 import gc # Importar garbage collector
-from flet import colors # Importar colors para uso direto
 from database.database import Database
 from views import styles as st
 
@@ -129,7 +128,7 @@ class SincronizadorUI:
             tooltip="Sincronizar com Nuvem",
             on_click=lambda e: page.run_task(self.executar_sincronismo, e) # Corrigido para chamar o método da instância
         )
-        self.txt_status = ft.Text("", size=12, color=colors.BLUE_GREY_400)
+        self.txt_status = ft.Text("", size=12, color="bluegrey400")
 
     async def executar_sincronismo(self, e):
         """
@@ -137,7 +136,7 @@ class SincronizadorUI:
         """
         try:
             # 1. ESTADO: INICIANDO
-            self.btn_sync.prefix_icon_color = colors.BLUE_600
+            self.btn_sync.prefix_icon_color = "blue600"
             self.btn_sync.disabled = True
             self.txt_status.value = "Conectando ao servidor..."
             self.page.update()
@@ -151,16 +150,16 @@ class SincronizadorUI:
             if qtd_sincronizada > 0:
                 await asyncio.to_thread(executar_backup_seguranca)
                 feedback_msg = f"Sucesso: {qtd_sincronizada} leituras enviadas e backup gerado!"
-                self.btn_sync.prefix_icon_color = colors.GREEN_600
+                self.btn_sync.prefix_icon_color = "green600"
             else:
                 # Se não sincronizou nada, ainda assim é bom fazer um backup se houver alterações locais não sincronizadas
                 feedback_msg = "O sistema já está atualizado."
-                self.btn_sync.prefix_icon_color = colors.BLUE_GREY_200
+                self.btn_sync.prefix_icon_color = "bluegrey200"
 
             # 4. FEEDBACK AO USUÁRIO
             self.page.snack_bar = ft.SnackBar(
                 content=ft.Text(feedback_msg),
-                bgcolor=colors.GREEN_700 if qtd_sincronizada > 0 else colors.BLUE_GREY_800,
+                bgcolor="green700" if qtd_sincronizada > 0 else "bluegrey800",
                 open=True
             )
             
@@ -169,13 +168,13 @@ class SincronizadorUI:
             
         except Exception as ex:
             # 5. TRATAMENTO DE ERRO (Ex: Falta de internet no condomínio)
-            self.btn_sync.prefix_icon_color = colors.RED_600
+            self.btn_sync.prefix_icon_color = "red600"
             self.btn_sync.disabled = False
             self.txt_status.value = "Erro na sincronia"
             
             self.page.snack_bar = ft.SnackBar(
                 content=ft.Text(f"Erro: Verifique sua conexão. {str(ex)}"),
-                bgcolor=colors.RED_700,
+                bgcolor="red700",
                 open=True
             )
         

@@ -3,12 +3,12 @@ import os
 import shutil
 import platform
 from views import styles as st
-from flet import colors  # Importar colors para uso direto
 from views.sincronizacao import SincronizadorUI
 from database.database import Database, get_supabase_client
 from utils.auth_utils import validar_sessao
-# IMPORTAÇÃO DA AUTOMAÇÃO DE VERSÃO
+# IMPORTAÇÃO DA AUTOMAÇÃO DE VERSÃO e Path para o log
 from utils.updater import AppUpdater
+from pathlib import Path
 
 
 def montar_tela_saude(page: ft.Page, ao_voltar):
@@ -68,6 +68,37 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
     status_disk = criar_card_status(
         ft.icons.SD_CARD, "Armazenamento", checar_armazenamento)
 
+    # --- LOG VIEWER ---
+    # Define o caminho do arquivo de log de forma robusta
+    log_file_path = Path(__file__).parent.parent / "logs" / "aguaflow.log"
+    txt_log_content = ft.TextField(
+        label="Conteúdo do Log",
+        multiline=True,
+        read_only=True,
+        min_lines=10,
+        max_lines=20,
+        expand=True,
+        bgcolor="#1E2126",
+        border_color="#33373E",
+        color="white",
+        text_size=10,
+        font_family="monospace"
+    )
+
+    def carregar_log_file(e):
+        try:
+            if log_file_path.exists():
+                with open(log_file_path, "r", encoding="utf-8") as f:
+                    txt_log_content.value = f.read()
+            else:
+                txt_log_content.value = "Arquivo de log não encontrado."
+        except Exception as ex:
+            txt_log_content.value = f"Erro ao ler log: {ex}"
+        page.update()
+
+    # Carrega o log quando a tela é exibida
+    page.on_view_appear = lambda e: carregar_log_file(None)
+
     return ft.View(
         route="/dashboard_saude",
         # Cor direta para evitar erro de modulo 'styles'[cite: 3]
@@ -93,6 +124,26 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
                         size=12, color="grey", weight="bold"),
                 ft.Text(
                     f"Sistema: {platform.system()} {platform.release()}", size=12, color="white70"),
+
+                ft.Container(height=20),
+                ft.Text(" LOGS DO APLICATIVO", size=12,
+                        color="grey", weight="bold"),
+                txt_log_content,
+                ft.Row([
+                    ft.ElevatedButton(
+                        "Atualizar Log",
+                        icon=ft.icons.REFRESH,
+                        on_click=carregar_log_file,
+                        style=st.BTN_MAIN
+                    ),
+                    ft.ElevatedButton(
+                        "Limpar Log",
+                        icon=ft.icons.DELETE_SWEEP,
+                        on_click=lambda e: (log_file_path.unlink(missing_ok=True), carregar_log_file(
+                            None)),  # Limpa o arquivo e atualiza a exibição
+                        style=ft.ButtonStyle(color="white", bgcolor="red")
+                    )
+                ], alignment=ft.MainAxisAlignment.CENTER),
 
                 ft.Container(expand=True),
                 ft.Divider(color="white10"),
