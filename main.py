@@ -120,7 +120,7 @@ async def main(page: ft.Page):
             await SyncService.init_sync_log_table()
 
             # Habilita o botão de login se ele já estiver na tela
-            btn_login = page.session.get("btn_login")
+            btn_login = page.session["btn_login"] if "btn_login" in page.session else None
             if btn_login:
                 btn_login.content = None  # Remove o Row com ProgressRing
                 btn_login.disabled = False
@@ -139,7 +139,6 @@ async def main(page: ft.Page):
     # 2. Navega imediatamente para a rota inicial (Login)
     # Se o usuário estiver dando hot-reload, mantém a rota atual, senão vai para "/"
     initial_route = page.route if page.route != "/" else "/"
-    await route_change(None)  # Força a carga da primeira view
     page.go(initial_route)
 
 # 5. INICIALIZAÇÃO DO MOTOR FLET

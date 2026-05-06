@@ -41,7 +41,7 @@ def criar_tela_login(page: ft.Page):
     txt_pass = st.campo_estilo("Senha", password=True)
     txt_pass.can_reveal_password = True
 
-    progress_ring_login = ft.ProgressRing(width=16, height=16, stroke_width=2, color=ft.colors.WHITE)
+    progress_ring_login = ft.ProgressRing(width=16, height=16, stroke_width=2, color="white")
     text_loading_login = ft.Text("CARREGANDO SISTEMA...", size=14)
 
     btn_entrar = ft.ElevatedButton(
@@ -60,9 +60,9 @@ def criar_tela_login(page: ft.Page):
         disabled=True  # Inicia travado até o DB estar pronto
     )
     # Armazena a referência para o main.py habilitar depois
-    page.session.set("btn_login", btn_entrar)
-    page.session.set("progress_ring_login", progress_ring_login)
-    page.session.set("text_loading_login", text_loading_login)
+    page.session["btn_login"] = btn_entrar
+    page.session["progress_ring_login"] = progress_ring_login
+    page.session["text_loading_login"] = text_loading_login
 
     lbl_erro = ft.Text("", color="red", size=12,
                        weight="bold", visible=False)
