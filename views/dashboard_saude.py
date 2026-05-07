@@ -62,11 +62,11 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
 
     # Componentes de interface atualizados
     status_db = criar_card_status(
-        ft.icons.STORAGE, "Banco de Dados Local", checar_db_local)
+        "storage", "Banco de Dados Local", checar_db_local)
     status_cloud = criar_card_status(
-        ft.icons.CLOUD_DONE, "Conexão Supabase", checar_supabase)
+        "cloud_done", "Conexão Supabase", checar_supabase)
     status_disk = criar_card_status(
-        ft.icons.SD_CARD, "Armazenamento", checar_armazenamento)
+        "sd_card", "Armazenamento", checar_armazenamento)
 
     # --- LOG VIEWER ---
     # Define o caminho do arquivo de log de forma robusta
@@ -108,7 +108,7 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
                 title=ft.Text("Saúde do Sistema"),
                 # String literal para evitar NameError[cite: 1, 3]
                 bgcolor="blue",
-                leading=ft.IconButton(ft.icons.ARROW_BACK, on_click=ao_voltar),
+                leading=ft.IconButton("arrow_back", on_click=ao_voltar),
                 actions=[sincronizador.btn_sync]
             ),
             ft.Column([
@@ -132,13 +132,13 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
                 ft.Row([
                     ft.ElevatedButton(
                         "Atualizar Log",
-                        icon=ft.icons.REFRESH,
+                        icon="refresh",
                         on_click=carregar_log_file,
                         style=st.BTN_MAIN
                     ),
                     ft.ElevatedButton(
                         "Limpar Log",
-                        icon=ft.icons.DELETE_SWEEP,
+                        icon="delete_sweep",
                         on_click=lambda e: (log_file_path.unlink(missing_ok=True), carregar_log_file(
                             None)),  # Limpa o arquivo e atualiza a exibição
                         style=ft.ButtonStyle(color="white", bgcolor="red")

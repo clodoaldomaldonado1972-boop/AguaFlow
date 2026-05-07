@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import logging
-import csv
 import traceback
 from contextlib import contextmanager
 from datetime import datetime
@@ -359,7 +358,7 @@ class Database:
             return unidades if unidades else ["ERRO_LISTA_VAZIA"]
 
         except Exception as e:
-            print(f"Erro na lógica de unidades: {e}")
+            logger.error(f"Erro na lógica de unidades: {e}", exc_info=True)
             return ["ERRO_PROCESSAMENTO"]
 
     @classmethod
@@ -443,12 +442,12 @@ def get_supabase_client():
             Database.inicializar_tabelas()  # Força a carga das variáveis e tabelas
 
         if Database.supabase is None:
-            print("ERRO: Supabase não pôde ser inicializado. Verifique seu arquivo .env")
+            logger.error("ERRO: Supabase não pôde ser inicializado. Verifique seu arquivo .env")
             return None
 
         return Database.supabase
     except Exception as e:
-        print(f"Erro fatal ao conectar ao banco: {e}")
+        logger.critical(f"Erro fatal ao conectar ao banco Supabase: {e}", exc_info=True)
         return None
 
 
@@ -459,10 +458,9 @@ def get_supabase_admin_client():
             # Tenta inicializar novamente se for None
             Database.inicializar_tabelas()
             if Database.supabase_admin is None:
-                print(
-                    "ERRO: Supabase Admin não pôde ser inicializado. Verifique SUPABASE_SERVICE_ROLE_KEY.")
+                logger.error("ERRO: Supabase Admin não pôde ser inicializado. Verifique SUPABASE_SERVICE_ROLE_KEY.")
                 return None
         return Database.supabase_admin
     except Exception as e:
-        print(f"Erro fatal ao conectar ao Supabase Admin: {e}")
+        logger.critical(f"Erro fatal ao conectar ao Supabase Admin: {e}", exc_info=True)
         return None

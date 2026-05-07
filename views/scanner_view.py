@@ -33,19 +33,19 @@ def montar_tela_scanner(page: ft.Page):
 
         txt_unid = ft.TextField(
             label="Unidade",
-            prefix_icon=ft.icons.HOME,
+            prefix_icon="home",
             border_radius=10
         )
         txt_val = ft.TextField(
             label="Valor da Leitura",
-            prefix_icon=ft.icons.SPEED,
+            prefix_icon="speed",
             border_radius=10
         )
 
         # Botão de Reportar Problema (inicialmente invisível)
         btn_reportar_problema = ft.ElevatedButton(
             "REPORTAR PROBLEMA",
-            icon=ft.icons.BUG_REPORT,
+            icon="bug_report",
             visible=False,
             width=320,
             style=st.BTN_SPECIAL
@@ -182,7 +182,7 @@ def montar_tela_scanner(page: ft.Page):
             appbar=ft.AppBar(
                 title=ft.Text("Scanner AguaFlow"),
                 center_title=True,
-                leading=ft.IconButton(ft.icons.ARROW_BACK,
+                leading=ft.IconButton("arrow_back",
                                       on_click=lambda _: page.go("/medicao"))),
             controls=[
                 ft.Column([
@@ -204,14 +204,14 @@ def montar_tela_scanner(page: ft.Page):
                         btn_reportar_problema,  # Adiciona o botão de reportar
                         ft.ElevatedButton(
                             "CONFIRMAR",
-                            icon=ft.icons.CHECK,
+                            icon="check",
                             on_click=fechar_e_voltar,
                             width=160,
                             height=50
                         ),
                         ft.ElevatedButton(
                             "MANUAL",
-                            icon=ft.icons.KEYBOARD,
+                            icon="keyboard",
                             on_click=ir_para_manual,
                             width=140,
                             height=50,

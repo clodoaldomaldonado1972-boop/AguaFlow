@@ -1,23 +1,21 @@
 # 0. CONFIGURAÇÃO DE LOG
+import logging
 from database.sync_service import SyncService
 from database.database import Database
-import gc
 import flet as ft
 import asyncio
-import warnings
 import os
 import sys
 from utils.updater import AppUpdater
 from utils.logger_config import setup_logging
 
 setup_logging()  # Inicializa o sistema de logs profissional
-logger = logging.getLogger("AguaFlow.Main")
+logger = logging.getLogger(__name__)
 
 db_ready = False
 
 # 1. AJUSTE DE PATH E COMPATIBILIDADE
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 async def main(page: ft.Page):
@@ -35,7 +33,7 @@ async def main(page: ft.Page):
     # --- 1. LÓGICA DE ROTEAMENTO (VERSÃO LIMPA) ---
     async def route_change(e):
         try:
-            print(f"🛣️ Rota: {page.route}")
+            logger.debug(f"🛣️ Rota acessada: {page.route}")
             nova_view = None
 
             if page.route == "/" or page.route == "" or page.route is None:
@@ -49,7 +47,7 @@ async def main(page: ft.Page):
                 nova_view = auth_view.montar_tela_esqueci_senha(page)
             elif page.route == "/menu":
                 from views.menu_principal import montar_menu
-                print(f"🔄 Carregando view: Menu Principal")
+                logger.info("🔄 Carregando view: Menu Principal")
                 nova_view = montar_menu(page)
             elif page.route == "/medicao":
                 from views.medicao import montar_tela_medicao
@@ -79,11 +77,11 @@ async def main(page: ft.Page):
                 page.update()
             else:
                 page.go("/")
-                print(
+                logger.warning(
                     f"⚠️ Rota não encontrada: {page.route}. Redirecionando para /.")
 
         except Exception as ex:
-            print(f"❌ Erro na rota: {ex}")
+            logger.error(f"❌ Erro na rota: {ex}", exc_info=True)
             page.views.append(
                 ft.View("/", [ft.Text(f"Erro de carregamento: {ex}", color="red")]))
             page.update()
@@ -113,11 +111,11 @@ async def main(page: ft.Page):
         global db_ready
         try:
             logger.info("⚙️ Iniciando boot do banco de dados e sincronia...")
-            
+
             # Verificação silenciosa do serviço de e-mail
             from utils.logger_config import testar_configuracao_email
             await asyncio.to_thread(testar_configuracao_email)
-            
+
             await asyncio.to_thread(Database.inicializar_tabelas)
             db_ready = True
             asyncio.create_task(SyncService.processar_fila())

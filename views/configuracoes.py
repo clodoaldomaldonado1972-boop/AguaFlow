@@ -151,7 +151,7 @@ def montar_tela_configs(page: ft.Page):
             ),
             ft.Column([
                 ft.Container(height=20),
-                ft.Icon(ft.icons.LOCK_PERSON, size=64, color=st.PRIMARY_BLUE),
+                ft.Icon("lock_person", size=64, color=st.PRIMARY_BLUE),
                 ft.Text("Trocar Senha", size=20, weight="bold"),
                 ft.Text(f"Utilizador: {user_email}", size=14, color="grey"),
                 

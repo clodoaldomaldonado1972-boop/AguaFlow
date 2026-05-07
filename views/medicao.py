@@ -2,11 +2,13 @@ import flet as ft
 import asyncio
 import pytz  # Para garantir o horário de Brasília
 import logging
+import traceback
 from datetime import datetime
 from database.database import Database
 from database.sync_service import SyncService
 import views.styles as st  # Importando seus estilos personalizados
 from utils.auth_utils import validar_sessao
+from utils.logger_config import enviar_report_erro
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +33,12 @@ def montar_tela_medicao(page: ft.Page):
                 # Busca leituras do mês para filtrar pendências por tipo
                 leituras_mes = Database.get_leituras_mes_atual()
                 if state["modo"] == "AGUA":
-                    lidos = {l['unidade_id'] for l in leituras_mes if l['leitura_agua'] is not None}
+                    lidos = {l['unidade_id']
+                             for l in leituras_mes if l['leitura_agua'] is not None}
                 else:
-                    lidos = {l['unidade_id'] for l in leituras_mes if l['leitura_gas'] is not None}
-                
+                    lidos = {l['unidade_id']
+                             for l in leituras_mes if l['leitura_gas'] is not None}
+
                 unidade_atual = txt_unidade.value
                 idx_atual = db_lista.index(
                     unidade_atual) if unidade_atual in db_lista else -1
@@ -61,8 +65,8 @@ def montar_tela_medicao(page: ft.Page):
             initial_unit_value = last_read_unit_id
 
         # Elementos Visuais com ícones padronizados
-        img_icon = ft.Icon(ft.icons.WATER, color="blue", size=140)
-        icon_save = ft.Icon(ft.icons.SAVE, color="green",
+        img_icon = ft.Icon("water", color="blue", size=140)
+        icon_save = ft.Icon("save", color="green",
                             size=140, visible=False)
         lbl_modo = ft.Text("MODO: ÁGUA", color="blue", weight="bold", size=22)
 
@@ -76,7 +80,7 @@ def montar_tela_medicao(page: ft.Page):
 
         txt_agua = ft.TextField(
             label="Leitura Água (m³)",
-            icon=ft.icons.WATER_DROP,
+            icon="water_drop",
             width=320,
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.InputFilter(
@@ -87,7 +91,7 @@ def montar_tela_medicao(page: ft.Page):
 
         txt_gas = ft.TextField(
             label="Leitura Gás (m³)",
-            icon=ft.icons.LOCAL_FIRE_DEPARTMENT,
+            icon="local_fire_department",
             icon_color="orange",
             width=320,
             keyboard_type=ft.KeyboardType.NUMBER,
@@ -108,18 +112,18 @@ def montar_tela_medicao(page: ft.Page):
             """Atualiza cores e ícones dos campos conforme o modo (Água ou Gás)."""
             is_agua = state["modo"] == "AGUA"
             cor = ft.colors.BLUE if is_agua else ft.colors.ORANGE
-            icone = ft.icons.WATER_DROP if is_agua else ft.icons.LOCAL_FIRE_DEPARTMENT
-            
+            icone = "water_drop" if is_agua else "local_fire_department"
+
             # Atualiza Dropdown de Unidade
             txt_unidade.border_color = cor
             # Note: Dropdown não suporta prefix_icon em algumas versões do Flet, mas border_color é garantido
-            
+
             # Destaca a borda do campo correspondente ao modo ativo
             txt_agua.border_color = cor if is_agua else None
             txt_agua.disabled = not is_agua
             txt_gas.border_color = cor if not is_agua else None
             txt_gas.disabled = is_agua
-            
+
             # Atualiza o cabeçalho visual
             lbl_modo.value = f"MODO: {'ÁGUA' if is_agua else 'GÁS'}"
             lbl_modo.color = cor
@@ -156,7 +160,7 @@ def montar_tela_medicao(page: ft.Page):
 
         btn_finalizar_sinc = ft.ElevatedButton(
             "SINCRONIZAR E GERAR RELATÓRIO",
-            icon=ft.icons.CLOUD_UPLOAD,
+            icon="cloud_upload",
             bgcolor=st.SUCCESS_GREEN,
             color="white",
             visible=False,
@@ -166,7 +170,7 @@ def montar_tela_medicao(page: ft.Page):
 
         btn_reiniciar_ciclo = ft.ElevatedButton(
             "INICIAR NOVO CICLO",
-            icon=ft.icons.REPLAY,
+            icon="replay",
             bgcolor=ft.colors.ORANGE_800,
             color="white",
             visible=False,
@@ -196,7 +200,7 @@ def montar_tela_medicao(page: ft.Page):
         def exibir_concluido():
             lbl_modo.value = "TODAS AS UNIDADES LIDAS"
             lbl_modo.color = st.SUCCESS_GREEN
-            img_icon.name = ft.icons.CHECK_CIRCLE
+            img_icon.name = "check_circle"
             img_icon.color = st.SUCCESS_GREEN
             txt_unidade.visible = txt_agua.visible = txt_gas.visible = btn_gravar.visible = False
             btn_finalizar_sinc.visible = True
@@ -219,13 +223,15 @@ def montar_tela_medicao(page: ft.Page):
                     state["modo"] = "GAS"
                     unidade_atual = txt_unidade.value
                     # Extrai o andar (ex: "16" de "166" ou "163/164") para voltar ao início do hall
-                    prefixo = unidade_atual[:2] if unidade_atual[0].isdigit() and len(unidade_atual) >= 3 else ""
+                    prefixo = unidade_atual[:2] if unidade_atual[0].isdigit() and len(
+                        unidade_atual) >= 3 else ""
                     if prefixo:
-                        idx_volta = next(i for i, u in enumerate(db_lista) if u.startswith(prefixo))
+                        idx_volta = next(i for i, u in enumerate(
+                            db_lista) if u.startswith(prefixo))
                         txt_unidade.value = db_lista[idx_volta]
                 else:
                     state["modo"] = "AGUA"
-                
+
                 atualizar_estilos_modo()
                 if not escolha_gas:
                     avancar()
@@ -280,9 +286,11 @@ def montar_tela_medicao(page: ft.Page):
                 # Converte para float e garante 2 casas decimais (Padrão Renova)
                 v_agua = round(float(valor_agua), 2)
                 # Garante que 0.0 seja aceito e campos vazios virem None
-                v_gas = round(float(valor_gas), 2) if (valor_gas != "" and valor_gas is not None) else None
+                v_gas = round(float(valor_gas), 2) if (
+                    valor_gas != "" and valor_gas is not None) else None
                 # Padronização para ISO (YYYY-MM-DD) para busca correta no SQLite
-                data_coleta = datetime.now(fuso_sp).isoformat(sep=' ', timespec='seconds')
+                data_coleta = datetime.now(fuso_sp).isoformat(
+                    sep=' ', timespec='seconds')
             except ValueError:
                 page.snack_bar = ft.SnackBar(ft.Text("Valor inválido."))
                 page.snack_bar.open = True
@@ -312,14 +320,17 @@ def montar_tela_medicao(page: ft.Page):
 
                 # Lógica de transição de andar (Hall)
                 idx_atual = db_lista.index(current_unit)
-                proxima_unid = db_lista[idx_atual + 1] if idx_atual + 1 < len(db_lista) else None
-                
+                proxima_unid = db_lista[idx_atual +
+                                        1] if idx_atual + 1 < len(db_lista) else None
+
                 # Detecta se o próximo item é de outro andar ou área comum
-                prefixo_atual = current_unit[:2] if current_unit[0].isdigit() and len(current_unit) >= 3 else "FIM"
-                prefixo_prox = proxima_unid[:2] if proxima_unid and proxima_unid[0].isdigit() and len(proxima_unid) >= 3 else "FIM"
-                
+                prefixo_atual = current_unit[:2] if current_unit[0].isdigit() and len(
+                    current_unit) >= 3 else "FIM"
+                prefixo_prox = proxima_unid[:2] if proxima_unid and proxima_unid[0].isdigit(
+                ) and len(proxima_unid) >= 3 else "FIM"
+
                 if prefixo_atual != prefixo_prox and state["modo"] == "AGUA":
-                    abrir_dialogo_gas() # Oferece Gás antes de mudar de andar
+                    abrir_dialogo_gas()  # Oferece Gás antes de mudar de andar
                 else:
                     avancar()
             # Ensure the clear button visibility is updated
@@ -344,7 +355,7 @@ def montar_tela_medicao(page: ft.Page):
         # Botão para limpar a última leitura, visível apenas se houver uma última leitura salva
         btn_limpar_ultima_leitura = ft.TextButton(
             "Limpar Última Leitura",
-            icon=ft.icons.HIGHLIGHT_OFF,
+            icon="highlight_off",
             on_click=limpar_ultima_leitura,
             visible=user_data.get("last_read_unit_id") is not None
         )
@@ -355,7 +366,7 @@ def montar_tela_medicao(page: ft.Page):
             appbar=ft.AppBar(
                 title=ft.Text("Nova Medição"),
                 center_title=True,
-                leading=ft.IconButton(ft.icons.ARROW_BACK,
+                leading=ft.IconButton("arrow_back",
                                       on_click=lambda _: page.go("/menu"))
             ),
             controls=[
@@ -373,13 +384,14 @@ def montar_tela_medicao(page: ft.Page):
                     btn_gravar,
                     btn_finalizar_sinc,
                     btn_reiniciar_ciclo,
-                    ft.TextButton("ABRIR SCANNER OCR", icon=ft.icons.CAMERA_ALT,
+                    ft.TextButton("ABRIR SCANNER OCR", icon="camera_alt",
                                   on_click=lambda _: page.go("/scanner"))
                 ], horizontal_alignment="center", alignment=ft.MainAxisAlignment.CENTER, expand=True)
             ]
         )
     except Exception as e:
         logging.error(e)
+        enviar_report_erro(traceback.format_exc(), unidade="UI-MEDICAO")
         return ft.View(
             "/medicao",
             [ft.Text(

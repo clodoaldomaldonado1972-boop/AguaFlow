@@ -44,7 +44,7 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
                     ft.Row([
                         ft.Text(
                             f"Evolução: Unidade {unidade}", size=20, weight="bold"),
-                        ft.IconButton(ft.icons.CLOSE,
+                        ft.IconButton("close",
                                       on_click=fechar_bs, icon_color="red")
                         # Corrigido alinhamento, padronizado ícone
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, icon="close"),
@@ -98,13 +98,13 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
                     # Cards de Resumo
                     ft.ResponsiveRow([
                         st.criar_card_metrica("Lidas", str(
-                            lidas), ft.icons.CHECK_CIRCLE, "green", 3),
+                            lidas), "check_circle", "green", 3),
                         st.criar_card_metrica("Pendentes", str(
-                            unidades_pendentes), ft.icons.PENDING, st.ACCENT_ORANGE, 3),
+                            unidades_pendentes), "pending", st.ACCENT_ORANGE, 3),
                         st.criar_card_metrica(
-                            "Total Água", f"{total_agua:.1f}m³", ft.icons.WATER_DROP, st.PRIMARY_BLUE, 3),
+                            "Total Água", f"{total_agua:.1f}m³", "water_drop", st.PRIMARY_BLUE, 3),
                         st.criar_card_metrica(
-                            "Total Gás", f"{total_gas:.1f}m³", ft.icons.LOCAL_FIRE_DEPARTMENT, st.ACCENT_ORANGE, 3),
+                            "Total Gás", f"{total_gas:.1f}m³", "local_fire_department", st.ACCENT_ORANGE, 3),
                     ]),
 
                     ft.Text("Mapa de Coleta (Clique na unidade)",

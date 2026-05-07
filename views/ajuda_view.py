@@ -14,7 +14,7 @@ def montar_tela_ajuda(page: ft.Page, on_back):
     corpo_mensagem = (
         "Olá! Suporte AguaFlow. Estou no Condomínio Vivere Prudente e preciso de auxílio técnico.\n"
         f"Leiturista: {nome_leiturista}\n"
-        "Aparelho: Android - AguaFlow v1.1.2\n"
+        "Aparelho: Android - AguaFlow v1.2.0\n"
         f"Contexto: {page.route}"
     )
 
@@ -30,19 +30,21 @@ def montar_tela_ajuda(page: ft.Page, on_back):
         try:
             # Força um erro de conexão simulado para o relatório
             erro_simulado = "SimulatedConnectionError: [TESTE] Falha ao alcançar o servidor Supabase (Timeout 30s)."
-            
+
             # Executa o envio em uma thread separada para não travar a interface Flet
             # enviar_report_erro utiliza smtplib que é uma biblioteca bloqueante
             await asyncio.to_thread(
-                enviar_report_erro, 
-                erro_detalhado=erro_simulado, 
-                unidade="DEBUG-HALL", 
+                enviar_report_erro,
+                erro_detalhado=erro_simulado,
+                unidade="DEBUG-HALL",
                 leiturista=nome_leiturista
             )
-            page.snack_bar = ft.SnackBar(ft.Text("✅ E-mail de teste enviado! Verifique o destinatário."), bgcolor=st.SUCCESS_GREEN)
+            page.snack_bar = ft.SnackBar(ft.Text(
+                "✅ E-mail de teste enviado! Verifique o destinatário."), bgcolor=st.SUCCESS_GREEN)
         except Exception as ex:
-            page.snack_bar = ft.SnackBar(ft.Text(f"❌ Erro no envio do teste: {ex}"), bgcolor="red")
-        
+            page.snack_bar = ft.SnackBar(
+                ft.Text(f"❌ Erro no envio do teste: {ex}"), bgcolor="red")
+
         page.snack_bar.open = True
         e.control.disabled = False
         e.control.text = "TESTE DE RELATÓRIO"
@@ -54,20 +56,20 @@ def montar_tela_ajuda(page: ft.Page, on_back):
         vertical_alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
-            ft.Icon(ft.icons.HELP_CENTER_OUTLINED,
+            ft.Icon("help_center_outlined",
                     size=80, color=st.PRIMARY_BLUE),
             ft.Text("Suporte Técnico", size=24, weight="bold", color="white"),
             ft.Container(height=20),
             ft.ElevatedButton(
                 "CHAMAR SUPORTE NO WHATSAPP",
-                icon=ft.icons.WHATSAPP,
+                icon="whatsapp",
                 style=st.BTN_SPECIAL,
                 on_click=lambda _: page.launch_url(url_suporte),
                 width=320, height=60
             ),
             ft.ElevatedButton(
                 "TESTE DE RELATÓRIO",
-                icon=ft.icons.EMAIL_OUTLINED,
+                icon="email_outlined",
                 on_click=disparar_teste_erro,
                 width=320, height=60
             ),

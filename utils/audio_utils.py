@@ -57,4 +57,4 @@ def tocar_alerta(page: ft.Page, tipo="sucesso"):
     try:
         audio.play()
     except Exception as e:
-        print(f"Erro ao tocar som no Android: {e}")
+        # Erros de áudio não devem disparar report de e-mail por não serem fatais

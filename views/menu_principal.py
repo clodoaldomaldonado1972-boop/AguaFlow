@@ -27,8 +27,8 @@ def montar_menu(page: ft.Page):
         if is_offline:
             app_bar_actions.append(
                 ft.Container(
-                    # Ícone universal
-                    content=ft.Icon(ft.icons.CLOUD_OFF, color="orange"),
+                    # Usando string para evitar AttributeError no Android
+                    content=ft.Icon("cloud_off", color="orange"),
                     tooltip="Modo Offline: As medições serão salvas apenas no dispositivo",
                     padding=ft.padding.only(right=20)
                 )
@@ -69,7 +69,7 @@ def montar_menu(page: ft.Page):
         # Adiciona o botão de Logout (Sair) na AppBar usando ícone universal
         app_bar_actions.append(
             ft.IconButton(
-                icon=ft.icons.LOGOUT,
+                icon="power_settings_new",
                 tooltip="Sair do Sistema",
                 on_click=confirmar_logout
             )
@@ -94,26 +94,26 @@ def montar_menu(page: ft.Page):
                         # Funcionalidades Comuns com ícones universais
                         ft.ElevatedButton(
                             "Medição",
-                            icon=ft.icons.SPEED,
+                            icon="speed",
                             on_click=lambda _: page.go("/medicao"),
                             width=250, height=50
                         ),
-                        ft.ElevatedButton("Scanner", icon=ft.icons.QR_CODE_SCANNER, on_click=lambda _: page.go(
+                        ft.ElevatedButton("Scanner", icon="qr_code_scanner", on_click=lambda _: page.go(
                             "/scanner"), width=250, height=50),
-                        ft.ElevatedButton("Sincronizar Dados", icon=ft.icons.CLOUD_UPLOAD, on_click=lambda _: page.go(
+                        ft.ElevatedButton("Sincronizar Dados", icon="cloud_upload", on_click=lambda _: page.go(
                             "/sincronizar"), width=250, height=50),
 
                         # Funcionalidades Administrativas (Visíveis apenas para Admin)
                         ft.Column([
-                            ft.ElevatedButton("Dashboard de Saúde", icon=ft.icons.HEALTH_AND_SAFETY, on_click=lambda _: page.go(
+                            ft.ElevatedButton("Dashboard de Saúde", icon="health_and_safety", on_click=lambda _: page.go(
                                 "/dashboard_saude"), width=250, height=50),
-                            ft.ElevatedButton("Gerenciar Usuários", icon=ft.icons.PEOPLE_ALT, on_click=lambda _: page.go(
+                            ft.ElevatedButton("Gerenciar Usuários", icon="people_alt", on_click=lambda _: page.go(
                                 "/usuarios"), width=250, height=50),
-                            ft.ElevatedButton("Relatórios", icon=ft.icons.SUMMARIZE, on_click=lambda _: page.go(
+                            ft.ElevatedButton("Relatórios", icon="summarize", on_click=lambda _: page.go(
                                 "/relatorios"), width=250, height=50),
                         ], visible=user_role == "admin", horizontal_alignment="center"),
 
-                        ft.ElevatedButton("Configurações", icon=ft.icons.SETTINGS, on_click=lambda _: page.go(
+                        ft.ElevatedButton("Configurações", icon="settings", on_click=lambda _: page.go(
                             "/configuracoes"), width=250, height=50),
                     ],
                     alignment="center", horizontal_alignment="center", expand=True

@@ -3,7 +3,7 @@ import os
 from database.database import get_supabase_client
 
 # --- ALTERE SOMENTE AQUI ---
-VERSION = "1.1.2"
+VERSION = "1.2.0"
 CONDOMINIO = "Vivere Prudente"
 
 class AppUpdater:
@@ -38,7 +38,7 @@ class AppUpdater:
                     return True
             return False
         except Exception as e:
-            print(f"[UPDATER] Erro: {e}")
+            # Falha silenciosa no updater para não interromper o fluxo do leiturista
             return False
 
     @staticmethod

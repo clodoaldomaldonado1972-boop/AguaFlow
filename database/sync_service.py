@@ -55,7 +55,8 @@ class SyncService:
                             leitura_gas, 
                             tipo, 
                             data_hora_coleta, 
-                            path_foto
+                            path_foto,
+                            leiturista
                         FROM leituras 
                         WHERE sincronizado = 0 
                         ORDER BY id ASC
@@ -135,9 +136,30 @@ class SyncService:
     async def _upload_individual(cls, item, valor, tipo_reg, data_iso):
         """Lógica de upload individual para cada tipo de leitura (Água ou Gás)"""
         try:
-            # Aqui a lógica deve mapear os dados para o formato esperado pelo Supabase
+            from database.database import get_supabase_client
+            supabase = get_supabase_client()
+            if not supabase:
+                return {'sucesso': False, 'erro': 'Sem conexão com Supabase'}
+
+            # Mapeamento para as novas colunas específicas do Supabase (v1.2.0)
+            dados = {
+                "unidade_id": item['unidade_id'],
+                "tipo_registro": tipo_reg,
+                "leiturista": item.get('leiturista') or 'Zelador',
+                "data_hora_coleta": item['data_hora_coleta'] or data_iso
+            }
+
+            # Envia o valor para a coluna correspondente
+            if "Água" in tipo_reg or "AGUA" in tipo_reg:
+                dados["leitura_agua"] = valor
+            elif "Gás" in tipo_reg or "GAS" in tipo_reg:
+                dados["leitura_gas"] = valor
+
+            # Realiza a inserção no Supabase
+            supabase.table("leituras").insert(dados).execute()
             return {'sucesso': True}
         except Exception as e:
+            logger.error(f"Erro no upload individual ({item['unidade_id']}): {e}")
             return {'sucesso': False, 'erro': str(e)}
 
     @classmethod
@@ -159,16 +181,24 @@ class SyncService:
             with Database.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT id, unidade_id, valor_leitura, tipo_registro, tipo, data_hora_coleta, path_foto
+                    SELECT id, unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, path_foto, leiturista
                     FROM leituras WHERE sincronizado = 0
                 """)
                 pendentes = cursor.fetchall()
 
                 for item in pendentes:
                     data_sp = dt.now(cls.TZ_SP).isoformat()
-                    resultado = await cls._upload_individual(item, item.get('leitura_agua'), "Manual", data_sp)
+                    sucesso_item = True
+                    
+                    if item['leitura_agua'] is not None:
+                        res = await cls._upload_individual(item, item['leitura_agua'], "Água", data_sp)
+                        if not res['sucesso']: sucesso_item = False
+                        
+                    if item['leitura_gas'] is not None:
+                        res = await cls._upload_individual(item, item['leitura_gas'], "Gás", data_sp)
+                        if not res['sucesso']: sucesso_item = False
 
-                    if resultado['sucesso']:
+                    if sucesso_item:
                         cursor.execute(
                             "UPDATE leituras SET sincronizado = 1 WHERE id = ?", (item['id'],))
                         cls._registrar_log_sync(

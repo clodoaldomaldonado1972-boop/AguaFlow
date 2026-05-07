@@ -31,7 +31,7 @@ def montar_tela_usuarios(page: ft.Page):
 
     txt_busca = ft.TextField(
         label="Buscar por nome ou e-mail",
-        prefix_icon=ft.icons.SEARCH,
+        prefix_icon="search",
         on_change=lambda e: carregar_usuarios(e.control.value),
         width=350
     )
@@ -184,13 +184,13 @@ def montar_tela_usuarios(page: ft.Page):
                 ft.Container(
                     content=ft.Row([
                         ft.Icon(
-                            ft.icons.PERSON, color=st.PRIMARY_BLUE if role == "admin" else "grey"),
+                            "person", color=st.PRIMARY_BLUE if role == "admin" else "grey"),
                         ft.Column([
                             ft.Row([
                                 ft.Text(user['nome'], weight="bold", size=14),
                                 # Indicador de Sincronização (Nuvem cortada se offline)
                                 ft.Icon(
-                                    ft.icons.CLOUD_OFF_OUTLINED,
+                                    "cloud_off_outlined",
                                     color=st.ACCENT_ORANGE,
                                     size=16,
                                     tooltip="Alteração local pendente de sincronia",
@@ -211,7 +211,7 @@ def montar_tela_usuarios(page: ft.Page):
                                 alterar_role, u, e.control.value)
                         ),
                         ft.IconButton(
-                            icon=ft.icons.DELETE_OUTLINE,
+                            icon="delete_outline",
                             icon_color="red700",
                             tooltip="Excluir Usuário",
                             on_click=lambda e, u=email: abrir_dialogo_exclusao(
@@ -250,7 +250,7 @@ def montar_tela_usuarios(page: ft.Page):
                 ft.Container(height=10),
                 ft.ElevatedButton(
                     "CRIAR NOVO USUÁRIO",
-                    icon=ft.icons.PERSON_ADD,
+                    icon="person_add",
                     on_click=criar_novo_usuario_dialog,
                     width=350,
                     height=50,

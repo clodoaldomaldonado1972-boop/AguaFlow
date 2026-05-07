@@ -121,7 +121,7 @@ def marcar_como_sincronizado_local(id_unidade: str):
             conn.commit()
             return True
     except Exception as e:
-        print(f"❌ Erro ao atualizar SQLite local: {e}")
+        logger.error(f"❌ Erro ao atualizar status de sincronia no SQLite local: {e}")
         return False
 
 
@@ -138,11 +138,18 @@ def insert_leitura_supabase(id_unidade: str, valor: float, tipo_leitura: str = "
     try:
         dados = {
             "unidade_id": id_unidade,
-            "valor_leitura": valor,
             "tipo_registro": tipo_leitura,
             "leiturista": leiturista,
             "data_hora_coleta": data_hora_coleta
         }
+
+        # Mapeamento v1.2.0: Direciona para as colunas específicas
+        if "Água" in tipo_leitura:
+            dados["leitura_agua"] = valor
+        elif "Gás" in tipo_leitura:
+            dados["leitura_gas"] = valor
+        else:
+            dados["valor_leitura"] = valor
 
         response = cliente.table('leituras').insert(dados).execute()
 
@@ -159,7 +166,7 @@ def insert_leitura_supabase(id_unidade: str, valor: float, tipo_leitura: str = "
             }
 
     except Exception as e:
-        print(f"⚠️ Falha na sincronia: {e}")
+        logger.warning(f"⚠️ Falha na sincronia individual de leitura: {e}")
         return {'sucesso': False, 'mensagem': f'Erro: {e}'}
 
 def deletar_usuario_supabase(email: str):

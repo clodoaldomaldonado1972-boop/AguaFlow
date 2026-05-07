@@ -1,9 +1,12 @@
 import flet as ft
 import asyncio
 import os
+import logging
 import views.styles as st
 from database.database import Database, get_supabase_client
 from utils.updater import AppUpdater
+
+logger = logging.getLogger(__name__)
 
 
 def montar_tela_esqueci_senha(page: ft.Page):
@@ -17,7 +20,7 @@ def montar_tela_esqueci_senha(page: ft.Page):
             vertical_alignment="center",
             horizontal_alignment="center",
             controls=[
-                ft.Icon(ft.icons.LOCK_RESET, size=80, color="orange"),
+                ft.Icon("lock_reset", size=80, color="orange"),
                 ft.Text("Recuperar Senha", size=24, weight="bold", color="white"),
                 ft.Container(height=10),
                 txt_email,
@@ -67,7 +70,7 @@ def criar_tela_login(page: ft.Page):
                         page.go("/menu")
                         return
                 except Exception:
-                    print("⚠️ Falha online, tentando offline...")
+                    logger.info("ℹ️ Login: Falha na autenticação online. Tentando fallback offline (SQLite)...")
 
             # Fallback: Login Offline (SQLite)
             user_local = Database.validar_login_offline(email, senha)
