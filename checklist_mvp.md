@@ -124,12 +124,17 @@
 | Rota /qrcodes | ✅ Carrega sem erros |
 | Rota /sobre | ✅ Carrega (back corrigido → /menu) |
 | Rota /ajuda | ⚠️ Registrada, não testada com log |
-| **Teste OCR — temp/ (22 fotos) — 2026-05-14** | |
+| **Teste OCR — temp/ (22 fotos) — 2026-05-14 v1** | |
 | QR Code detecção (14/22 fotos) | ✅ QR lido corretamente (ex: `AGUAFLOW\|151-AGUA`, `AGUAFLOW\|163/164-AGUA`) |
 | OCR Tesseract (3/22 fotos) | ⚠️ Taxa baixa — retorna fragmentos (2, 3, 2) em vez de leitura completa |
-| **OCR Claude Vision (22/22 fotos)** | ✅ **100% taxa de leitura** — ex: `real_161→2673.536`, `real_162→23087.0`, `real_152-gas→1595.956` |
-| Scanner → OCR → valor pré-preenchido | ✅ `valor_scanner` agora populado automaticamente no `/medicao` |
-| Supabase: consulta tabela leituras | ✅ 20 registros retornados (colunas corretas: `data_hora_coleta`) |
+| **Teste OCR — temp/ (22 fotos) — 2026-05-14 v2 (Claude Haiku Vision)** | |
+| OCR Claude Vision — ÁGUA (13 fotos) | ✅ 13/13 — ex: `151→260.12`, `162→22786.0`, `real_161→2678.5`, `real_162→23087.0` |
+| OCR Claude Vision — GÁS (9 fotos) | ✅ 9/9 — ex: `152-gas→1584.48`, `156-gas→327.833`, `real_152→1595.956`, `155-gas→214.835` |
+| QR detectado neste lote | ✅ 11/22 — `151-AGUA`, `152-GAS`, `153-AGUA`, `154-AGUA`, `155-AGUA`, `156-AGUA`, `156-GAS`, `161-AGUA`, `162-AGUA`, `163/164-AGUA`, `165-AGUA`, `real_156-GAS`, `real_162-AGUA` |
+| Taxa geral OCR | ✅ **22/22 (100%)** — Claude Vision + Tesseract fallback |
+| Scanner → OCR → valor pré-preenchido | ✅ `valor_scanner` populado automaticamente no `/medicao` |
+| Supabase: consulta tabela leituras | ✅ 34 registros, colunas `leitura_agua`/`leitura_gas` corrigidas no sync |
+| Fix sync GAS mode | ✅ `leitura_gas` e `valor_leitura` agora corretos para modo GÁS |
 | Tesseract PATH no Windows | ⚠️ Não está no PATH — requer `pytesseract.tesseract_cmd` explícito (fallback offline) |
 
 ---
