@@ -83,7 +83,7 @@ teste_local.py
 teste_email.py
 relatorio_leituras_*.txt
 teste*.jpg
-
+testes/
 # ========== NODE (OPCIONAL) ==========
 node_modules/
 npm-debug.log
