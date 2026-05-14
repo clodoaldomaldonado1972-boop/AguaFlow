@@ -125,9 +125,15 @@ def criar_tela_login(page: ft.Page):
             controls=[
                 ft.Container(
                     content=ft.Column([
+                        ft.Image(
+                            src="logo.jpeg",
+                            width=90, height=90,
+                            fit=ft.ImageFit.CONTAIN,
+                            border_radius=ft.border_radius.all(45),
+                        ),
                         ft.Text("AguaFlow", size=32, weight="bold", color="white"),
-                        ft.Text("CONDOMÍNIO EDIF. VIVERE PRUDENTE",
-                                weight="bold", color="#0D47A1"),
+                        ft.Text("Condomínio Vivere Prudente",
+                                weight="bold", color="#2196F3"),
                         ft.Divider(height=20, color="transparent"),
                         txt_user,
                         txt_pass,

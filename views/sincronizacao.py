@@ -136,7 +136,7 @@ class SincronizadorUI:
         """
         try:
             # 1. ESTADO: INICIANDO
-            self.btn_sync.prefix_icon_color = "blue600"
+            self.btn_sync.icon_color = "blue600"
             self.btn_sync.disabled = True
             self.txt_status.value = "Conectando ao servidor..."
             self.page.update()
@@ -150,11 +150,11 @@ class SincronizadorUI:
             if qtd_sincronizada > 0:
                 await asyncio.to_thread(executar_backup_seguranca)
                 feedback_msg = f"Sucesso: {qtd_sincronizada} leituras enviadas e backup gerado!"
-                self.btn_sync.prefix_icon_color = "green600"
+                self.btn_sync.icon_color = "green600"
             else:
                 # Se não sincronizou nada, ainda assim é bom fazer um backup se houver alterações locais não sincronizadas
                 feedback_msg = "O sistema já está atualizado."
-                self.btn_sync.prefix_icon_color = "bluegrey200"
+                self.btn_sync.icon_color = "bluegrey200"
 
             # 4. FEEDBACK AO USUÁRIO
             self.page.snack_bar = ft.SnackBar(
@@ -168,7 +168,7 @@ class SincronizadorUI:
             
         except Exception as ex:
             # 5. TRATAMENTO DE ERRO (Ex: Falta de internet no condomínio)
-            self.btn_sync.prefix_icon_color = "red600"
+            self.btn_sync.icon_color = "red600"
             self.btn_sync.disabled = False
             self.txt_status.value = "Erro na sincronia"
             

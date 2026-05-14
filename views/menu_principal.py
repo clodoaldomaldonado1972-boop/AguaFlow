@@ -1,6 +1,7 @@
 import flet as ft
 import views.styles as st  # Importar estilos para cores
 from utils.auth_utils import validar_sessao
+from utils.updater import AppUpdater
 
 
 def montar_menu(page: ft.Page):
@@ -90,35 +91,54 @@ def montar_menu(page: ft.Page):
                 ),
                 ft.Column(
                     [
-                        # Funcionalidades Comuns com ícones universais
-                        ft.ElevatedButton(
-                            "Medição",
-                            icon="speed",
-                            on_click=lambda _: page.go("/medicao"),
-                            width=250, height=50
+                        ft.Column(
+                            [
+                                # Funcionalidades Comuns
+                                ft.ElevatedButton(
+                                    "Medição",
+                                    icon="speed",
+                                    on_click=lambda _: page.go("/medicao"),
+                                    width=250, height=50
+                                ),
+                                ft.ElevatedButton("Scanner", icon="qr_code_scanner", on_click=lambda _: page.go(
+                                    "/scanner"), width=250, height=50),
+                                ft.ElevatedButton("Sincronizar Dados", icon="cloud_upload", on_click=lambda _: page.go(
+                                    "/sincronizar"), width=250, height=50),
+
+                                # Funcionalidades Administrativas
+                                ft.Column([
+                                    ft.ElevatedButton("Dashboard de Saúde", icon="health_and_safety", on_click=lambda _: page.go(
+                                        "/dashboard_saude"), width=250, height=50),
+                                    ft.ElevatedButton("Gerenciar Usuários", icon="people_alt", on_click=lambda _: page.go(
+                                        "/usuarios"), width=250, height=50),
+                                    ft.ElevatedButton("Relatórios", icon="summarize", on_click=lambda _: page.go(
+                                        "/relatorios"), width=250, height=50),
+                                ], visible=user_role == "admin", horizontal_alignment="center"),
+
+                                ft.ElevatedButton("Configurações", icon="settings", on_click=lambda _: page.go(
+                                    "/configuracoes"), width=250, height=50),
+                            ],
+                            horizontal_alignment="center", spacing=10,
                         ),
-                        ft.ElevatedButton("Scanner", icon="qr_code_scanner", on_click=lambda _: page.go(
-                            "/scanner"), width=250, height=50),
-                        ft.ElevatedButton("Sincronizar Dados", icon="cloud_upload", on_click=lambda _: page.go(
-                            "/sincronizar"), width=250, height=50),
-
-                        # Funcionalidades Administrativas (Visíveis apenas para Admin)
-                        ft.Column([
-                            ft.ElevatedButton("Dashboard de Saúde", icon="health_and_safety", on_click=lambda _: page.go(
-                                "/dashboard_saude"), width=250, height=50),
-                            ft.ElevatedButton("Gerenciar Usuários", icon="people_alt", on_click=lambda _: page.go(
-                                "/usuarios"), width=250, height=50),
-                            ft.ElevatedButton("Relatórios", icon="summarize", on_click=lambda _: page.go(
-                                "/relatorios"), width=250, height=50),
-                        ], visible=user_role == "admin", horizontal_alignment="center"),
-
-                        ft.ElevatedButton("Configurações", icon="settings", on_click=lambda _: page.go(
-                            "/configuracoes"), width=250, height=50),
+                        ft.Column(
+                            [
+                                ft.Divider(color="white10"),
+                                ft.Text(
+                                    AppUpdater.get_footer(),
+                                    size=11, color="grey", italic=True,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                            ],
+                            horizontal_alignment="center", spacing=4,
+                        ),
                     ],
-                    alignment="center", horizontal_alignment="center", expand=True
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    horizontal_alignment="center",
+                    expand=True,
                 ),
             ],
-            vertical_alignment="center", horizontal_alignment="center",
+            vertical_alignment=ft.MainAxisAlignment.START,
+            horizontal_alignment="center",
         )
 
     except Exception as e:

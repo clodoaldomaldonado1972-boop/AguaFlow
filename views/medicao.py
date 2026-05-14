@@ -92,7 +92,6 @@ def montar_tela_medicao(page: ft.Page):
         txt_gas = ft.TextField(
             label="Leitura Gás (m³)",
             icon="local_fire_department",
-            icon_color="orange",
             width=320,
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.InputFilter(
