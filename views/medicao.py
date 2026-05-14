@@ -389,7 +389,7 @@ def montar_tela_medicao(page: ft.Page):
                             page.go("/scanner")
                         )
                     )
-                ], horizontal_alignment="center", spacing=10, expand=True,
+                ], horizontal_alignment="center", spacing=10,
                    scroll=ft.ScrollMode.ADAPTIVE)
             ]
         )
