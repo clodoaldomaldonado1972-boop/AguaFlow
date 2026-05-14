@@ -85,7 +85,7 @@ def montar_tela_autenticacao(page: ft.Page):
                     ),
                     ft.TextButton("Já tenho conta? Entrar",
                                   on_click=lambda _: page.go("/")),
-                    ft.Text(AppUpdater.get_version_footer(),
+                    ft.Text(AppUpdater.get_footer(),
                             size=10, color="grey")
                 ], horizontal_alignment="center")
             ]
