@@ -79,9 +79,9 @@
 ## PENDÊNCIAS PARA MVP
 
 ### Crítico
-- [ ] **Registrar rotas ausentes** no roteador (`main.py`): `/ajuda`, `/historico`, `/dashboard`, `/qrcodes`
-- [ ] **Adicionar botão "Sobre"** no menu principal (rota `/sobre` existe mas inacessível)
-- [ ] **Corrigir `redirect_to`** em `recuperar_senha_email.py`: substituir `localhost:8550` pela URL de produção do app
+- [x] **Registrar rotas ausentes** no roteador (`main.py`): `/ajuda`, `/historico`, `/dashboard`, `/qrcodes`
+- [x] **Adicionar botões** no menu principal: Histórico, QR Codes, Ajuda, Sobre (row de TextButtons)
+- [x] **Corrigir `redirect_to`** em `recuperar_senha_email.py`: substituído `localhost:8550` pela URL do Supabase Auth
 
 ### Importante
 - [ ] **Botões de acesso** para `/ajuda` e `/historico` no menu (usuários comuns não têm como chegar lá)

@@ -27,7 +27,7 @@ def criar_tela_recuperacao(page: ft.Page):
             # Comando oficial do Supabase para disparar o e-mail
             supabase.auth.reset_password_for_email(
                 txt_email.value,
-                {"redirect_to": "http://localhost:8550/reset-password"}
+                {"redirect_to": "https://rpacxhgvscqnlawxgwfk.supabase.co/auth/v1/verify"}
             )
             lbl_status.value = "Link enviado! Verifique sua caixa de entrada."
             lbl_status.color = "green"

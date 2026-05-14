@@ -76,6 +76,18 @@ async def main(page: ft.Page):
             elif page.route == "/sobre":
                 from views.sobre_view import montar_tela_sobre
                 nova_view = montar_tela_sobre(page)
+            elif page.route == "/ajuda":
+                from views.ajuda_view import montar_tela_ajuda
+                nova_view = montar_tela_ajuda(page, on_back=lambda: page.go("/menu"))
+            elif page.route == "/historico":
+                from views.historico import montar_tela_historico
+                nova_view = await montar_tela_historico(page)
+            elif page.route == "/dashboard":
+                from views.dashboard import montar_tela_dashboard
+                nova_view = montar_tela_dashboard(page, ao_voltar=lambda: page.go("/menu"))
+            elif page.route == "/qrcodes":
+                from views.qrcodes_view import montar_tela_qrcodes
+                nova_view = montar_tela_qrcodes(page, on_back=lambda: page.go("/menu"))
 
             if nova_view:
                 page.views.clear()

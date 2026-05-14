@@ -109,6 +109,12 @@ def montar_menu(page: ft.Page):
 
                                 ft.ElevatedButton("Configurações", icon="settings", on_click=lambda _: page.go(
                                     "/configuracoes"), width=250, height=50),
+                                ft.Row([
+                                    ft.TextButton("Histórico", icon="history", on_click=lambda _: page.go("/historico")),
+                                    ft.TextButton("QR Codes", icon="qr_code", on_click=lambda _: page.go("/qrcodes")),
+                                    ft.TextButton("Ajuda", icon="help_outline", on_click=lambda _: page.go("/ajuda")),
+                                    ft.TextButton("Sobre", icon="info_outline", on_click=lambda _: page.go("/sobre")),
+                                ], alignment=ft.MainAxisAlignment.CENTER, wrap=True),
                             ],
                             horizontal_alignment="center", spacing=10,
                         ),
