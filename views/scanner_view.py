@@ -8,6 +8,7 @@ import cv2
 from database.database import Database
 import views.styles as st
 from utils.updater import AppUpdater
+from utils.vision import processar_foto_hidrometro
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,18 @@ def montar_tela_scanner(page: ft.Page):
             width=300
         )
 
+        txt_valor_ocr = ft.TextField(
+            label="Leitura OCR (confirme ou corrija)",
+            prefix_icon="straighten",
+            border_radius=10,
+            bgcolor="#1E2126",
+            width=300,
+            visible=False,
+            hint_text="ex: 00542.30",
+            keyboard_type=ft.KeyboardType.NUMBER,
+        )
+        lbl_ocr_status = ft.Text("", size=11, color="grey", italic=True)
+
         btn_confirmar = ft.ElevatedButton(
             "CONFIRMAR E INSERIR MANUAL",
             icon="edit_note",
@@ -80,6 +93,9 @@ def montar_tela_scanner(page: ft.Page):
             btn_confirmar.visible = False
             btn_recapturar.visible = False
             txt_unid.value = ""
+            txt_valor_ocr.value = ""
+            txt_valor_ocr.visible = False
+            lbl_ocr_status.value = ""
             page.update()
 
             try:
@@ -119,12 +135,35 @@ def montar_tela_scanner(page: ft.Page):
 
                 if unidade:
                     txt_unid.value = unidade
-                    lbl_status.value = f"✅ Unidade: {unidade}"
+                    lbl_status.value = f"✅ Unidade: {unidade} — lendo hidrômetro..."
                     lbl_status.color = "green"
                 else:
                     txt_unid.value = ""
-                    lbl_status.value = "⚠️ QR não detectado — confirme a unidade no próximo passo."
+                    lbl_status.value = "⚠️ QR não detectado — lendo hidrômetro..."
                     lbl_status.color = "orange"
+                page.update()
+
+                # OCR da leitura (Claude Vision → Tesseract fallback)
+                tipo_str = "gás" if modo == "GAS" else "água"
+                _, valor_ocr = await asyncio.to_thread(
+                    processar_foto_hidrometro, path, tipo_str
+                )
+
+                if valor_ocr:
+                    txt_valor_ocr.value = valor_ocr
+                    txt_valor_ocr.visible = True
+                    lbl_ocr_status.value = f"OCR detectou: {valor_ocr} — corrija se necessário"
+                    lbl_ocr_status.color = "green600"
+                else:
+                    txt_valor_ocr.value = ""
+                    txt_valor_ocr.visible = True
+                    lbl_ocr_status.value = "OCR não detectou leitura — insira manualmente"
+                    lbl_ocr_status.color = "orange"
+
+                if unidade:
+                    lbl_status.value = f"✅ Unidade: {unidade}"
+                else:
+                    lbl_status.value = "⚠️ QR não detectado — confirme a unidade no próximo passo."
 
                 # Upload para Supabase em background — não bloqueia a UI
                 asyncio.create_task(
@@ -164,7 +203,7 @@ def montar_tela_scanner(page: ft.Page):
 
         async def _confirmar_e_voltar():
             page.user_data["unidade_scanner"] = state.get("unidade") or ""
-            page.user_data["valor_scanner"] = ""
+            page.user_data["valor_scanner"] = txt_valor_ocr.value or ""
             page.go("/medicao")
 
         container_mira = ft.Container(
@@ -200,6 +239,8 @@ def montar_tela_scanner(page: ft.Page):
                     ft.Container(height=8),
                     img_preview,
                     txt_unid,
+                    txt_valor_ocr,
+                    lbl_ocr_status,
                     ft.Container(height=10),
                     btn_confirmar,
                     btn_recapturar,

@@ -57,7 +57,8 @@
 - [x] Lê dígitos vermelhos como casas decimais
 - [x] Aceita até 3 casas decimais (ex: `328.936`)
 - [x] Atualiza `leituras.valor_leitura` no Supabase via webhook pg_net
-- [x] OCR validado em 3 fotos reais: `32.89→328.936`, `2673`, `23087`
+- [x] OCR validado em 22/22 fotos (Claude Haiku Vision): `real_161→2673.536`, `real_162→23087.0`, `real_152-gas→1595.956`
+- [x] Scanner popula `valor_scanner` automaticamente → campo pré-preenchido em `/medicao`
 
 ### Sincronização
 - [x] Sync automático em loop (60s) ao iniciar o app
@@ -99,7 +100,7 @@
 - [ ] `historico.py`: `gc.collect()` após envio de e-mail (já com import `gc` adicionado)
 - [ ] Deprecation warning: `ft.app()` → `ft.run()` (main.py:166)
 - [ ] QR codes nas fotos do scanner: considerar compor QR+hidrômetro em uma única captura
-- [ ] **OCR Tesseract** — taxa real baixa (3/22). Melhorar: ROI crop na região dos dígitos, ajustar `--psm 6` (bloco), adicionar erosão/dilatação. Alternativa: usar Claude Vision direto sem Tesseract
+- [x] **OCR Claude Vision** — `utils/vision.py` usa Claude Haiku como primário (22/22), Tesseract como fallback offline. Scanner popula `valor_scanner` automaticamente.
 - [ ] **Tesseract PATH** — adicionar `C:\Program Files\Tesseract-OCR` ao PATH do sistema para evitar `tesseract_cmd` hardcoded
 
 ---
@@ -126,9 +127,10 @@
 | **Teste OCR — temp/ (22 fotos) — 2026-05-14** | |
 | QR Code detecção (14/22 fotos) | ✅ QR lido corretamente (ex: `AGUAFLOW\|151-AGUA`, `AGUAFLOW\|163/164-AGUA`) |
 | OCR Tesseract (3/22 fotos) | ⚠️ Taxa baixa — retorna fragmentos (2, 3, 2) em vez de leitura completa |
-| Fotos real_* sem QR embarcado | ❌ QR ausente + OCR falhou (configuração psm7 inadequada) |
+| **OCR Claude Vision (22/22 fotos)** | ✅ **100% taxa de leitura** — ex: `real_161→2673.536`, `real_162→23087.0`, `real_152-gas→1595.956` |
+| Scanner → OCR → valor pré-preenchido | ✅ `valor_scanner` agora populado automaticamente no `/medicao` |
 | Supabase: consulta tabela leituras | ✅ 20 registros retornados (colunas corretas: `data_hora_coleta`) |
-| Tesseract PATH no Windows | ⚠️ Não está no PATH — requer `pytesseract.tesseract_cmd` explícito |
+| Tesseract PATH no Windows | ⚠️ Não está no PATH — requer `pytesseract.tesseract_cmd` explícito (fallback offline) |
 
 ---
 
