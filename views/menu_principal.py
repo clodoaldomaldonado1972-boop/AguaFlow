@@ -69,6 +69,7 @@ def montar_menu(page: ft.Page):
 
         return ft.View(
             route="/menu",
+            bgcolor=st.BG_DARK,
             controls=[
                 ft.AppBar(
                     title=ft.Column([

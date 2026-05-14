@@ -10,20 +10,20 @@
 | `/` | auth.py | ✅ | — | ✅ Funcional |
 | `/registro` | autenticacao.py | ✅ | link no login | ✅ Funcional |
 | `/esqueci_senha` | auth.py | ✅ | link no login | ✅ Funcional |
-| `/recuperar-email` | recuperar_senha_email.py | ✅ | via esqueci_senha | ⚠️ redirect_to aponta para localhost |
+| `/recuperar-email` | recuperar_senha_email.py | ✅ | via esqueci_senha | ✅ redirect_to corrigido |
 | `/menu` | menu_principal.py | ✅ | — | ✅ Funcional |
 | `/medicao` | medicao.py | ✅ | ✅ Medir Agora | ✅ Funcional |
 | `/scanner` | scanner_view.py | ✅ | ✅ Scanner | ✅ Funcional |
 | `/sincronizar` | sincronizacao.py | ✅ | ✅ Sincronizar Dados | ✅ Funcional |
 | `/dashboard_saude` | dashboard_saude.py | ✅ | ✅ (admin) | ✅ Funcional |
-| `/usuarios` | gerenciamento_usuarios.py | ✅ | ✅ (admin) | ✅ Funcional |
-| `/relatorios` | relatorio_view.py | ✅ | ✅ (admin) | ✅ Funcional |
+| `/usuarios` | gerenciamento_usuarios.py | ✅ | ✅ (admin) | ⚠️ Não testado como admin |
+| `/relatorios` | relatorio_view.py | ✅ | ✅ (admin) | ⚠️ Não testado como admin |
 | `/configuracoes` | configuracoes.py | ✅ | ✅ Configurações | ✅ Funcional |
-| `/sobre` | sobre_view.py | ✅ | ❌ sem botão | ⚠️ Inacessível pelo menu |
-| `/ajuda` | ajuda_view.py | ❌ | ❌ | ❌ View existe mas não registrada |
-| `/historico` | historico.py | ❌ | ❌ | ❌ View existe mas não registrada |
-| `/dashboard` | dashboard.py | ❌ | ❌ | ❌ View existe mas não registrada |
-| `/qrcodes` | qrcodes_view.py | ❌ | ❌ | ❌ View existe mas não registrada |
+| `/sobre` | sobre_view.py | ✅ | ✅ TextButton | ✅ Funcional (back corrigido → /menu) |
+| `/ajuda` | ajuda_view.py | ✅ | ✅ TextButton | ✅ Registrada e acessível |
+| `/historico` | historico.py | ✅ | ✅ TextButton | ✅ Funcional (bgcolor + AppBar adicionados) |
+| `/dashboard` | dashboard.py | ✅ | ❌ sem botão | ⚠️ Acessível via URL, usa `criar_card_metrica` ausente |
+| `/qrcodes` | qrcodes_view.py | ✅ | ✅ TextButton | ✅ Funcional |
 
 ---
 
@@ -35,7 +35,7 @@
 - [x] Logout com confirmação
 - [x] Registro de novo usuário
 - [x] Esqueci minha senha (e-mail de reset)
-- [ ] Redirect pós-reset aponta para `localhost:8550` — deve usar URL de produção
+- [x] `redirect_to` corrigido para URL do Supabase Auth
 
 ### Medição
 - [x] Inserção manual de leitura Água
@@ -81,21 +81,24 @@
 ### Crítico
 - [x] **Registrar rotas ausentes** no roteador (`main.py`): `/ajuda`, `/historico`, `/dashboard`, `/qrcodes`
 - [x] **Adicionar botões** no menu principal: Histórico, QR Codes, Ajuda, Sobre (row de TextButtons)
-- [x] **Corrigir `redirect_to`** em `recuperar_senha_email.py`: substituído `localhost:8550` pela URL do Supabase Auth
+- [x] **Corrigir `redirect_to`** em `recuperar_senha_email.py`
+- [x] **Corrigir bgcolor** de `/historico` (tela branca)
+- [x] **Adicionar AppBar + back button** em `/historico`
+- [x] **Corrigir botão Voltar** de `/sobre` (apontava para `/configuracoes`, agora vai para `/menu`)
 
 ### Importante
-- [ ] **Botões de acesso** para `/ajuda` e `/historico` no menu (usuários comuns não têm como chegar lá)
+- [ ] **`/dashboard`** usa `st.criar_card_metrica` que não existe em `styles.py` — crashará se acessada
 - [ ] **Testar `/usuarios` e `/relatorios`** logado como admin para confirmar carregamento sem erro
-- [ ] **Testar `/sincronizar`** manual via UI após as correções do sync_service
+- [ ] **Testar `/sincronizar`** manual via UI
 
 ### Melhorias
-- [ ] Deprecation warning: `ft.app()` → `ft.run()` (main.py:154)
-- [ ] `DeprecationWarning` no Flet 0.84 — considerar atualização para 0.90+
-- [ ] QR codes nas fotos do scanner: atualmente apenas leitura do display; considerar compor QR+hidrômetro em uma única captura
+- [ ] `historico.py`: `gc.collect()` após envio de e-mail (já com import `gc` adicionado)
+- [ ] Deprecation warning: `ft.app()` → `ft.run()` (main.py:166)
+- [ ] QR codes nas fotos do scanner: considerar compor QR+hidrômetro em uma única captura
 
 ---
 
-## TESTES REALIZADOS HOJE (2026-05-14)
+## TESTES REALIZADOS (2026-05-14)
 
 | Teste | Resultado |
 |---|---|
@@ -103,13 +106,17 @@
 | Login offline (fallback) | ✅ OK |
 | Scanner: captura webcam | ✅ OK |
 | Scanner: upload Storage | ✅ OK |
-| OCR 156-gas.jpg | ✅ 328.936 (corrigido de 32.89) |
+| OCR 156-gas.jpg | ✅ 328.936 |
 | OCR 161-agua.jpg | ✅ 2673 |
 | OCR 162-agua.jpg | ✅ 23087 |
-| Sync automático no boot | ✅ OK (sem erros) |
+| Sync automático no boot | ✅ OK |
 | Sync: unidade 101 → Supabase | ✅ HTTP 201 |
 | Edge Function deploy | ✅ OK |
 | Secrets ANTHROPIC_API_KEY | ✅ Configurado |
+| Rota /historico | ✅ Carrega (bgcolor + AppBar corrigidos) |
+| Rota /qrcodes | ✅ Carrega sem erros |
+| Rota /sobre | ✅ Carrega (back corrigido → /menu) |
+| Rota /ajuda | ⚠️ Registrada, não testada com log |
 
 ---
 

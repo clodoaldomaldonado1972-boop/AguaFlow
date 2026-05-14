@@ -18,7 +18,7 @@ def montar_tela_sobre(page: ft.Page):
                 title=ft.Text("Sobre o AguaFlow"),
                 bgcolor=st.PRIMARY_BLUE,
                 leading=ft.IconButton(
-                    "arrow_back", on_click=lambda _: page.go("/configuracoes"))
+                    "arrow_back", on_click=lambda _: page.go("/menu"))
             ),
             ft.Column(
                 [
@@ -44,8 +44,8 @@ def montar_tela_sobre(page: ft.Page):
                     ft.TextButton("Ver Licença Completa (Online)", on_click=lambda e: page.launch_url(
                         "https://opensource.org/licenses/MIT")),
                     ft.Container(expand=True),
-                    ft.TextButton("Voltar às Configurações",
-                                  on_click=lambda _: page.go("/configuracoes")),
+                    ft.TextButton("Voltar ao Menu",
+                                  on_click=lambda _: page.go("/menu")),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,

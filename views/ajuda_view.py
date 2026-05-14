@@ -52,26 +52,34 @@ def montar_tela_ajuda(page: ft.Page, on_back):
     return ft.View(
         route="/ajuda",
         bgcolor=st.BG_DARK,
-        vertical_alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
-            ft.Icon("help_center_outlined",
-                    size=80, color=st.PRIMARY_BLUE),
-            ft.Text("Suporte Técnico", size=24, weight="bold", color="white"),
-            ft.Container(height=20),
-            ft.ElevatedButton(
-                "CHAMAR SUPORTE NO WHATSAPP",
-                icon="whatsapp",
-                style=st.BTN_SPECIAL,
-                on_click=lambda _: page.launch_url(url_suporte),
-                width=320, height=60
+            ft.AppBar(
+                title=ft.Text("Ajuda e Suporte"),
+                bgcolor=st.PRIMARY_BLUE,
+                leading=ft.IconButton("arrow_back", on_click=on_back),
             ),
-            ft.ElevatedButton(
-                "TESTE DE RELATÓRIO",
-                icon="email_outlined",
-                on_click=disparar_teste_erro,
-                width=320, height=60
-            ),
-            ft.TextButton("Voltar", on_click=on_back)
+            ft.Column(
+                [
+                    ft.Container(height=20),
+                    ft.Icon("help_center_outlined", size=80, color=st.PRIMARY_BLUE),
+                    ft.Text("Suporte Técnico", size=24, weight="bold", color="white"),
+                    ft.Container(height=20),
+                    ft.ElevatedButton(
+                        "CHAMAR SUPORTE NO WHATSAPP",
+                        icon="whatsapp",
+                        style=st.BTN_SPECIAL,
+                        on_click=lambda _: page.launch_url(url_suporte),
+                        width=320, height=60
+                    ),
+                    ft.ElevatedButton(
+                        "TESTE DE RELATÓRIO",
+                        icon="email_outlined",
+                        on_click=disparar_teste_erro,
+                        width=320, height=60
+                    ),
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=15,
+            )
         ]
     )
