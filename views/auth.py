@@ -131,6 +131,7 @@ def criar_tela_login(page: ft.Page):
                             bgcolor="#1565C0",
                             border_radius=ft.border_radius.all(45),
                             alignment=ft.alignment.Alignment(0, 0),
+                            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                         ),
                         ft.Text("AguaFlow", size=32, weight="bold", color="white"),
                         ft.Text("Condomínio Vivere Prudente",

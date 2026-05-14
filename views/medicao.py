@@ -372,7 +372,7 @@ def montar_tela_medicao(page: ft.Page):
                 ft.Column([
                     ft.Container(
                         content=ft.Stack([img_icon, icon_save]),
-                        alignment=ft.alignment.center
+                        alignment=ft.alignment.Alignment(0, 0)
                     ),
                     lbl_modo,
                     txt_unidade,

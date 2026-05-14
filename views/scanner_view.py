@@ -188,7 +188,7 @@ def montar_tela_scanner(page: ft.Page):
                 ft.Column([
                     ft.Container(
                         content=mira_visual,
-                        alignment=ft.alignment.center,
+                        alignment=ft.alignment.Alignment(0, 0),
                         on_click=capturar_foto
                     ),
                     img_preview,
