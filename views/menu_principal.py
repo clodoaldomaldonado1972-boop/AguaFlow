@@ -16,8 +16,7 @@ def montar_menu(page: ft.Page):
         # Recupera os dados do usuário de forma segura (.get)
         user_data = getattr(page, "user_data", {}) or {}
         user_email = user_data.get("email", "Usuário Desconhecido")
-        user_name = user_data.get(
-            "nome", user_email.split('@')[0].capitalize())
+        user_name = user_data.get("nome") or user_email.split('@')[0].capitalize()
 
         # Verifica se o usuário está autenticado em modo offline
         is_offline = user_data.get("offline", False)

@@ -23,7 +23,7 @@ def montar_tela_sobre(page: ft.Page):
             ft.Column(
                 [
                     ft.Container(height=20),
-                    ft.Icon(ft.icons.INFO_OUTLINE, size=64,
+                    ft.Icon("info_outline", size=64,
                             color=st.PRIMARY_BLUE),
                     ft.Text("AguaFlow", size=24,
                             weight="bold", color=st.WHITE),

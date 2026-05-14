@@ -46,12 +46,18 @@ def criar_tela_login(page: ft.Page):
 
     lbl_erro = ft.Text("", color="red", size=12, weight="bold", visible=False)
 
-    progress_ring_login = ft.ProgressRing(
-        width=16, height=16, stroke_width=2, color="white")
-    text_loading_login = ft.Text("CARREGANDO SISTEMA...", size=14)
+    _content_loading = ft.Row(
+        [ft.ProgressRing(width=16, height=16, stroke_width=2, color="white"),
+         ft.Text("AGUARDE...", size=14)],
+        alignment=ft.MainAxisAlignment.CENTER, spacing=10, tight=True
+    )
+    _content_normal = ft.Text("ENTRAR", size=14)
 
     # 2. DEFINIÇÃO DA LÓGICA DE LOGIN
     async def realizar_login(e):
+        btn_entrar.content = _content_loading
+        btn_entrar.disabled = True
+        page.update()
         email = txt_user.value
         senha = txt_pass.value
         supabase_client = get_supabase_client()
@@ -66,7 +72,9 @@ def criar_tela_login(page: ft.Page):
                     if auth_response.user:
                         role = auth_response.user.user_metadata.get(
                             "role", "user")
-                        page.user_data = {"email": email, "role": role}
+                        full_name = auth_response.user.user_metadata.get(
+                            "full_name", "")
+                        page.user_data = {"email": email, "role": role, "nome": full_name}
                         page.go("/menu")
                         return
                 except Exception:
@@ -86,25 +94,23 @@ def criar_tela_login(page: ft.Page):
 
             lbl_erro.value = "E-mail ou senha incorretos."
             lbl_erro.visible = True
+            btn_entrar.content = _content_normal
+            btn_entrar.disabled = False
             page.update()
 
         except Exception as ex:
             lbl_erro.value = "Erro técnico ao acessar o sistema."
             lbl_erro.visible = True
+            btn_entrar.content = _content_normal
+            btn_entrar.disabled = False
             page.update()
 
     # 3. CRIAÇÃO DO BOTÃO
     btn_entrar = ft.ElevatedButton(
-        content=ft.Row(
-            [progress_ring_login, text_loading_login],
-            alignment=ft.MainAxisAlignment.CENTER,
-            spacing=10,
-            tight=True
-        ),
+        content=_content_normal,
         on_click=realizar_login,
         width=320,
         height=50,
-        disabled=False  # Mantenha False para o botão estar clicável e evitar loops
     )
 
     # --- SEÇÃO 4 REMOVIDA PARA EVITAR ERRO DE ATRIBUTO ---

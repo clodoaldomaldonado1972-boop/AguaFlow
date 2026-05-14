@@ -6,7 +6,7 @@ from views import styles as st
 supabase = get_supabase_client()
 
 def criar_tela_recuperacao(page: ft.Page):
-    txt_email = st.campo_estilo("E-mail cadastrado", ft.icons.EMAIL)
+    txt_email = st.campo_estilo("E-mail cadastrado", "email")
     txt_email.width = 320
     lbl_status = ft.Text("", size=14)
 
@@ -45,7 +45,7 @@ def criar_tela_recuperacao(page: ft.Page):
         controls=[
             ft.Container(
                 content=ft.Column([
-                    ft.Icon(ft.icons.MARK_EMAIL_READ, size=80, color="blue"),
+                    ft.Icon("mark_email_read", size=80, color="blue"),
                     ft.Text("Recuperar Senha", style=st.TEXT_TITLE),
                     ft.Text("Enviaremos um link para o seu e-mail", style=st.TEXT_SUB),
                     ft.Divider(height=20, color="transparent"),

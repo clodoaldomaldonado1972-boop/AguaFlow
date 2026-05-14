@@ -91,19 +91,28 @@ async def main(page: ft.Page):
     page.on_view_pop = lambda view: page.go(
         "/menu") if len(page.views) > 1 else None
 
+    # --- 1.1 EVENTO DE FECHAMENTO EXPLÍCITO ---
+    async def handle_close(e):
+        logger.info(f"🔌 Sessão {id(page)} encerrada pelo cliente.")
+
+    page.on_close = handle_close
+
     # --- 2.1 SISTEMA KEEP ALIVE (HEARTBEAT) ---
     async def heartbeat():
         """Mantém a sessão viva interagindo minimamente com a página."""
         while True:
             try:
-                await asyncio.sleep(30)  # Ping a cada 30 segundos
-                if page.session_id:
-                    # Atualização silenciosa de metadados da sessão
-                    page.user_data["heartbeat"] = True
-                    # page.update() # Opcional: descomente se a sessão cair mesmo assim
+                # Reduzido para 20s para evitar timeouts de proxy/firewall
+                await asyncio.sleep(20)
+                page.user_data["heartbeat"] = True
+                page.update()
             except Exception:
-                break
+                logger.debug(
+                    f"💓 Heartbeat: erro transitório na sessão {id(page)}, aguardando para tentar novamente.")
+                await asyncio.sleep(5)
+                continue
 
+    page.user_data = {}
     asyncio.create_task(heartbeat())
 
     # --- 3. BOOT EM BACKGROUND ---
@@ -118,6 +127,7 @@ async def main(page: ft.Page):
 
             await asyncio.to_thread(Database.inicializar_tabelas)
             db_ready = True
+            await SyncService.init_sync_log_table()
             asyncio.create_task(SyncService.processar_fila())
             logger.info("🚀 AguaFlow: Banco de dados e Sync prontos.")
         except Exception as e:
