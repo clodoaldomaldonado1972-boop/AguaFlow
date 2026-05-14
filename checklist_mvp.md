@@ -22,10 +22,10 @@
 | `/sobre` | sobre_view.py | ✅ | ✅ TextButton | ✅ Funcional (back corrigido → /menu) |
 | `/ajuda` | ajuda_view.py | ✅ | ✅ TextButton | ✅ Registrada e acessível |
 | `/historico` | historico.py | ✅ | ✅ TextButton | ✅ Funcional (bgcolor + AppBar adicionados) |
-| `/dashboard` | dashboard.py | ✅ | ❌ sem botão | ⚠️ Acessível via URL, usa `criar_card_metrica` ausente |
-| `/qrcodes` | qrcodes_view.py | ✅ | ✅ TextButton | ✅ Funcional |
+    | `/dashboard` | dashboard.py | ✅ | ❌ sem botão | ⚠️ Acessível via URL, usa `criar_card_metrica` ausente |
+    | `/qrcodes` | qrcodes_view.py | ✅ | ✅ TextButton | ✅ Funcional |
 
----
+    ---
 
 ## FUNCIONALIDADES CORE
 
@@ -99,6 +99,8 @@
 - [ ] `historico.py`: `gc.collect()` após envio de e-mail (já com import `gc` adicionado)
 - [ ] Deprecation warning: `ft.app()` → `ft.run()` (main.py:166)
 - [ ] QR codes nas fotos do scanner: considerar compor QR+hidrômetro em uma única captura
+- [ ] **OCR Tesseract** — taxa real baixa (3/22). Melhorar: ROI crop na região dos dígitos, ajustar `--psm 6` (bloco), adicionar erosão/dilatação. Alternativa: usar Claude Vision direto sem Tesseract
+- [ ] **Tesseract PATH** — adicionar `C:\Program Files\Tesseract-OCR` ao PATH do sistema para evitar `tesseract_cmd` hardcoded
 
 ---
 
@@ -121,6 +123,12 @@
 | Rota /qrcodes | ✅ Carrega sem erros |
 | Rota /sobre | ✅ Carrega (back corrigido → /menu) |
 | Rota /ajuda | ⚠️ Registrada, não testada com log |
+| **Teste OCR — temp/ (22 fotos) — 2026-05-14** | |
+| QR Code detecção (14/22 fotos) | ✅ QR lido corretamente (ex: `AGUAFLOW\|151-AGUA`, `AGUAFLOW\|163/164-AGUA`) |
+| OCR Tesseract (3/22 fotos) | ⚠️ Taxa baixa — retorna fragmentos (2, 3, 2) em vez de leitura completa |
+| Fotos real_* sem QR embarcado | ❌ QR ausente + OCR falhou (configuração psm7 inadequada) |
+| Supabase: consulta tabela leituras | ✅ 20 registros retornados (colunas corretas: `data_hora_coleta`) |
+| Tesseract PATH no Windows | ⚠️ Não está no PATH — requer `pytesseract.tesseract_cmd` explícito |
 
 ---
 
