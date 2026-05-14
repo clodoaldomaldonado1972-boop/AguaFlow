@@ -461,7 +461,10 @@ class Database:
             if not client or not os.path.exists(caminho_foto):
                 return None
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            storage_path = f"{unidade}/{timestamp}_{modo}.jpg"
+            # Sanitiza: remove chars inválidos para path do Supabase Storage
+            import re
+            unidade_safe = re.sub(r'[^a-zA-Z0-9_\-/]', '_', unidade)
+            storage_path = f"{unidade_safe}/{timestamp}_{modo}.jpg"
             with open(caminho_foto, 'rb') as f:
                 dados = f.read()
             client.storage.from_("fotos_hidrometros").upload(

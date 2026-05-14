@@ -225,7 +225,19 @@ def _capturar_frame():
 
 
 def _detectar_qr(frame) -> str | None:
-    """Detecta e decodifica QR Code num frame cv2. Retorna a string ou None."""
+    """Detecta QR Code e extrai o ID da unidade.
+
+    Suporta dois formatos:
+      - Simples:    "162"            → retorna "162"
+      - Composto:   "AGUAFLOW|162-AGUA"  → retorna "162"
+    """
     detector = cv2.QRCodeDetector()
     valor, _, _ = detector.detectAndDecode(frame)
-    return valor if valor else None
+    if not valor:
+        return None
+    # Formato composto: PREFIXO|UNIDADE-TIPO
+    if "|" in valor:
+        partes = valor.split("|", 1)
+        unidade_part = partes[1].split("-")[0].strip()
+        return unidade_part if unidade_part else valor
+    return valor
