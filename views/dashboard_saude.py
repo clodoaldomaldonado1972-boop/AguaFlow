@@ -100,16 +100,14 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
 
     return ft.View(
         route="/dashboard_saude",
-        # Cor direta para evitar erro de modulo 'styles'[cite: 3]
         bgcolor="#121417",
+        appbar=ft.AppBar(
+            title=ft.Text("Saúde do Sistema"),
+            bgcolor="blue",
+            leading=ft.IconButton("arrow_back", on_click=ao_voltar),
+            actions=[sincronizador.btn_sync]
+        ),
         controls=[
-            ft.AppBar(
-                title=ft.Text("Saúde do Sistema"),
-                # String literal para evitar NameError[cite: 1, 3]
-                bgcolor="blue",
-                leading=ft.IconButton("arrow_back", on_click=ao_voltar),
-                actions=[sincronizador.btn_sync]
-            ),
             ft.Column([
                 ft.Container(height=10),
                 ft.Text(" MONITORAMENTO TÉCNICO", size=12,

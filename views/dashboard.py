@@ -84,12 +84,12 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
     return ft.View(
         route="/dashboard",
         bgcolor=st.BG_DARK,
+        appbar=ft.AppBar(
+            title=ft.Text("Análise Vivere Prudente"),
+            bgcolor=st.PRIMARY_BLUE,
+            leading=ft.IconButton("arrow_back", on_click=ao_voltar)
+        ),
         controls=[
-            ft.AppBar(
-                title=ft.Text("Análise Vivere Prudente"),
-                bgcolor=st.PRIMARY_BLUE,
-                leading=ft.IconButton("arrow_back", on_click=ao_voltar)
-            ),
             ft.Column(
                 scroll=ft.ScrollMode.ADAPTIVE,
                 controls=[

@@ -52,12 +52,12 @@ def montar_tela_ajuda(page: ft.Page, on_back):
     return ft.View(
         route="/ajuda",
         bgcolor=st.BG_DARK,
+        appbar=ft.AppBar(
+            title=ft.Text("Ajuda e Suporte"),
+            bgcolor=st.PRIMARY_BLUE,
+            leading=ft.IconButton("arrow_back", on_click=on_back),
+        ),
         controls=[
-            ft.AppBar(
-                title=ft.Text("Ajuda e Suporte"),
-                bgcolor=st.PRIMARY_BLUE,
-                leading=ft.IconButton("arrow_back", on_click=on_back),
-            ),
             ft.Column(
                 [
                     ft.Container(height=20),

@@ -358,16 +358,15 @@ def montar_tela_medicao(page: ft.Page):
         return ft.View(
             route="/medicao",
             bgcolor="#121417",
-            scroll=ft.ScrollMode.ADAPTIVE,
             vertical_alignment=ft.MainAxisAlignment.START,
             horizontal_alignment="center",
+            appbar=ft.AppBar(
+                title=ft.Text("Nova Medição"),
+                center_title=True,
+                leading=ft.IconButton("arrow_back",
+                                      on_click=lambda _: page.go("/menu"))
+            ),
             controls=[
-                ft.AppBar(
-                    title=ft.Text("Nova Medição"),
-                    center_title=True,
-                    leading=ft.IconButton("arrow_back",
-                                          on_click=lambda _: page.go("/menu"))
-                ),
                 ft.Column([
                     ft.Container(
                         content=ft.Stack([img_icon, icon_save]),
@@ -390,7 +389,8 @@ def montar_tela_medicao(page: ft.Page):
                             page.go("/scanner")
                         )
                     )
-                ], horizontal_alignment="center", spacing=10, expand=True)
+                ], horizontal_alignment="center", spacing=10, expand=True,
+                   scroll=ft.ScrollMode.ADAPTIVE)
             ]
         )
     except Exception as e:

@@ -133,12 +133,12 @@ def montar_tela_configs(page: ft.Page):
     return ft.View(
         route="/configuracoes",
         bgcolor=st.BG_DARK,
+        appbar=ft.AppBar(
+            title=ft.Text("Configurações"),
+            bgcolor=st.PRIMARY_BLUE,
+            leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
+        ),
         controls=[
-            ft.AppBar(
-                title=ft.Text("Configurações"),
-                bgcolor=st.PRIMARY_BLUE,
-                leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
-            ),
             ft.Column([
                 ft.Container(height=20),
                 ft.Icon("lock_person", size=64, color=st.PRIMARY_BLUE),

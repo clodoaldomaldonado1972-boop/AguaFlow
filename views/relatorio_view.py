@@ -62,13 +62,12 @@ def montar_tela_relatorio(page: ft.Page):
     return ft.View(
         route="/relatorios",
         bgcolor=st.BG_DARK,
+        appbar=ft.AppBar(
+            title=ft.Text("Relatórios e Etiquetas"),
+            bgcolor=st.PRIMARY_BLUE,
+            leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
+        ),
         controls=[
-            ft.AppBar(
-                title=ft.Text("Relatórios e Etiquetas"),
-                bgcolor=st.PRIMARY_BLUE,
-                leading=ft.IconButton("arrow_back", on_click=lambda _: page.go(
-                    "/menu"))  # Padronizado para string
-            ),
             ft.Column([
                 ft.Container(height=20),
                 ft.Container(

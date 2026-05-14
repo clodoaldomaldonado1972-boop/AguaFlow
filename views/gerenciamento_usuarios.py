@@ -221,13 +221,13 @@ def montar_tela_usuarios(page: ft.Page):
     return ft.View(
         route="/usuarios",
         bgcolor=st.BG_DARK,
+        appbar=ft.AppBar(
+            title=ft.Text("Gestão de Acessos"),
+            bgcolor=st.PRIMARY_BLUE,
+            leading=ft.IconButton(
+                "arrow_back", on_click=lambda _: page.go("/menu"))
+        ),
         controls=[
-            ft.AppBar(
-                title=ft.Text("Gestão de Acessos"),
-                bgcolor=st.PRIMARY_BLUE,
-                leading=ft.IconButton(
-                    "arrow_back", on_click=lambda _: page.go("/menu"))
-            ),
             ft.Container(
                 padding=20,
                 expand=True,
