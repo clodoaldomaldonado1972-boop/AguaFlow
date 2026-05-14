@@ -253,10 +253,15 @@ def montar_tela_medicao(page: ft.Page):
             valor_agua = (txt_agua.value or "").replace(",", ".").strip()
             valor_gas = (txt_gas.value or "").replace(",", ".").strip()
 
-            # Validação: Água é obrigatória (bloqueia o salvamento se vazio)
-            if not valor_agua:
+            # Validação: campo obrigatório depende do modo ativo
+            if state["modo"] == "AGUA" and not valor_agua:
                 page.show_dialog(ft.SnackBar(
                     ft.Text("A leitura de Água é obrigatória!"), bgcolor=st.RED_ERROR))
+                page.update()
+                return
+            if state["modo"] == "GAS" and not valor_gas:
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("A leitura de Gás é obrigatória!"), bgcolor=st.RED_ERROR))
                 page.update()
                 return
 
@@ -279,11 +284,9 @@ def montar_tela_medicao(page: ft.Page):
                     return
 
             try:
-                # Converte para float e garante 2 casas decimais (Padrão Renova)
-                v_agua = round(float(valor_agua), 2)
-                # Garante que 0.0 seja aceito e campos vazios virem None
-                v_gas = round(float(valor_gas), 2) if (
-                    valor_gas != "" and valor_gas is not None) else None
+                # Converte para float; campo vazio (modo oposto) vira None
+                v_agua = round(float(valor_agua), 2) if valor_agua else None
+                v_gas = round(float(valor_gas), 2) if valor_gas else None
                 # Padronização para ISO (YYYY-MM-DD) para busca correta no SQLite
                 data_coleta = datetime.now(fuso_sp).isoformat(
                     sep=' ', timespec='seconds')

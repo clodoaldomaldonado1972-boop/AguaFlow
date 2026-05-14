@@ -304,10 +304,12 @@ class Database:
                     tipo_final = f"{modo} (Duplex)" if len(
                         unidades_alvo) > 1 else modo
 
+                    # valor_leitura reflete o campo ativo: agua em AGUA, gas em GAS
+                    valor_leitura = valor_agua if valor_agua is not None else (valor_gas or 0)
                     cursor.execute("""
                         INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado, valor_leitura, foto_url)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (u_id.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_agua, foto_url))
+                    """, (u_id.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_leitura, foto_url))
 
 
 
