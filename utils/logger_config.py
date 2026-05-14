@@ -7,7 +7,15 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Tenta importar a versão do updater.py
+try:
+    # Ajuste para o nome da variável que você usa lá
+    from utils.updater import VERSION
+except ImportError:
+    VERSION = "v?.?.?"  # Fallback caso o arquivo não seja encontrado
+
 load_dotenv()
+
 
 def enviar_report_erro(mensagem_erro, unidade="N/A", leiturista="N/A"):
     """Envia um e-mail de alerta de forma assíncrona (via Thread) para não travar o app."""
@@ -24,12 +32,14 @@ def enviar_report_erro(mensagem_erro, unidade="N/A", leiturista="N/A"):
             msg = MIMEMultipart()
             msg['From'] = EMAIL_USER
             msg['To'] = EMAIL_DESTINO
-            msg['Subject'] = '🚨 ALERTA DE ERRO: AguaFlow v1.1.2 - Vivere Prudente'
+            # VERSÃO AUTOMÁTICA NO ASSUNTO:
+            msg['Subject'] = f'🚨 ALERTA DE ERRO: AguaFlow {VERSION} - Vivere Prudente'
 
             corpo = (
                 f"🚨 ERRO CRÍTICO DETECTADO\n"
                 f"-------------------------\n"
                 f"📅 Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
+                f"📊 Versão do App: {VERSION}\n"  # Adicionado no corpo também
                 f"🏢 Local: Condomínio Vivere Prudente\n"
                 f"👤 Leiturista: {leiturista}\n"
                 f"📍 Contexto (Unidade): {unidade}\n\n"
@@ -42,12 +52,13 @@ def enviar_report_erro(mensagem_erro, unidade="N/A", leiturista="N/A"):
                 server.starttls()
                 server.login(EMAIL_USER, EMAIL_PASS)
                 server.send_message(msg)
-            logging.info("📧 Relatório de erro enviado por e-mail com sucesso.")
+            logging.info(
+                f"📧 Relatório de erro ({VERSION}) enviado por e-mail com sucesso.")
         except Exception as e:
             logging.error(f"❌ Falha ao enviar report de e-mail: {e}")
 
-    # Dispara o envio em uma Thread separada (daemon=True para não impedir o fechamento do app)
     threading.Thread(target=_processar_envio, daemon=True).start()
+
 
 def testar_configuracao_email():
     """Verificação silenciosa de autenticação SMTP no início do app."""
@@ -61,7 +72,9 @@ def testar_configuracao_email():
             server.login(EMAIL_USER, EMAIL_PASS)
         logging.info("✅ SMTP: Serviço de e-mail autenticado corretamente.")
     except Exception as e:
-        logging.error(f"❌ SMTP: Falha na autenticação inicial (verifique a senha de app): {e}")
+        logging.error(
+            f"❌ SMTP: Falha na autenticação inicial (verifique a senha de app): {e}")
+
 
 def setup_logging():
     """Configura o sistema de log profissional para o AguaFlow."""

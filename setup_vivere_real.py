@@ -100,11 +100,11 @@ async def main(page: ft.Page):
         for row in cursor.fetchall():
             u_id = row['unidade_id']
             # Cores Semânticas para Auditoria
-            cor = ft.Colors.BLUE_200
+            cor = "blue200"
             if "QR-" in u_id:
-                cor = ft.Colors.AMBER_ACCENT_400  # Destaque Duplex (Amber)
+                cor = "amberAccent400"  # Destaque Duplex (Amber)
             elif "-" in u_id and "AP" not in u_id:
-                cor = ft.Colors.GREEN_ACCENT_400  # Destaque Área Comum (Green)
+                cor = "greenAccent400"  # Destaque Área Comum (Green)
 
             list_view.controls.append(
                 ft.ListTile(
@@ -120,7 +120,7 @@ async def main(page: ft.Page):
                         value=row['data_hora_coleta'][11:16],
                         size=14,
                         weight="bold",
-                        color=ft.Colors.WHITE70
+                        color="white70"
                     )
                 )
             )

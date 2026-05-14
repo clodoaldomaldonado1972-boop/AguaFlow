@@ -1,11 +1,12 @@
 import flet as ft
-import views.styles as st 
+import views.styles as st
 import asyncio
 from database.sync_service import SyncService
 from utils.backup import executar_backup_seguranca
-import gc # Importar garbage collector
+import gc  # Importar garbage collector
 from database.database import Database
 from views import styles as st
+
 
 def montar_tela_sincronizacao(page: ft.Page):
     """
@@ -27,10 +28,12 @@ def montar_tela_sincronizacao(page: ft.Page):
             # Verifica se há leituras pendentes
             with Database.get_db() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM leituras WHERE sincronizado = 0")
+                cursor.execute(
+                    "SELECT COUNT(*) FROM leituras WHERE sincronizado = 0")
                 pendentes = cursor.fetchone()[0]
 
-                cursor.execute("SELECT COUNT(*) FROM leituras WHERE sincronizado = 1")
+                cursor.execute(
+                    "SELECT COUNT(*) FROM leituras WHERE sincronizado = 1")
                 sincronizadas = cursor.fetchone()[0]
 
                 lbl_status_geral.value = f"Pendentes: {pendentes} | Sincronizadas: {sincronizadas}"
@@ -54,9 +57,11 @@ def montar_tela_sincronizacao(page: ft.Page):
         bgcolor=st.BG_DARK,
         controls=[
             ft.AppBar(
-                title=ft.Text("Sincronização com Nuvem"), # ft.icons.ARROW_BACK
+                # ft.icons.ARROW_BACK
+                title=ft.Text("Sincronização com Nuvem"),
                 bgcolor=st.PRIMARY_BLUE,
-                leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu")) # Padronizado para string
+                leading=ft.IconButton("arrow_back", on_click=lambda _: page.go(
+                    "/menu"))  # Padronizado para string
             ),
             ft.Column([
                 ft.Container(height=20),
@@ -65,7 +70,8 @@ def montar_tela_sincronizacao(page: ft.Page):
                 ft.Container(
                     content=ft.Column([
                         ft.Icon("cloud_sync", size=50, color=st.PRIMARY_BLUE),
-                        ft.Text("STATUS DA SINCRONIZAÇÃO", size=16, weight="bold"),
+                        ft.Text("STATUS DA SINCRONIZAÇÃO",
+                                size=16, weight="bold"),
                         lbl_status_geral,
                         lbl_ultimasinc,
                     ], horizontal_alignment="center"),
@@ -102,9 +108,12 @@ def montar_tela_sincronizacao(page: ft.Page):
                 ft.Text("Informações", size=14, weight="bold"),
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("• As leituras são enviadas automaticamente quando há internet", size=12),
-                        ft.Text("• Backup local é gerado após cada sincronização", size=12),
-                        ft.Text("• Erros são registrados em logs para auditoria", size=12),
+                        ft.Text(
+                            "• As leituras são enviadas automaticamente quando há internet", size=12),
+                        ft.Text(
+                            "• Backup local é gerado após cada sincronização", size=12),
+                        ft.Text(
+                            "• Erros são registrados em logs para auditoria", size=12),
                     ], spacing=5),
                     padding=15,
                     bgcolor="#1E2126",
@@ -113,7 +122,8 @@ def montar_tela_sincronizacao(page: ft.Page):
                 ),
 
                 ft.Container(expand=True),
-                ft.TextButton("Voltar ao Menu", on_click=lambda _: page.go("/menu"))
+                ft.TextButton("Voltar ao Menu",
+                              on_click=lambda _: page.go("/menu"))
 
             ], horizontal_alignment="center", scroll=ft.ScrollMode.ADAPTIVE)
         ]
@@ -123,10 +133,11 @@ def montar_tela_sincronizacao(page: ft.Page):
 class SincronizadorUI:
     def __init__(self, page: ft.Page):
         self.page = page
-        self.btn_sync = ft.IconButton( # ft.icons.CLOUD_UPLOAD
+        self.btn_sync = ft.IconButton(  # ft.icons.CLOUD_UPLOAD
             icon="cloud_upload",
             tooltip="Sincronizar com Nuvem",
-            on_click=lambda e: page.run_task(self.executar_sincronismo, e) # Corrigido para chamar o método da instância
+            # Corrigido para chamar o método da instância
+            on_click=lambda e: page.run_task(self.executar_sincronismo, e)
         )
         self.txt_status = ft.Text("", size=12, color="bluegrey400")
 
@@ -142,8 +153,8 @@ class SincronizadorUI:
             self.page.update()
 
             # 2. AÇÃO: Processamento do Sincronismo
-            # Usamos to_thread para que o upload pesado não trave a interface (UI)
-            qtd_sincronizada = await asyncio.to_thread(SyncService.processar_fila)
+            # Chamamos a versão manual que é uma rodada única e retorna a quantidade
+            qtd_sincronizada = await SyncService.executar_sincronismo_manual()
 
             # 3. AÇÃO COMPLEMENTAR: Backup Automático
             # IHC: Segurança de dados - se subiu para a nuvem, garantimos uma cópia local atualizada
@@ -161,21 +172,21 @@ class SincronizadorUI:
                 content=ft.Text(feedback_msg),
                 bgcolor="green700" if qtd_sincronizada > 0 else "bluegrey800",
             ))
-            
+
             self.txt_status.value = "Sincronizado"
-            gc.collect() # Liberar memória após o processo de sincronização
-            
+            gc.collect()  # Liberar memória após o processo de sincronização
+
         except Exception as ex:
             # 5. TRATAMENTO DE ERRO (Ex: Falta de internet no condomínio)
             self.btn_sync.icon_color = "red600"
             self.btn_sync.disabled = False
             self.txt_status.value = "Erro na sincronia"
-            
+
             self.page.show_dialog(ft.SnackBar(
                 content=ft.Text(f"Erro: Verifique sua conexão. {str(ex)}"),
                 bgcolor="red700",
             ))
-        
+
         finally:
             self.btn_sync.disabled = False
             self.page.update()

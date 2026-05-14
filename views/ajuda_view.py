@@ -35,7 +35,7 @@ def montar_tela_ajuda(page: ft.Page, on_back):
             # enviar_report_erro utiliza smtplib que é uma biblioteca bloqueante
             await asyncio.to_thread(
                 enviar_report_erro,
-                erro_detalhado=erro_simulado,
+                mensagem_erro=erro_simulado,
                 unidade="DEBUG-HALL",
                 leiturista=nome_leiturista
             )

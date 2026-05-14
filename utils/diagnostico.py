@@ -2,6 +2,7 @@ import asyncio
 import http.client
 from database.database import Database
 
+
 class DiagnosticoSistema:
     """
     Realiza verificações de saúde no ecossistema AguaFlow.
@@ -16,8 +17,7 @@ class DiagnosticoSistema:
         """
         try:
             # Executa a inicialização em thread separada para manter a fluidez da UI
-            # Ajustado para usar 'inicializar' conforme definido no seu database.py
-            await asyncio.to_thread(Database.inicializar) 
+            await asyncio.to_thread(Database.inicializar_tabelas)
             return True, "Banco de Dados Local: OK"
         except Exception as e:
             return False, f"Erro no Banco: {str(e)}"
@@ -35,7 +35,7 @@ class DiagnosticoSistema:
                 conn = http.client.HTTPSConnection("8.8.8.8", timeout=3)
                 conn.request("HEAD", "/")
                 return True
-            
+
             await loop.run_in_executor(None, check)
             return True, "Conexão Internet: OK"
         except Exception:
@@ -49,15 +49,15 @@ class DiagnosticoSistema:
         """
         status_banco, msg_banco = await DiagnosticoSistema.testar_banco()
         status_net, msg_net = await DiagnosticoSistema.testar_internet()
-        
+
         # O sistema é considerado 'Saudável' se o banco local estiver 100%
         sucesso_geral = status_banco
-        
+
         resumo = f"{msg_banco}\n{msg_net}"
-        
+
         if status_banco and status_net:
             resumo += "\n\n🚀 Sistema operando com capacidade total (Nuvem + Local)."
         elif status_banco:
             resumo += "\n\n⚠️ Operando em Modo Offline. Sincronize quando houver sinal."
-            
+
         return sucesso_geral, resumo
