@@ -14,10 +14,10 @@ serve(async (req) => {
     const filePath: string = record.name; // ex: "162/20260514_132942_AGUA.jpg"
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const openaiKey = Deno.env.get("OPENAI_API_KEY")!;
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY")!;
 
-    if (!openaiKey) {
-      console.error("OPENAI_API_KEY não configurada.");
+    if (!anthropicKey) {
+      console.error("ANTHROPIC_API_KEY não configurada.");
       return new Response("Config error", { status: 500 });
     }
 
@@ -32,52 +32,52 @@ serve(async (req) => {
     // Determina o tipo pelo nome do arquivo (ex: "...AGUA.jpg" ou "...GAS.jpg")
     const tipoModo = filePath.toUpperCase().includes("GAS") ? "gás" : "água";
 
-    // Chama GPT-4o-mini Vision
-    const ocrResponse = await fetch(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openaiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text:
-                    `Esta é uma foto de um hidrômetro de ${tipoModo}. ` +
-                    "Leia o número exibido no mostrador/visor do medidor. " +
-                    "Retorne APENAS o número com até 2 casas decimais, ex: 1234.56. " +
-                    "Não inclua texto, unidade ou explicação. " +
-                    "Se não conseguir ler claramente, retorne: null",
+    // Chama Claude claude-opus-4-7 Vision
+    const ocrResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-7",
+        max_tokens: 50,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "url",
+                  url: publicUrl,
                 },
-                {
-                  type: "image_url",
-                  image_url: { url: publicUrl, detail: "low" },
-                },
-              ],
-            },
-          ],
-          max_tokens: 20,
-          temperature: 0,
-        }),
-      }
-    );
+              },
+              {
+                type: "text",
+                text:
+                  `Esta é uma foto de um hidrômetro de ${tipoModo}. ` +
+                  "Leia o número exibido no mostrador/visor do medidor. " +
+                  "Retorne APENAS o número com até 2 casas decimais, ex: 1234.56. " +
+                  "Não inclua texto, unidade ou explicação. " +
+                  "Se não conseguir ler claramente, retorne: null",
+              },
+            ],
+          },
+        ],
+      }),
+    });
 
     if (!ocrResponse.ok) {
       const err = await ocrResponse.text();
-      console.error("Erro na API OpenAI:", err);
-      return new Response("OpenAI error", { status: 502 });
+      console.error("Erro na API Anthropic:", err);
+      return new Response("Anthropic API error", { status: 502 });
     }
 
     const ocrResult = await ocrResponse.json();
     const ocrText: string =
-      ocrResult.choices?.[0]?.message?.content?.trim() ?? "";
+      ocrResult.content?.[0]?.text?.trim() ?? "";
 
     console.log(`OCR bruto para ${filePath}: "${ocrText}"`);
 
