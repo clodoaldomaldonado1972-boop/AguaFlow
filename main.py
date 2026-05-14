@@ -67,6 +67,12 @@ async def main(page: ft.Page):
             elif page.route == "/configuracoes":
                 from views.configuracoes import montar_tela_configs
                 nova_view = montar_tela_configs(page)
+            elif page.route == "/dashboard_saude":
+                from views.dashboard_saude import montar_tela_saude
+                nova_view = montar_tela_saude(page, ao_voltar=lambda: page.go("/menu"))
+            elif page.route == "/recuperar-email":
+                from views.recuperar_senha_email import criar_tela_recuperacao
+                nova_view = criar_tela_recuperacao(page)
             elif page.route == "/sobre":
                 from views.sobre_view import montar_tela_sobre
                 nova_view = montar_tela_sobre(page)
