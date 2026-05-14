@@ -145,20 +145,27 @@ def montar_tela_scanner(page: ft.Page):
 
                 # OCR da leitura (Claude Vision → Tesseract fallback)
                 tipo_str = "gás" if modo == "GAS" else "água"
-                _, valor_ocr = await asyncio.to_thread(
+                _, valor_ocr, ocr_status = await asyncio.to_thread(
                     processar_foto_hidrometro, path, tipo_str
                 )
 
+                txt_valor_ocr.visible = True
                 if valor_ocr:
                     txt_valor_ocr.value = valor_ocr
-                    txt_valor_ocr.visible = True
-                    lbl_ocr_status.value = f"OCR detectou: {valor_ocr} — corrija se necessário"
-                    lbl_ocr_status.color = "green600"
+                    if ocr_status == "offline":
+                        lbl_ocr_status.value = "📶 Sem internet — leitura pelo Tesseract (verifique o valor)"
+                        lbl_ocr_status.color = "orange"
+                    else:
+                        lbl_ocr_status.value = f"OCR detectou: {valor_ocr} — corrija se necessário"
+                        lbl_ocr_status.color = "green600"
                 else:
                     txt_valor_ocr.value = ""
-                    txt_valor_ocr.visible = True
-                    lbl_ocr_status.value = "OCR não detectou leitura — insira manualmente"
-                    lbl_ocr_status.color = "orange"
+                    if ocr_status == "offline":
+                        lbl_ocr_status.value = "📶 Sem internet — OCR indisponível. Insira a leitura manualmente."
+                        lbl_ocr_status.color = "red"
+                    else:
+                        lbl_ocr_status.value = "⚠️ OCR não reconheceu os dígitos — insira manualmente"
+                        lbl_ocr_status.color = "orange"
 
                 if unidade:
                     lbl_status.value = f"✅ Unidade: {unidade}"

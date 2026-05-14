@@ -24,19 +24,22 @@ def processar_foto_hidrometro(caminho_foto: str, tipo: str = "água"):
       1. Claude Vision (API local) — alta precisão para medidores mecânicos/analógicos
       2. Tesseract — fallback offline com pré-processamento adaptativo
 
-    Retorna: (unidade_qr: str | None, valor_leitura: str | None)
+    Retorna: (unidade_qr: str | None, valor_leitura: str | None, status: str)
+      status: 'ok'          — leitura obtida (Claude Vision ou Tesseract)
+              'offline'     — sem internet; Tesseract tentado como fallback
+              'sem_leitura' — online mas OCR não reconheceu os dígitos
     """
     if MODO_SIMULADOR:
         logger.info("[SIMULADOR] Retornando dados fixos")
         time.sleep(0.8)
-        return "Apto 101", "00542.30"
+        return "Apto 101", "00542.30", "ok"
 
     img = cv2.imread(caminho_foto)
     if img is None:
         logger.error(f"Não foi possível ler a imagem: {caminho_foto}")
-        return None, None
+        return None, None, "sem_leitura"
 
-    # --- QR Code (igual ao código original) ---
+    # --- QR Code ---
     largura_alvo = 1280
     fator = largura_alvo / img.shape[1]
     img_redim = cv2.resize(img, (largura_alvo, int(img.shape[0] * fator)))
@@ -46,34 +49,42 @@ def processar_foto_hidrometro(caminho_foto: str, tipo: str = "água"):
     unidade_qr = dados_qr if dados_qr else None
 
     # --- OCR: Claude Vision (primário) ---
-    valor = _ocr_claude(caminho_foto, tipo)
+    valor, foi_offline = _ocr_claude(caminho_foto, tipo)
 
     # --- OCR: Tesseract (fallback offline) ---
     if valor is None:
-        logger.info("Claude Vision falhou ou offline — tentando Tesseract")
+        logger.info("Claude Vision indisponível — tentando Tesseract")
         valor = _ocr_tesseract(img_redim)
+        if valor:
+            status = "offline" if foi_offline else "sem_leitura"
+        else:
+            status = "offline" if foi_offline else "sem_leitura"
+    else:
+        status = "ok"
 
-    return unidade_qr, valor
+    return unidade_qr, valor, status
 
 
 # ─── OCR via Claude Vision ────────────────────────────────────────────────────
 
-def _ocr_claude(caminho_foto: str, tipo: str = "água") -> str | None:
-    """Envia a imagem para Claude Haiku e extrai o valor do medidor."""
+def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple[str | None, bool]:
+    """
+    Envia a imagem para Claude Haiku e extrai o valor do medidor.
+    Retorna (valor, foi_offline) onde foi_offline=True indica falha de rede.
+    """
     try:
-        from anthropic import Anthropic
+        from anthropic import Anthropic, APIConnectionError, APITimeoutError
         from dotenv import load_dotenv
         load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             logger.warning("ANTHROPIC_API_KEY não encontrada — pulando Claude Vision")
-            return None
+            return None, True  # sem chave = tratar como offline
 
         with open(caminho_foto, "rb") as f:
             img_b64 = base64.standard_b64encode(f.read()).decode()
 
-        # Detecta media type pela extensão
         ext = os.path.splitext(caminho_foto)[1].lower()
         media_type = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
 
@@ -112,16 +123,21 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> str | None:
         logger.info(f"Claude Vision OCR bruto: '{texto}'")
 
         if not texto or texto.lower() == "null":
-            return None
+            return None, False  # online, mas não reconheceu
 
-        # Normaliza decimal e valida
         texto = texto.replace(",", ".")
-        float(texto)  # valida que é numérico
-        return texto
+        float(texto)  # valida numérico
+        return texto, False
 
+    except (APIConnectionError, APITimeoutError) as e:
+        logger.warning(f"Claude Vision sem internet: {e}")
+        return None, True  # offline confirmado
     except Exception as e:
         logger.warning(f"Claude Vision OCR erro: {e}")
-        return None
+        # Tentativa de detectar erro de rede por mensagem
+        msg_lower = str(e).lower()
+        is_offline = any(w in msg_lower for w in ("connect", "timeout", "network", "unreachable"))
+        return None, is_offline
 
 
 # ─── OCR via Tesseract (fallback) ────────────────────────────────────────────
