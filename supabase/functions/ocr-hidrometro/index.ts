@@ -59,8 +59,9 @@ serve(async (req) => {
                 text:
                   `Esta é uma foto de um hidrômetro de ${tipoModo}. ` +
                   "Leia o número exibido no mostrador/visor do medidor. " +
-                  "Retorne APENAS o número com até 2 casas decimais, ex: 1234.56. " +
-                  "Não inclua texto, unidade ou explicação. " +
+                  "Os dígitos em vermelho (ou em cor diferente dos demais) representam as casas decimais — inclua-os após o ponto decimal. " +
+                  "Retorne APENAS o número com até 3 casas decimais usando ponto como separador decimal, ex: 328.936. " +
+                  "Não inclua vírgula, texto, unidade ou explicação. " +
                   "Se não conseguir ler claramente, retorne: null",
               },
             ],
