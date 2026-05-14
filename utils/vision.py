@@ -65,6 +65,79 @@ def processar_foto_hidrometro(caminho_foto: str, tipo: str = "água"):
     return unidade_qr, valor, status
 
 
+# ─── Pré-processamento de imagem ─────────────────────────────────────────────
+
+def _preparar_imagem_bytes(caminho_foto: str) -> bytes:
+    """
+    Recorta a imagem para focar na área do medidor antes de enviar ao Claude.
+
+    - Foto em retrato (h > w): provavelmente screenshot de app de câmera.
+      O medidor fica na metade inferior → recorta 45%–90% da altura.
+    - Foto em paisagem (w >= h): close-up direto → envia como está.
+    """
+    img = cv2.imread(caminho_foto)
+    if img is None:
+        with open(caminho_foto, "rb") as f:
+            return f.read()
+
+    h, w = img.shape[:2]
+
+    if h > w:  # portrait = screenshot do celular
+        y_ini = int(h * 0.45)
+        y_fim = int(h * 0.90)
+        img = img[y_ini:y_fim, :]
+
+    # Redimensiona para max 1024px mantendo aspecto (menos tokens, mais nítido)
+    max_dim = 1024
+    fator = min(max_dim / img.shape[1], max_dim / img.shape[0], 1.0)
+    if fator < 1.0:
+        img = cv2.resize(img, (int(img.shape[1] * fator), int(img.shape[0] * fator)),
+                         interpolation=cv2.INTER_AREA)
+
+    _, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    return buf.tobytes()
+
+
+# ─── Prompt OCR por tipo de medidor ─────────────────────────────────────────
+
+def _prompt_ocr(tipo: str, is_portrait: bool = False) -> str:
+    """
+    Retorna o prompt específico para cada tipo de medidor.
+
+    Medidor de ÁGUA (Renova/Atalaia): display com 7 dígitos — 5 inteiros + 2 decimais.
+      Os 2 últimos dígitos têm fundo vermelho.  Ex: 0227|86 → 00227.86
+
+    Medidor de GÁS (LAO/Itron): display com 8 dígitos — 5 inteiros + 3 decimais.
+      Os 3 últimos dígitos têm fundo vermelho.  Ex: 00327|833 → 00327.833
+    """
+    is_gas = "gás" in tipo.lower() or "gas" in tipo.lower()
+    localizacao = (
+        "A foto é uma screenshot de app de câmera: ignore a interface do celular no topo e fundo, "
+        "e foque no medidor circular que aparece na metade INFERIOR da imagem. " if is_portrait else ""
+    )
+
+    if is_gas:
+        return (
+            f"Esta é uma foto de um medidor de GÁS. {localizacao}"
+            "Localize o visor retangular com dígitos numéricos no medidor. "
+            "O visor tem 8 posições: os 5 primeiros dígitos (fundo branco/preto) são a parte inteira, "
+            "os 3 últimos (fundo VERMELHO) são as casas decimais. "
+            "Leia cada dígito com cuidado — não confunda 8 com 6, nem 3 com 8. "
+            "Use ponto decimal. Exemplos corretos: '00327.833', '01584.480', '00214.835'. "
+            "Retorne APENAS o número. Se não conseguir ler, retorne: null"
+        )
+    else:
+        return (
+            f"Esta é uma foto de um medidor de ÁGUA. {localizacao}"
+            "Localize o visor retangular com dígitos numéricos no medidor. "
+            "O visor tem 7 posições: os 5 primeiros dígitos (fundo branco/preto) são a parte inteira, "
+            "os 2 últimos (fundo VERMELHO) são as casas decimais. "
+            "Leia cada dígito com cuidado — não confunda 2 com 3, nem 6 com 0 ou 7. "
+            "Use ponto decimal. Exemplos corretos: '00227.86', '02673.00', '02308.70'. "
+            "Retorne APENAS o número. Se não conseguir ler, retorne: null"
+        )
+
+
 # ─── OCR via Claude Vision ────────────────────────────────────────────────────
 
 def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple[str | None, bool]:
@@ -75,18 +148,22 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple[str | None, boo
     try:
         from anthropic import Anthropic, APIConnectionError, APITimeoutError
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+        load_dotenv(os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), '.env'))
 
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            logger.warning("ANTHROPIC_API_KEY não encontrada — pulando Claude Vision")
+            logger.warning(
+                "ANTHROPIC_API_KEY não encontrada — pulando Claude Vision")
             return None, True  # sem chave = tratar como offline
 
-        with open(caminho_foto, "rb") as f:
-            img_b64 = base64.standard_b64encode(f.read()).decode()
+        # Detect portrait orientation (phone screenshot) before preprocessing
+        _tmp = cv2.imread(caminho_foto)
+        is_portrait = _tmp is not None and _tmp.shape[0] > _tmp.shape[1]
 
-        ext = os.path.splitext(caminho_foto)[1].lower()
-        media_type = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
+        # Crop portrait images to meter area; landscape sent as-is
+        raw = _preparar_imagem_bytes(caminho_foto)
+        img_b64 = base64.standard_b64encode(raw).decode()
 
         client = Anthropic(api_key=api_key)
         msg = client.messages.create(
@@ -99,21 +176,13 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple[str | None, boo
                         "type": "image",
                         "source": {
                             "type": "base64",
-                            "media_type": media_type,
+                            "media_type": "image/jpeg",
                             "data": img_b64,
                         },
                     },
                     {
                         "type": "text",
-                        "text": (
-                            f"Esta é uma foto de um hidrômetro de {tipo}. "
-                            "Leia o número exibido no mostrador/visor do medidor. "
-                            "Os dígitos em vermelho (ou em cor diferente dos demais) representam as casas decimais — "
-                            "inclua-os após o ponto decimal. "
-                            "Retorne APENAS o número com até 3 casas decimais usando ponto como separador decimal, ex: 328.936. "
-                            "Não inclua vírgula, texto, unidade ou explicação. "
-                            "Se não conseguir ler claramente, retorne: null"
-                        ),
+                        "text": _prompt_ocr(tipo, is_portrait),
                     },
                 ],
             }],
@@ -136,7 +205,8 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple[str | None, boo
         logger.warning(f"Claude Vision OCR erro: {e}")
         # Tentativa de detectar erro de rede por mensagem
         msg_lower = str(e).lower()
-        is_offline = any(w in msg_lower for w in ("connect", "timeout", "network", "unreachable"))
+        is_offline = any(w in msg_lower for w in (
+            "connect", "timeout", "network", "unreachable"))
         return None, is_offline
 
 
@@ -157,7 +227,8 @@ def _ocr_tesseract(img_redim) -> str | None:
         candidatos = []
 
         # Estratégia 1: Otsu global
-        _, bin1 = cv2.threshold(cinza, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, bin1 = cv2.threshold(
+            cinza, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # Estratégia 2: Adaptativa gaussiana
         blur = cv2.medianBlur(cinza, 3)
@@ -176,7 +247,8 @@ def _ocr_tesseract(img_redim) -> str | None:
         for img_bin in [bin1, bin2, bin3]:
             for cfg in [config6, config7]:
                 try:
-                    txt = pytesseract.image_to_string(img_bin, config=cfg).strip()
+                    txt = pytesseract.image_to_string(
+                        img_bin, config=cfg).strip()
                     digits = ''.join(c for c in txt if c.isdigit() or c == '.')
                     digits = digits.strip('.')
                     if len(digits) >= 4:  # leitura mínima plausível
