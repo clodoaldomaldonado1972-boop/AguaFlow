@@ -96,9 +96,9 @@ def montar_tela_medicao(page: ft.Page):
             width=320,
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.InputFilter(
-                allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,2})?$"),
+                allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,3})?$"),
             text_align=ft.TextAlign.CENTER,
-            hint_text="00000,00",
+            hint_text="00000,000",
             disabled=True
         )
 
@@ -286,7 +286,7 @@ def montar_tela_medicao(page: ft.Page):
             try:
                 # Converte para float; campo vazio (modo oposto) vira None
                 v_agua = round(float(valor_agua), 2) if valor_agua else None
-                v_gas = round(float(valor_gas), 2) if valor_gas else None
+                v_gas = round(float(valor_gas), 3) if valor_gas else None
                 # Padronização para ISO (YYYY-MM-DD) para busca correta no SQLite
                 data_coleta = datetime.now(fuso_sp).isoformat(
                     sep=' ', timespec='seconds')
