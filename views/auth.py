@@ -128,7 +128,7 @@ def criar_tela_login(page: ft.Page):
                         ft.Image(
                             src="logo.jpeg",
                             width=90, height=90,
-                            fit=ft.ImageFit.CONTAIN,
+                            fit=ft.BoxFit.CONTAIN,
                             border_radius=ft.border_radius.all(45),
                         ),
                         ft.Text("AguaFlow", size=32, weight="bold", color="white"),
