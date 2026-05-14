@@ -141,6 +141,7 @@ def montar_tela_scanner(page: ft.Page):
                 )
                 if url:
                     logger.info(f"📸 Upload concluído: {url}")
+                    page.user_data["foto_url_scanner"] = url
                 else:
                     logger.warning("⚠️ Upload da foto não retornou URL.")
             except Exception as ex:

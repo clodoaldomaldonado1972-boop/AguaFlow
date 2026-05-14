@@ -48,17 +48,18 @@ class SyncService:
                 with Database.get_db() as conn:
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT 
-                            id, 
-                            unidade_id, 
-                            leitura_agua, 
-                            leitura_gas, 
-                            tipo, 
-                            data_hora_coleta, 
+                        SELECT
+                            id,
+                            unidade_id,
+                            leitura_agua,
+                            leitura_gas,
+                            tipo,
+                            data_hora_coleta,
                             path_foto,
-                            leiturista
-                        FROM leituras 
-                        WHERE sincronizado = 0 
+                            leiturista,
+                            foto_url
+                        FROM leituras
+                        WHERE sincronizado = 0
                         ORDER BY id ASC
                     """)
                     pendentes = cursor.fetchall()
@@ -155,6 +156,11 @@ class SyncService:
             elif "Gás" in tipo_reg or "GAS" in tipo_reg:
                 dados["leitura_gas"] = valor
 
+            # Associa a foto ao registro se disponível
+            foto_url = item.get('foto_url')
+            if foto_url:
+                dados["foto_url"] = foto_url
+
             # Realiza a inserção no Supabase
             supabase.table("leituras").insert(dados).execute()
             return {'sucesso': True}
@@ -181,7 +187,7 @@ class SyncService:
             with Database.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT id, unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, path_foto, leiturista
+                    SELECT id, unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, path_foto, leiturista, foto_url
                     FROM leituras WHERE sincronizado = 0
                 """)
                 pendentes = cursor.fetchall()

@@ -285,7 +285,7 @@ class Database:
             return False
 
     @classmethod
-    def salvar_leitura(cls, unidade, valor_agua, valor_gas, modo, data_hora):
+    def salvar_leitura(cls, unidade, valor_agua, valor_gas, modo, data_hora, foto_url=None):
         """Salva uma nova leitura no banco de dados local."""
         try:
             # Lógica para Unidades Duplex: Replica o valor se houver "/"
@@ -305,9 +305,9 @@ class Database:
                         unidades_alvo) > 1 else modo
 
                     cursor.execute("""
-                        INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado, valor_leitura) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (u_id.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_agua))
+                        INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado, valor_leitura, foto_url)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (u_id.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_agua, foto_url))
 
 
 

@@ -178,7 +178,7 @@ def montar_tela_medicao(page: ft.Page):
             width=320, height=65
         )
 
-        # 2. Recuperação de dados do Scanner OCR (Agora após definição dos campos para evitar NameError)
+        # 2. Recuperação de dados do Scanner (após definição dos campos para evitar NameError)
         unidade_ocr = user_data.get("unidade_scanner")
         valor_ocr = user_data.get("valor_scanner")
 
@@ -293,13 +293,14 @@ def montar_tela_medicao(page: ft.Page):
                 return
 
             # Salva no banco local para o SyncService sincronizar depois
-            # Use current_unit for saving
+            foto_url = user_data.pop("foto_url_scanner", None)
             res = Database.salvar_leitura(
                 unidade=current_unit,
                 valor_agua=v_agua,
                 valor_gas=v_gas,
                 modo=state["modo"],
-                data_hora=data_coleta  # Passando a data formatada
+                data_hora=data_coleta,
+                foto_url=foto_url
             )
             # Update last read unit in page.user_data for resuming
             # Also store the values for potential restoration/clearing
