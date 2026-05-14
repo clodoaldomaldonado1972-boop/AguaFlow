@@ -82,9 +82,13 @@
 - [x] **Registrar rotas ausentes** no roteador (`main.py`): `/ajuda`, `/historico`, `/dashboard`, `/qrcodes`
 - [x] **Adicionar botões** no menu principal: Histórico, QR Codes, Ajuda, Sobre (row de TextButtons)
 - [x] **Corrigir `redirect_to`** em `recuperar_senha_email.py`
-- [x] **Corrigir bgcolor** de `/historico` (tela branca)
-- [x] **Adicionar AppBar + back button** em `/historico`
+- [x] **Corrigir bgcolor** de todos os views (tela branca durante transição)
+- [x] **Adicionar AppBar + back button** em `/historico` e `/ajuda`
 - [x] **Corrigir botão Voltar** de `/sobre` (apontava para `/configuracoes`, agora vai para `/menu`)
+- [x] **Corrigir `on_view_pop`** em `main.py` — retornava `None` sempre (len > 1 nunca satisfeito com clear+append), deixava `page.views` vazio → tela branca ao pressionar voltar do sistema
+- [x] **Corrigir `validar_sessao`** — retornava View vazia sem bgcolor → tela branca
+- [x] **Corrigir error handler** em `main.py` — agora limpa views e mostra tela escura com "Voltar ao Menu"
+- [x] **Scroll no menu** — `ScrollMode.ADAPTIVE` na Column interna para garantir visibilidade do TextButton row
 
 ### Importante
 - [ ] **`/dashboard`** usa `st.criar_card_metrica` que não existe em `styles.py` — crashará se acessada

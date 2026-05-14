@@ -118,6 +118,7 @@ def montar_menu(page: ft.Page):
                                 ], alignment=ft.MainAxisAlignment.CENTER, wrap=True),
                             ],
                             horizontal_alignment="center", spacing=10,
+                            scroll=ft.ScrollMode.ADAPTIVE,
                         ),
                         ft.Column(
                             [

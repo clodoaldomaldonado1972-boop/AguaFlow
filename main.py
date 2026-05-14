@@ -117,8 +117,7 @@ async def main(page: ft.Page):
 
     # --- 2. ATRIBUIÇÃO DE EVENTOS ---
     page.on_route_change = route_change
-    page.on_view_pop = lambda view: page.go(
-        "/menu") if len(page.views) > 1 else None
+    page.on_view_pop = lambda view: page.go("/menu")
 
     # --- 1.1 EVENTO DE FECHAMENTO EXPLÍCITO ---
     async def handle_close(e):
