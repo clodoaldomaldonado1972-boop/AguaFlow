@@ -75,8 +75,8 @@ def montar_menu(page: ft.Page):
         )
 
         return ft.View(
-            "/menu",
-            [
+            route="/menu",
+            controls=[
                 ft.AppBar(
                     title=ft.Column([
                         ft.Text(f"Olá, {user_name}!", size=16, weight="bold"),
@@ -123,7 +123,7 @@ def montar_menu(page: ft.Page):
 
     except Exception as e:
         return ft.View(
-            "/menu",
-            [ft.Text(
+            route="/menu",
+            controls=[ft.Text(
                 f"Erro ao carregar menu principal: {str(e)}", color="red")]
         )

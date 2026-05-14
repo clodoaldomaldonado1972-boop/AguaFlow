@@ -91,4 +91,4 @@ def montar_tela_autenticacao(page: ft.Page):
             ]
         )
     except Exception as e:
-        return ft.View("/registro", [ft.Text(f"Erro ao carregar cadastro: {str(e)}", color="red")])
+        return ft.View(route="/registro", controls=[ft.Text(f"Erro ao carregar cadastro: {str(e)}", color="red")])

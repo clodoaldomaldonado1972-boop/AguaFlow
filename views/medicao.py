@@ -393,7 +393,7 @@ def montar_tela_medicao(page: ft.Page):
         logging.error(e)
         enviar_report_erro(traceback.format_exc(), unidade="UI-MEDICAO")
         return ft.View(
-            "/medicao",
-            [ft.Text(
+            route="/medicao",
+            controls=[ft.Text(
                 f"Erro ao carregar tela de medição: {str(e)}", color="red")]
         )

@@ -229,4 +229,4 @@ def montar_tela_scanner(page: ft.Page):
             ]
         )
     except Exception as e:
-        return ft.View("/scanner", [ft.Text(f"Erro Crítico no Scanner: {e}", color="red")])
+        return ft.View(route="/scanner", controls=[ft.Text(f"Erro Crítico no Scanner: {e}", color="red")])

@@ -35,7 +35,7 @@ def montar_tela_esqueci_senha(page: ft.Page):
             ]
         )
     except Exception as e:
-        return ft.View("/esqueci_senha", [ft.Text(f"Erro: {str(e)}", color="red")])
+        return ft.View(route="/esqueci_senha", controls=[ft.Text(f"Erro: {str(e)}", color="red")])
 
 
 def criar_tela_login(page: ft.Page):
@@ -150,4 +150,4 @@ def criar_tela_login(page: ft.Page):
             ]
         )
     except Exception as e:
-        return ft.View("/", [ft.Text(f"Erro Crítico: {str(e)}", color="red")])
+        return ft.View(route="/", controls=[ft.Text(f"Erro Crítico: {str(e)}", color="red")])
