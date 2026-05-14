@@ -110,7 +110,7 @@ def montar_tela_medicao(page: ft.Page):
         def atualizar_estilos_modo():
             """Atualiza cores e ícones dos campos conforme o modo (Água ou Gás)."""
             is_agua = state["modo"] == "AGUA"
-            cor = ft.colors.BLUE if is_agua else ft.colors.ORANGE
+            cor = "blue" if is_agua else "orange"
             icone = "water_drop" if is_agua else "local_fire_department"
 
             # Atualiza Dropdown de Unidade
@@ -170,7 +170,7 @@ def montar_tela_medicao(page: ft.Page):
         btn_reiniciar_ciclo = ft.ElevatedButton(
             "INICIAR NOVO CICLO",
             icon="replay",
-            bgcolor=ft.colors.ORANGE_800,
+            bgcolor="orange800",
             color="white",
             visible=False,
             on_click=reiniciar_sistema,
