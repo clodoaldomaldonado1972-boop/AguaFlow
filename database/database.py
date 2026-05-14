@@ -456,18 +456,20 @@ class Database:
     def upload_foto_hidrometro_sync(cls, caminho_foto: str, unidade: str, modo: str) -> str | None:
         """Upload síncrono da foto do hidrômetro para o bucket fotos_hidrometros no Supabase Storage."""
         try:
-            if not cls.supabase or not os.path.exists(caminho_foto):
+            # Usa service role para bypassar RLS no Storage; cai para anon se admin não configurado
+            client = cls.supabase_admin or cls.supabase
+            if not client or not os.path.exists(caminho_foto):
                 return None
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             storage_path = f"{unidade}/{timestamp}_{modo}.jpg"
             with open(caminho_foto, 'rb') as f:
                 dados = f.read()
-            cls.supabase.storage.from_("fotos_hidrometros").upload(
+            client.storage.from_("fotos_hidrometros").upload(
                 storage_path,
                 dados,
                 {"content-type": "image/jpeg", "upsert": "true"}
             )
-            url = cls.supabase.storage.from_("fotos_hidrometros").get_public_url(storage_path)
+            url = client.storage.from_("fotos_hidrometros").get_public_url(storage_path)
             logger.info(f"📸 Foto enviada ao Supabase Storage: {url}")
             return url
         except Exception as e:
