@@ -62,7 +62,7 @@ class SyncService:
                         WHERE sincronizado = 0
                         ORDER BY id ASC
                     """)
-                    pendentes = cursor.fetchall()
+                    pendentes = [dict(r) for r in cursor.fetchall()]
 
                     if not pendentes:
                         logger.info("✅ Tudo em dia: Nada para sincronizar.")
@@ -150,7 +150,9 @@ class SyncService:
                 "data_hora_coleta": item['data_hora_coleta'] or data_iso
             }
 
-            # Envia o valor para a coluna correspondente
+            # Envia o valor para as colunas correspondentes
+            # valor_leitura = leitura manual; OCR pode sobrescrever depois
+            dados["valor_leitura"] = valor or 0
             if "Água" in tipo_reg or "AGUA" in tipo_reg:
                 dados["leitura_agua"] = valor
             elif "Gás" in tipo_reg or "GAS" in tipo_reg:
@@ -173,7 +175,7 @@ class SyncService:
         """Registra a auditoria da tentativa de sincronização[cite: 6]"""
         try:
             cursor.execute("""
-                INSERT INTO sync_log (leitura_id, unidade, status, erro_mensagem, ultima_tentativa)
+                INSERT INTO sync_log (leitura_id, unidade_id, status, erro_mensagem, ultima_tentativa)
                 VALUES (?, ?, ?, ?, ?)
             """, (leitura_id, unidade, status, erro, dt.now(cls.TZ_SP).isoformat()))
         except Exception as e:
@@ -190,7 +192,7 @@ class SyncService:
                     SELECT id, unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, path_foto, leiturista, foto_url
                     FROM leituras WHERE sincronizado = 0
                 """)
-                pendentes = cursor.fetchall()
+                pendentes = [dict(r) for r in cursor.fetchall()]
 
                 for item in pendentes:
                     data_sp = dt.now(cls.TZ_SP).isoformat()
