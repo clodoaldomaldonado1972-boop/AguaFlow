@@ -228,25 +228,29 @@ def montar_tela_usuarios(page: ft.Page):
                 leading=ft.IconButton(
                     "arrow_back", on_click=lambda _: page.go("/menu"))
             ),
-            ft.Column([
-                ft.Container(height=10),
-                txt_busca,
-                ft.Container(height=10),
-                ft.Text("CONTROLE DE CARGOS", size=12,
-                        color="grey", weight="bold"),
-                lista_usuarios_ui,
-                ft.Container(height=10),
-                ft.ElevatedButton(
-                    "CRIAR NOVO USUÁRIO",
-                    icon="person_add",
-                    on_click=criar_novo_usuario_dialog,
-                    width=350,
-                    height=50,
-                    style=st.BTN_MAIN
-                ),
-                ft.Container(height=5),
-                ft.TextButton("Voltar ao Menu",
-                              on_click=lambda _: page.go("/menu"))
-            ], expand=True, padding=20)
+            ft.Container(
+                padding=20,
+                expand=True,
+                content=ft.Column([
+                    ft.Container(height=10),
+                    txt_busca,
+                    ft.Container(height=10),
+                    ft.Text("CONTROLE DE CARGOS", size=12,
+                            color="grey", weight="bold"),
+                    lista_usuarios_ui,
+                    ft.Container(height=10),
+                    ft.ElevatedButton(
+                        "CRIAR NOVO USUÁRIO",
+                        icon="person_add",
+                        on_click=criar_novo_usuario_dialog,
+                        width=350,
+                        height=50,
+                        style=st.BTN_MAIN
+                    ),
+                    ft.Container(height=5),
+                    ft.TextButton("Voltar ao Menu",
+                                  on_click=lambda _: page.go("/menu"))
+                ], expand=True)
+            )
         ]
     )

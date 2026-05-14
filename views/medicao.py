@@ -34,10 +34,10 @@ def montar_tela_medicao(page: ft.Page):
                 leituras_mes = Database.get_leituras_mes_atual()
                 if state["modo"] == "AGUA":
                     lidos = {l['unidade_id']
-                             for l in leituras_mes if l['leitura_agua'] is not None}
+                             for l in leituras_mes if 'leitura_agua' in l and l['leitura_agua'] is not None}
                 else:
                     lidos = {l['unidade_id']
-                             for l in leituras_mes if l['leitura_gas'] is not None}
+                             for l in leituras_mes if 'leitura_gas' in l and l['leitura_gas'] is not None}
 
                 unidade_atual = txt_unidade.value
                 idx_atual = db_lista.index(
@@ -80,7 +80,7 @@ def montar_tela_medicao(page: ft.Page):
 
         txt_agua = ft.TextField(
             label="Leitura Água (m³)",
-            icon="water_drop",
+            prefix_icon="water_drop",
             width=320,
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.InputFilter(
@@ -221,10 +221,10 @@ def montar_tela_medicao(page: ft.Page):
                 page.pop_dialog()
                 if escolha_gas:
                     state["modo"] = "GAS"
-                    unidade_atual = txt_unidade.value
+                    unid_val = txt_unidade.value
                     # Extrai o andar (ex: "16" de "166" ou "163/164") para voltar ao início do hall
-                    prefixo = unidade_atual[:2] if unidade_atual[0].isdigit() and len(
-                        unidade_atual) >= 3 else ""
+                    prefixo = unid_val[:2] if unid_val and unid_val[0].isdigit() and len(
+                        unid_val) >= 3 else ""
                     if prefixo:
                         idx_volta = next(i for i, u in enumerate(
                             db_lista) if u.startswith(prefixo))
@@ -388,7 +388,7 @@ def montar_tela_medicao(page: ft.Page):
         )
     except Exception as e:
         logging.error(e)
-        enviar_report_erro(traceback.format_exc(), unidade="UI-MEDICAO")
+        enviar_report_erro(traceback.format_exc(), unidade="CARREGAMENTO_MEDICAO")
         return ft.View(
             route="/medicao",
             controls=[ft.Text(
