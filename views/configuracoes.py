@@ -101,7 +101,7 @@ def montar_tela_configs(page: ft.Page):
                 msg += " (Falha ao excluir na nuvem)"
             page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN))
             tocar_alerta(page, "sucesso")
-            page.user_data = None
+            page.user_data = {}
             page.go("/")
         else:
             page.show_dialog(ft.SnackBar(

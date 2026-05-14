@@ -35,6 +35,7 @@ MANIFEST
 *~
 .DS_Store
 Thumbs.db
+.claude/
 
 # ========== AMBIENTE & CHAVES (SENSÍVEL) ==========
 .env

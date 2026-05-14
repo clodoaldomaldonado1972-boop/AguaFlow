@@ -69,7 +69,7 @@ async def main(page: ft.Page):
                 nova_view = montar_tela_configs(page)
             elif page.route == "/dashboard_saude":
                 from views.dashboard_saude import montar_tela_saude
-                nova_view = montar_tela_saude(page, ao_voltar=lambda: page.go("/menu"))
+                nova_view = montar_tela_saude(page, ao_voltar=lambda _: page.go("/menu"))
             elif page.route == "/recuperar-email":
                 from views.recuperar_senha_email import criar_tela_recuperacao
                 nova_view = criar_tela_recuperacao(page)
@@ -78,16 +78,16 @@ async def main(page: ft.Page):
                 nova_view = montar_tela_sobre(page)
             elif page.route == "/ajuda":
                 from views.ajuda_view import montar_tela_ajuda
-                nova_view = montar_tela_ajuda(page, on_back=lambda: page.go("/menu"))
+                nova_view = montar_tela_ajuda(page, on_back=lambda _: page.go("/menu"))
             elif page.route == "/historico":
                 from views.historico import montar_tela_historico
                 nova_view = await montar_tela_historico(page)
             elif page.route == "/dashboard":
                 from views.dashboard import montar_tela_dashboard
-                nova_view = montar_tela_dashboard(page, ao_voltar=lambda: page.go("/menu"))
+                nova_view = montar_tela_dashboard(page, ao_voltar=lambda _: page.go("/menu"))
             elif page.route == "/qrcodes":
                 from views.qrcodes_view import montar_tela_qrcodes
-                nova_view = montar_tela_qrcodes(page, on_back=lambda: page.go("/menu"))
+                nova_view = montar_tela_qrcodes(page, on_back=lambda _: page.go("/menu"))
 
             if nova_view:
                 page.views.clear()
