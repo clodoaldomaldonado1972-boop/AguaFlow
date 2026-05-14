@@ -92,10 +92,19 @@ def montar_tela_scanner(page: ft.Page):
                     page.update()
                     return
 
-                # Salva foto temporária
+                # Redimensiona para max 1024px (preserva aspecto) antes de salvar
+                h, w = frame.shape[:2]
+                if max(h, w) > 1024:
+                    scale = 1024 / max(h, w)
+                    frame = cv2.resize(
+                        frame, (int(w * scale), int(h * scale)),
+                        interpolation=cv2.INTER_AREA
+                    )
+
+                # Salva foto temporária com qualidade reduzida (~60-100 KB)
                 ts = datetime.now().strftime('%H%M%S')
                 path = os.path.join(PASTA_TEMP, f"scan_{ts}.jpg")
-                _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
                 with open(path, 'wb') as f:
                     f.write(buf.tobytes())
                 state["foto_path"] = path
