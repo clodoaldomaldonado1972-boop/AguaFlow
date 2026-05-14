@@ -73,8 +73,12 @@ def criar_mira_scanner():
                 break  # Para a animação se a tela for fechada
             await asyncio.sleep(1.5)
 
-    # Dispara a animação em background assim que o container é criado[cite: 7]
-    asyncio.create_task(animar_linha())
+    # Dispara a animação em background (só funciona dentro do loop de eventos do Flet)
+    try:
+        asyncio.get_running_loop()
+        asyncio.create_task(animar_linha())
+    except RuntimeError:
+        pass
 
     return ft.Container(
         content=ft.Stack([

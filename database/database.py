@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import csv
 import logging
 import traceback
 from contextlib import contextmanager
@@ -21,9 +22,11 @@ class Database:
     # --- INICIALIZAÇÃO DO SUPABASE ---
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_KEY")
+    key_admin = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
     # Definimos explicitamente como None para evitar AttributeError em outros arquivos
     supabase: Client = None
+    supabase_admin: Client = None
 
     if url and key:
         try:
@@ -31,6 +34,13 @@ class Database:
             logger.info("✅ Conexão com Supabase estabelecida.")
         except Exception as e:
             logger.error(f"❌ Erro ao conectar ao Supabase: {e}")
+
+    if url and key_admin:
+        try:
+            supabase_admin = create_client(url, key_admin)
+            logger.info("✅ Conexão Admin com Supabase estabelecida.")
+        except Exception as e:
+            logger.error(f"❌ Erro ao conectar ao Supabase Admin: {e}")
 
     @classmethod
     @contextmanager
@@ -111,9 +121,11 @@ class Database:
 
                 conn.commit()
                 # Esta linha abaixo estava com erro de indentação
-                logger.info("🚀 Estrutura do banco de dados (SQLite) sincronizada.")
+                logger.info(
+                    "🚀 Estrutura do banco de dados (SQLite) sincronizada.")
         except Exception as e:
-            logger.critical(f"❌ FALHA CRÍTICA NA INICIALIZAÇÃO DO SQLITE: {str(e)}", exc_info=True)
+            logger.critical(
+                f"❌ FALHA CRÍTICA NA INICIALIZAÇÃO DO SQLITE: {str(e)}", exc_info=True)
             # Gatilho de E-mail para falha no Boot
             from utils.logger_config import enviar_report_erro
             enviar_report_erro(traceback.format_exc(), unidade="BOOT SYSTEM")
@@ -285,8 +297,9 @@ class Database:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
                 for u_id in unidades_alvo:
-                    if not u_id: continue
-                    
+                    if not u_id:
+                        continue
+
                     # Adiciona nota de Duplex no tipo de registro para o relatório
                     tipo_final = f"{modo} (Duplex)" if len(
                         unidades_alvo) > 1 else modo
@@ -296,14 +309,18 @@ class Database:
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (u_id.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_agua))
 
-                cursor.close()
+
+
                 conn.commit()
-                logger.debug(f"💾 Leitura salva localmente para unidade {unidade}")
+                cursor.close()
+                logger.debug(
+                    f"💾 Leitura salva localmente para unidade {unidade}")
                 return {"sucesso": True}
 
         except Exception as e:
             logging.error(e)
-            logger.error(f"❌ Erro ao salvar leitura no SQLite (Unidade {unidade}): {str(e)}", exc_info=True)
+            logger.error(
+                f"❌ Erro ao salvar leitura no SQLite (Unidade {unidade}): {str(e)}", exc_info=True)
             # Gatilho de E-mail para falha na gravação local
             from utils.logger_config import enviar_report_erro
             enviar_report_erro(traceback.format_exc(), unidade=unidade)
@@ -418,7 +435,8 @@ class Database:
     @classmethod
     async def registrar_log_erro(cls, erro, contexto, usuario=None, screenshot_url=None):
         """Registra um erro no Supabase para análise técnica remota."""
-        logger.debug(f"📡 Tentando registrar log de erro remoto. Contexto: {contexto} | Erro: {erro}")
+        logger.debug(
+            f"📡 Tentando registrar log de erro remoto. Contexto: {contexto} | Erro: {erro}")
         try:
             if cls.supabase:
                 dados = {
@@ -428,9 +446,34 @@ class Database:
                     "data_hora": datetime.now().isoformat()
                 }
                 cls.supabase.table("logs_erro").insert(dados).execute()
-                logger.info("✅ Log de erro enviado para o Supabase com sucesso.")
+                logger.info(
+                    "✅ Log de erro enviado para o Supabase com sucesso.")
         except Exception as e:
-            logger.error(f"❌ Falha ao enviar log para o Supabase: {e}", exc_info=True)
+            logger.error(
+                f"❌ Falha ao enviar log para o Supabase: {e}", exc_info=True)
+
+    @classmethod
+    def upload_foto_hidrometro_sync(cls, caminho_foto: str, unidade: str, modo: str) -> str | None:
+        """Upload síncrono da foto do hidrômetro para o bucket fotos_hidrometros no Supabase Storage."""
+        try:
+            if not cls.supabase or not os.path.exists(caminho_foto):
+                return None
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            storage_path = f"{unidade}/{timestamp}_{modo}.jpg"
+            with open(caminho_foto, 'rb') as f:
+                dados = f.read()
+            cls.supabase.storage.from_("fotos_hidrometros").upload(
+                storage_path,
+                dados,
+                {"content-type": "image/jpeg", "upsert": "true"}
+            )
+            url = cls.supabase.storage.from_("fotos_hidrometros").get_public_url(storage_path)
+            logger.info(f"📸 Foto enviada ao Supabase Storage: {url}")
+            return url
+        except Exception as e:
+            logger.error(f"❌ Erro no upload da foto: {e}", exc_info=True)
+            return None
+
 # --- FUNÇÃO GLOBAL DE ACESSO ---
 # --- FUNÇÃO GLOBAL DE ACESSO ---
 
@@ -442,12 +485,14 @@ def get_supabase_client():
             Database.inicializar_tabelas()  # Força a carga das variáveis e tabelas
 
         if Database.supabase is None:
-            logger.error("ERRO: Supabase não pôde ser inicializado. Verifique seu arquivo .env")
+            logger.error(
+                "ERRO: Supabase não pôde ser inicializado. Verifique seu arquivo .env")
             return None
 
         return Database.supabase
     except Exception as e:
-        logger.critical(f"Erro fatal ao conectar ao banco Supabase: {e}", exc_info=True)
+        logger.critical(
+            f"Erro fatal ao conectar ao banco Supabase: {e}", exc_info=True)
         return None
 
 
@@ -458,9 +503,11 @@ def get_supabase_admin_client():
             # Tenta inicializar novamente se for None
             Database.inicializar_tabelas()
             if Database.supabase_admin is None:
-                logger.error("ERRO: Supabase Admin não pôde ser inicializado. Verifique SUPABASE_SERVICE_ROLE_KEY.")
+                logger.error(
+                    "ERRO: Supabase Admin não pôde ser inicializado. Verifique SUPABASE_SERVICE_ROLE_KEY.")
                 return None
         return Database.supabase_admin
     except Exception as e:
-        logger.critical(f"Erro fatal ao conectar ao Supabase Admin: {e}", exc_info=True)
+        logger.critical(
+            f"Erro fatal ao conectar ao Supabase Admin: {e}", exc_info=True)
         return None

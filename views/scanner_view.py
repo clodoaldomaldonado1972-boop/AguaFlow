@@ -1,233 +1,230 @@
 import flet as ft
 import os
 import base64
-import cv2
-import numpy as np
+import logging
 import asyncio
+from datetime import datetime
+import cv2
 from database.database import Database
-# Importa a mira e cores do seu styles.py[cite: 5, 6]
 import views.styles as st
 from utils.updater import AppUpdater
+
+logger = logging.getLogger(__name__)
+
+PASTA_TEMP = os.path.join(os.path.dirname(os.path.dirname(__file__)), "temp")
 
 
 def montar_tela_scanner(page: ft.Page):
     try:
-        user_data = getattr(page, "user_data", {}) or {}
         if not hasattr(page, "user_data") or page.user_data is None:
             page.user_data = {}
 
-        # --- 1. CONFIGURAÇÃO DE ÁUDIO (BEEP) ---
-        try:
-            audio_beep = ft.Audio(src="audio/beep.mp3", autoplay=False)
-            if audio_beep not in page.overlay:
-                page.overlay.append(audio_beep)
-        except AttributeError:
-            audio_beep = None
+        user_data = page.user_data
+        modo = user_data.get("modo_leitura", "AGUA")
+        os.makedirs(PASTA_TEMP, exist_ok=True)
 
-        # Elementos de UI
-        modo_atual = user_data.get("modo_leitura", "AGUA")
-        img_preview = ft.Image(src="", visible=False, width=300)
-        lbl_status = ft.Text(
-            f"MODO: {modo_atual}", color="white", weight="bold")
-        pr_envio = ft.ProgressBar(visible=False, color="blue")
-
-        # --- 2. INTEGRAÇÃO DA MIRA DO STYLES.PY ---
+        # --- UI ---
         mira_visual = st.criar_mira_scanner()
 
+        img_preview = ft.Image(
+            src="", visible=False, width=300, height=200,
+            fit="contain", border_radius=10
+        )
+        lbl_instrucao = ft.Text(
+            "Enquadre o QR Code + hidrômetro e toque para capturar",
+            size=13, color="grey", text_align=ft.TextAlign.CENTER
+        )
+        lbl_status = ft.Text(
+            "", color="white", weight="bold", size=15,
+            text_align=ft.TextAlign.CENTER
+        )
+        pr_captura = ft.ProgressBar(visible=False, color=st.PRIMARY_BLUE)
+
         txt_unid = ft.TextField(
-            label="Unidade",
-            prefix_icon="home",
-            border_radius=10
-        )
-        txt_val = ft.TextField(
-            label="Valor da Leitura",
-            prefix_icon="speed",
-            border_radius=10
+            label="Unidade detectada",
+            prefix_icon="qr_code_scanner",
+            border_radius=10,
+            read_only=True,
+            bgcolor="#1E2126",
+            width=300
         )
 
-        # Botão de Reportar Problema (inicialmente invisível)
-        btn_reportar_problema = ft.ElevatedButton(
-            "REPORTAR PROBLEMA",
-            icon="bug_report",
+        btn_confirmar = ft.ElevatedButton(
+            "CONFIRMAR E INSERIR MANUAL",
+            icon="edit_note",
+            width=300,
+            height=55,
+            style=st.BTN_MAIN,
             visible=False,
-            width=320,
-            style=st.BTN_SPECIAL
+            on_click=lambda e: page.run_task(_confirmar_e_voltar)
+        )
+        btn_recapturar = ft.TextButton(
+            "Capturar novamente",
+            icon="replay",
+            visible=False,
+            on_click=lambda e: page.run_task(_capturar)
+        )
+        btn_manual = ft.TextButton(
+            "Pular scanner e inserir manual",
+            icon="keyboard",
+            on_click=lambda _: page.go("/medicao")
         )
 
-        async def capturar_foto(e):
+        state = {"foto_path": None, "unidade": None}
+
+        async def _capturar(e=None):
+            lbl_status.value = "Capturando..."
+            lbl_status.color = "white"
+            pr_captura.visible = True
+            img_preview.visible = False
+            btn_confirmar.visible = False
+            btn_recapturar.visible = False
+            txt_unid.value = ""
+            page.update()
+
             try:
-                if audio_beep:
-                    audio_beep.play()
-                page.update()
-                pr_envio.visible = True
-                page.update()
+                frame = await asyncio.to_thread(_capturar_frame)
 
-                cap = cv2.VideoCapture(0)
-                ret, frame = cap.read()
-                cap.release()
+                if frame is None:
+                    lbl_status.value = "❌ Câmera não disponível. Use o botão manual."
+                    lbl_status.color = "red"
+                    pr_captura.visible = False
+                    page.update()
+                    return
 
-                if ret:
-                    nova_largura = 640
-                    altura, largura = frame.shape[:2]
-                    proporcao = nova_largura / float(largura)
-                    frame_redim = cv2.resize(
-                        frame, (nova_largura, int(altura * proporcao)))
+                # Salva foto temporária
+                ts = datetime.now().strftime('%H%M%S')
+                path = os.path.join(PASTA_TEMP, f"scan_{ts}.jpg")
+                _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                with open(path, 'wb') as f:
+                    f.write(buf.tobytes())
+                state["foto_path"] = path
 
-                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
-                    _, buffer = cv2.imencode('.jpg', frame_redim, encode_param)
+                # Preview em base64
+                img_preview.src_base64 = base64.b64encode(buf.tobytes()).decode()
+                img_preview.visible = True
 
-                    # Caminho temporário multiplataforma
-                    temp_dir = page.client_storage.get("temp_path") if hasattr(page, "client_storage") else os.getcwd()
-                    if not temp_dir: temp_dir = os.getcwd()
-                    
-                    path_temp = os.path.join(temp_dir, "temp_leitura.jpg")
-                    with open(path_temp, "wb") as f:
-                        f.write(buffer)
+                # Detecta QR na foto
+                unidade = _detectar_qr(frame)
+                state["unidade"] = unidade
 
-                    img_preview.src_base64 = base64.b64encode(
-                        buffer).decode('utf-8')
-                    img_preview.visible = True
-                    btn_reportar_problema.visible = False  # Esconde se a captura for bem-sucedida
-                    lbl_status.value = "✅ Capturado com sucesso!"
-                    page.user_data["path_foto_pendente"] = path_temp
-
+                if unidade:
+                    txt_unid.value = unidade
+                    lbl_status.value = f"✅ Unidade: {unidade}"
+                    lbl_status.color = "green"
                 else:
-                    # Erro silencioso: Hardware da câmera não entregou imagem
-                    msg_erro = "Câmera ativa mas retornou frame vazio (ret=False)"
-                    await Database.registrar_log_erro(
-                        erro=msg_erro,
-                        contexto="Scanner - Falha cap.read()",
-                        usuario=user_data.get("email")
-                    )
-                    # Configura o botão de reportar problema
-                    lbl_status.value = "❌ Erro: Hardware da câmera falhou."
-                    btn_reportar_problema.visible = True
-                    btn_reportar_problema.on_click = lambda ev: page.run_task(
-                        reportar_problema_clique, msg_erro, "Scanner - Falha cap.read()"
-                    )
+                    txt_unid.value = ""
+                    lbl_status.value = "⚠️ QR não detectado — confirme a unidade no próximo passo."
+                    lbl_status.color = "orange"
 
-                pr_envio.visible = False
-                page.update()
+                # Upload para Supabase em background — não bloqueia a UI
+                asyncio.create_task(
+                    _upload_background(path, unidade or "DESCONHECIDA", modo)
+                )
+
+                btn_confirmar.visible = True
+                btn_recapturar.visible = True
+
             except Exception as ex:
-                # Captura qualquer exceção de software e envia log
-                # Podemos capturar uma screenshot da UI do Flet mesmo que o cv2 não tenha conseguido um frame.
-                await Database.registrar_log_erro(
-                    erro=ex,
-                    contexto="Scanner - Exception Crítica",
-                    usuario=user_data.get("email")
-                )
-                # Configura o botão de reportar problema
-                lbl_status.value = f"Erro na captura: {str(ex)}"
-                btn_reportar_problema.visible = True
-                btn_reportar_problema.on_click = lambda ev: page.run_task(
-                    reportar_problema_clique, str(
-                        ex), "Scanner - Exception Crítica"
-                )
+                logger.error(f"Erro na captura: {ex}", exc_info=True)
+                lbl_status.value = f"❌ Erro: {ex}"
+                lbl_status.color = "red"
 
-                # Garante que o botão esteja visível e a página atualizada
-                lbl_status.value = f"Erro na captura: {str(ex)}"
-                pr_envio.visible = False
-                page.update()
-
-        async def reportar_problema_clique(erro_msg, contexto):
-            """Handler para o botão 'Reportar Problema'."""
-            btn_reportar_problema.disabled = True
-            btn_reportar_problema.text = "ENVIANDO..."
+            pr_captura.visible = False
             page.update()
 
-            screenshot_url = None
+        async def _upload_background(path: str, unidade: str, modo: str):
+            """Envia a foto ao Supabase Storage sem bloquear a UI."""
             try:
-                # Captura a screenshot da UI atual do Flet
-                screenshot_bytes = await page.export_image_async()
-                if screenshot_bytes:
-                    screenshot_url = await Database.upload_screenshot_to_storage(
-                        screenshot_bytes, f"scanner_error_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg", user_data.get(
-                            "email")
-                    )
-            except Exception as e:
-                logger.error(
-                    f"Falha ao capturar ou fazer upload da screenshot: {e}")
+                url = await asyncio.to_thread(
+                    Database.upload_foto_hidrometro_sync, path, unidade, modo
+                )
+                if url:
+                    logger.info(f"📸 Upload concluído: {url}")
+                else:
+                    logger.warning("⚠️ Upload da foto não retornou URL.")
+            except Exception as ex:
+                logger.error(f"Erro no upload em background: {ex}")
+            finally:
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except Exception:
+                    pass
 
-            await Database.registrar_log_erro(erro_msg, contexto, user_data.get("email"), screenshot_url)
-
-            page.show_dialog(ft.SnackBar(
-                ft.Text("✅ Problema reportado com sucesso!"),
-                bgcolor=st.SUCCESS_GREEN
-            ))
-            btn_reportar_problema.visible = False  # Esconde após reportar
-            btn_reportar_problema.disabled = False
-            btn_reportar_problema.text = "REPORTAR PROBLEMA"
-            page.update()
-
-        async def ir_para_manual(e):
-            """Redireciona para medição limpando dados temporários do scanner para entrada manual."""
-            user_data = getattr(page, "user_data", {})
-            user_data.pop("unidade_scanner", None)
-            user_data.pop("valor_scanner", None)
+        async def _confirmar_e_voltar():
+            page.user_data["unidade_scanner"] = state.get("unidade") or ""
+            page.user_data["valor_scanner"] = ""
             page.go("/medicao")
 
-        async def fechar_e_voltar(e):
-            if not txt_val.value:
-                page.show_dialog(ft.SnackBar(
-                    ft.Text("Por favor, insira o valor manualmente.")))
-                page.update()
-                return
+        container_mira = ft.Container(
+            content=ft.Stack([
+                mira_visual,
+                ft.Container(
+                    content=ft.Icon("camera_alt", color="white54", size=36),
+                    alignment=ft.alignment.Alignment(0, 0)
+                )
+            ]),
+            alignment=ft.alignment.Alignment(0, 0),
+            on_click=lambda e: page.run_task(_capturar),
+            ink=True
+        )
 
-            page.user_data["unidade_scanner"] = txt_unid.value
-            page.user_data["valor_scanner"] = txt_val.value
-            page.go("/medicao")
+        cor_appbar = st.PRIMARY_BLUE if modo == "AGUA" else "orange"
 
         return ft.View(
             route="/scanner",
             bgcolor="#121417",
             appbar=ft.AppBar(
-                title=ft.Text("Scanner AguaFlow"),
+                title=ft.Text(f"Scanner — {'ÁGUA' if modo == 'AGUA' else 'GÁS'}"),
                 center_title=True,
-                leading=ft.IconButton("arrow_back",
-                                      on_click=lambda _: page.go("/medicao"))),
+                bgcolor=cor_appbar,
+                leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/medicao"))
+            ),
             controls=[
                 ft.Column([
-                    ft.Container(
-                        content=mira_visual,
-                        alignment=ft.alignment.Alignment(0, 0),
-                        on_click=capturar_foto
-                    ),
-                    img_preview,
-                    pr_envio,
-                    ft.Text("Toque na mira para capturar",
-                            size=14, color="grey"),
+                    container_mira,
+                    pr_captura,
+                    lbl_instrucao,
                     lbl_status,
-                    ft.Container(height=10),
+                    ft.Container(height=8),
+                    img_preview,
                     txt_unid,
-                    txt_val,
-                    ft.Container(height=20),
-                    ft.Row([
-                        btn_reportar_problema,  # Adiciona o botão de reportar
-                        ft.ElevatedButton(
-                            "CONFIRMAR",
-                            icon="check",
-                            on_click=fechar_e_voltar,
-                            width=160,
-                            height=50
-                        ),
-                        ft.ElevatedButton(
-                            "MANUAL",
-                            icon="keyboard",
-                            on_click=ir_para_manual,
-                            width=140,
-                            height=50,
-                            style=ft.ButtonStyle(
-                                color="white", bgcolor="orange")
-                        )
-                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    ft.Container(height=10),
+                    btn_confirmar,
+                    btn_recapturar,
                     ft.Divider(color="white10"),
-                    ft.Text(AppUpdater.get_footer(), size=11,
-                            color="grey", italic=True)
+                    btn_manual,
+                    ft.Text(AppUpdater.get_footer(), size=10, color="grey40", italic=True)
                 ],
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    scroll=ft.ScrollMode.ADAPTIVE)
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                scroll=ft.ScrollMode.ADAPTIVE,
+                spacing=8)
             ]
         )
+
     except Exception as e:
-        return ft.View(route="/scanner", controls=[ft.Text(f"Erro Crítico no Scanner: {e}", color="red")])
+        logger.error(f"Erro ao montar scanner: {e}", exc_info=True)
+        return ft.View(
+            route="/scanner",
+            controls=[ft.Text(f"Erro Crítico no Scanner: {e}", color="red")]
+        )
+
+
+def _capturar_frame():
+    """Captura um frame da câmera. Retorna None se câmera não disponível."""
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        return None
+    for _ in range(5):
+        cap.read()
+    ret, frame = cap.read()
+    cap.release()
+    return frame if ret else None
+
+
+def _detectar_qr(frame) -> str | None:
+    """Detecta e decodifica QR Code num frame cv2. Retorna a string ou None."""
+    detector = cv2.QRCodeDetector()
+    valor, _, _ = detector.detectAndDecode(frame)
+    return valor if valor else None

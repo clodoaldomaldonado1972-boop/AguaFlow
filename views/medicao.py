@@ -381,8 +381,14 @@ def montar_tela_medicao(page: ft.Page):
                     btn_gravar,
                     btn_finalizar_sinc,
                     btn_reiniciar_ciclo,
-                    ft.TextButton("ABRIR SCANNER OCR", icon="camera_alt",
-                                  on_click=lambda _: page.go("/scanner"))
+                    ft.TextButton(
+                        "ABRIR SCANNER",
+                        icon="qr_code_scanner",
+                        on_click=lambda _: (
+                            page.user_data.update({"modo_leitura": state["modo"]}),
+                            page.go("/scanner")
+                        )
+                    )
                 ], horizontal_alignment="center", spacing=10, expand=True)
             ]
         )
