@@ -157,11 +157,10 @@ class SincronizadorUI:
                 self.btn_sync.icon_color = "bluegrey200"
 
             # 4. FEEDBACK AO USUÁRIO
-            self.page.snack_bar = ft.SnackBar(
+            self.page.show_dialog(ft.SnackBar(
                 content=ft.Text(feedback_msg),
                 bgcolor="green700" if qtd_sincronizada > 0 else "bluegrey800",
-                open=True
-            )
+            ))
             
             self.txt_status.value = "Sincronizado"
             gc.collect() # Liberar memória após o processo de sincronização
@@ -172,11 +171,10 @@ class SincronizadorUI:
             self.btn_sync.disabled = False
             self.txt_status.value = "Erro na sincronia"
             
-            self.page.snack_bar = ft.SnackBar(
+            self.page.show_dialog(ft.SnackBar(
                 content=ft.Text(f"Erro: Verifique sua conexão. {str(ex)}"),
                 bgcolor="red700",
-                open=True
-            )
+            ))
         
         finally:
             self.btn_sync.disabled = False

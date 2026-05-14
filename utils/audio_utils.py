@@ -14,9 +14,10 @@ def tocar_alerta(page: ft.Page, tipo="sucesso"):
     e exibe uma SnackBar para feedback visual na interface.
     """
     # OTIMIZAÇÃO: Remove áudios anteriores do overlay para evitar vazamento de memória
-    for control in page.overlay[:]:
-        if isinstance(control, ft.Audio):
-            page.overlay.remove(control)
+    if hasattr(ft, 'Audio'):
+        for control in page.overlay[:]:
+            if isinstance(control, ft.Audio):
+                page.overlay.remove(control)
 
     # Configurações de feedback visual (SnackBar) e sonoro (Audio)
     if tipo == "sucesso":
@@ -34,27 +35,16 @@ def tocar_alerta(page: ft.Page, tipo="sucesso"):
 
     caminho_audio = get_audio_path(nome_arquivo)
 
-    # Configurar e abrir o SnackBar na interface
-    page.snack_bar = ft.SnackBar(
-        content=ft.Text(mensagem, color="white"),
-        bgcolor=cor,
-        duration=3000  # Exibe por 3 segundos
-    )
-    page.snack_bar.open = True
+    # Feedback visual
+    page.show_dialog(ft.SnackBar(content=ft.Text(mensagem, color="white"), bgcolor=cor))
 
-    # Criar o componente de áudio nativo do Flet
-    audio = ft.Audio(
-        src=caminho_audio,
-        autoplay=False,
-    )
-
-    # Adicionar ao overlay da página (necessário para o Flet processar o som)
-    page.overlay.append(audio)
-
-    # Atualiza a página para refletir as mudanças (SnackBar e Audio Overlay)
+    # Feedback sonoro (ft.Audio removido no Flet 0.84+; falha silenciosa)
     page.update()
-
     try:
+        audio = ft.Audio(src=caminho_audio, autoplay=False)
+        page.overlay.append(audio)
+        page.update()
         audio.play()
-    except Exception as e:
+    except (AttributeError, Exception):
         # Erros de áudio não devem disparar report de e-mail por não serem fatais
+        pass

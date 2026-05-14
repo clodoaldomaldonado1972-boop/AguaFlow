@@ -52,16 +52,15 @@ def montar_tela_usuarios(page: ft.Page):
                     msg = f"Alteração salva localmente. Sincronização pendente (Sem Sinal)."
                     cor = st.ACCENT_ORANGE
                 
-                page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=cor)
-                carregar_usuarios() 
+                page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=cor))
+                carregar_usuarios()
             else:
                 raise Exception("Falha na gravação local.")
         except Exception as ex:
-            page.snack_bar = ft.SnackBar(
+            page.show_dialog(ft.SnackBar(
                 ft.Text(f"Erro ao processar alteração: {str(ex)}"),
                 bgcolor=st.RED_ERROR
-            )
-        page.snack_bar.open = True
+            ))
         page.update()
 
     def deletar_usuario_confirmado(email):
@@ -75,26 +74,23 @@ def montar_tela_usuarios(page: ft.Page):
             if not res_cloud['sucesso']:
                 msg += f" (Nuvem: {res_cloud['mensagem']})"
 
-            page.snack_bar = ft.SnackBar(
-                ft.Text(msg), bgcolor=st.SUCCESS_GREEN)
+            page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN))
             carregar_usuarios()
         else:
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Erro ao excluir no banco local."), bgcolor=st.RED_ERROR)
+            page.show_dialog(ft.SnackBar(
+                ft.Text("Erro ao excluir no banco local."), bgcolor=st.RED_ERROR))
 
-        page.snack_bar.open = True
         page.update()
 
     def abrir_dialogo_exclusao(email):
         def fechar(e):
-            page.dialog.open = False
-            page.update()
+            page.pop_dialog()
 
         def confirmar(e):
             fechar(e)
             deletar_usuario_confirmado(email)
 
-        page.dialog = ft.AlertDialog(
+        page.show_dialog(ft.AlertDialog(
             title=ft.Text("Confirmar Exclusão"),
             content=ft.Text(
                 f"Deseja realmente excluir o usuário {email}? Esta ação é irreversível."),
@@ -104,15 +100,12 @@ def montar_tela_usuarios(page: ft.Page):
                                   color="white", on_click=confirmar),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
-        )
-        page.dialog.open = True
-        page.update()
+        ))
 
     def criar_novo_usuario_dialog(e):
         """Abre o diálogo para criar um novo usuário."""
         def fechar_dialogo(e):
-            page.dialog.open = False
-            page.update()
+            page.pop_dialog()
 
         def salvar_novo_usuario(e):
             nome = txt_novo_nome.value
@@ -121,31 +114,28 @@ def montar_tela_usuarios(page: ft.Page):
             role = dd_nova_role.value
 
             if not nome or not email or not senha:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("Todos os campos são obrigatórios."), bgcolor=st.RED_ERROR)
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("Todos os campos são obrigatórios."), bgcolor=st.RED_ERROR))
                 page.update()
                 return
 
             if Database.email_existe(email):
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("E-mail já cadastrado."), bgcolor=st.RED_ERROR)
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("E-mail já cadastrado."), bgcolor=st.RED_ERROR))
                 page.update()
                 return
 
             if Database.criar_usuario(nome, email, senha, role):
-                page.snack_bar = ft.SnackBar(
-                    ft.Text(f"Usuário {email} criado com sucesso!"), bgcolor=st.SUCCESS_GREEN)
+                page.show_dialog(ft.SnackBar(
+                    ft.Text(f"Usuário {email} criado com sucesso!"), bgcolor=st.SUCCESS_GREEN))
                 fechar_dialogo(e)
                 carregar_usuarios()
             else:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("Erro ao criar usuário."), bgcolor=st.RED_ERROR)
-            page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("Erro ao criar usuário."), bgcolor=st.RED_ERROR))
             page.update()
 
-        page.dialog = ft.AlertDialog(
+        page.show_dialog(ft.AlertDialog(
             modal=True,
             title=ft.Text("Criar Novo Usuário"),
             content=ft.Column([txt_novo_nome, txt_novo_email,
@@ -155,9 +145,7 @@ def montar_tela_usuarios(page: ft.Page):
                 ft.ElevatedButton("Salvar", on_click=salvar_novo_usuario),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
-        )
-        page.dialog.open = True
-        page.update()
+        ))
 
     def carregar_usuarios(search_term: str = ""):
         """Busca usuários no banco e monta os cards na interface."""

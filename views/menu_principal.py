@@ -36,25 +36,19 @@ def montar_menu(page: ft.Page):
 
         def confirmar_logout(e):
             def realizar_logout(e):
-                page.dialog.open = False
-                # Limpa os dados da sessão por segurança
+                page.pop_dialog()
                 page.user_data = {}
-
-                # Exibe mensagem de confirmação
-                page.snack_bar = ft.SnackBar(
+                page.show_dialog(ft.SnackBar(
                     content=ft.Text("Logout realizado com sucesso!"),
                     bgcolor=st.SUCCESS_GREEN
-                )
-                page.snack_bar.open = True
-
+                ))
                 page.go("/")
                 page.update()
 
             def fechar_dialogo(e):
-                page.dialog.open = False
-                page.update()
+                page.pop_dialog()
 
-            page.dialog = ft.AlertDialog(
+            page.show_dialog(ft.AlertDialog(
                 title=ft.Text("Confirmar Saída"),
                 content=ft.Text("Deseja realmente sair do sistema?"),
                 actions=[
@@ -62,9 +56,7 @@ def montar_menu(page: ft.Page):
                     ft.TextButton("Não", on_click=fechar_dialogo),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
-            )
-            page.dialog.open = True
-            page.update()
+            ))
 
         # Adiciona o botão de Logout (Sair) na AppBar usando ícone universal
         app_bar_actions.append(

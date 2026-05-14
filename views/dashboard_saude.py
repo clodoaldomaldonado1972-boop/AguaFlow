@@ -96,8 +96,7 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
             txt_log_content.value = f"Erro ao ler log: {ex}"
         page.update()
 
-    # Carrega o log quando a tela é exibida
-    page.on_view_appear = lambda e: carregar_log_file(None)
+    carregar_log_file(None)
 
     return ft.View(
         route="/dashboard_saude",

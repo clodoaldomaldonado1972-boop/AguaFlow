@@ -55,8 +55,8 @@ def criar_mira_scanner():
         width=280,
         height=2,
         bgcolor=RED_ERROR,
-        offset=ft.transform.Offset(0, -2.5),
-        animate_offset=ft.animation.Animation(
+        offset=ft.Offset(0, -2.5),
+        animate_offset=ft.Animation(
             1500, ft.AnimationCurve.EASE_IN_OUT)
     )
 
@@ -65,8 +65,8 @@ def criar_mira_scanner():
         while True:
             await asyncio.sleep(0.1)
             # Alterna entre o topo e a base do container azul
-            linha_scanner.offset = ft.transform.Offset(
-                0, 2.5) if linha_scanner.offset.y == -2.5 else ft.transform.Offset(0, -2.5)
+            linha_scanner.offset = ft.Offset(
+                0, 2.5) if linha_scanner.offset.y == -2.5 else ft.Offset(0, -2.5)
             try:
                 linha_scanner.update()
             except:

@@ -55,31 +55,28 @@ def montar_tela_configs(page: ft.Page):
 
         if sucesso_local:
             msg = "Senha atualizada com sucesso!" if sucesso_cloud else "Senha atualizada localmente."
-            page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN)
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN))
             txt_nova_senha.value = ""
             txt_confirmar_senha.value = ""
             lbl_mensagem.value = ""
         else:
-            page.snack_bar = ft.SnackBar(ft.Text("Erro ao atualizar senha no dispositivo."), bgcolor=st.RED_ERROR)
-            page.snack_bar.open = True
-        
+            page.show_dialog(ft.SnackBar(ft.Text("Erro ao atualizar senha no dispositivo."), bgcolor=st.RED_ERROR))
+
         page.update()
 
     async def limpar_cache_local_clique(e):
         """Limpa o cache local do aplicativo (leituras e logs de sincronização)."""
         if Database.limpar_cache_local():
-            page.snack_bar = ft.SnackBar(
+            page.show_dialog(ft.SnackBar(
                 ft.Text("Cache local limpo com sucesso!"),
                 bgcolor=st.SUCCESS_GREEN
-            )
+            ))
             tocar_alerta(page, "sucesso")
         else:
-            page.snack_bar = ft.SnackBar(
+            page.show_dialog(ft.SnackBar(
                 ft.Text("Erro ao limpar cache local."),
                 bgcolor=st.RED_ERROR
-            )
-        page.snack_bar.open = True
+            ))
         page.update()
 
     async def excluir_conta_clique(e):
@@ -102,32 +99,27 @@ def montar_tela_configs(page: ft.Page):
             msg = "Conta excluída com sucesso!"
             if not sucesso_cloud:
                 msg += " (Falha ao excluir na nuvem)"
-            page.snack_bar = ft.SnackBar(
-                ft.Text(msg), bgcolor=st.SUCCESS_GREEN)
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN))
             tocar_alerta(page, "sucesso")
-            page.user_data = None # Clear session data
-            page.go("/") # Redirect to login
+            page.user_data = None
+            page.go("/")
         else:
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Erro ao excluir conta no dispositivo."), bgcolor=st.RED_ERROR)
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(
+                ft.Text("Erro ao excluir conta no dispositivo."), bgcolor=st.RED_ERROR))
             tocar_alerta(page, "erro")
-        
+
         page.update()
 
     async def confirmar_excluir_conta(e):
         """Exibe um diálogo de confirmação antes de excluir a conta."""
         def realizar_exclusao_confirmada(e):
-            page.dialog.open = False
-            page.update()
+            page.pop_dialog()
             page.run_task(excluir_conta_clique, e)
 
         def cancelar_exclusao(e):
-            page.dialog.open = False
-            page.update()
+            page.pop_dialog()
 
-        page.dialog = ft.AlertDialog(
+        page.show_dialog(ft.AlertDialog(
             title=ft.Text("Confirmar Exclusão de Conta"),
             content=ft.Text(
                 "Deseja realmente excluir sua conta? Esta ação é irreversível e apagará seus dados."),
@@ -136,9 +128,7 @@ def montar_tela_configs(page: ft.Page):
                 ft.TextButton("Não", on_click=cancelar_exclusao),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
-        )
-        page.dialog.open = True
-        page.update()
+        ))
 
     return ft.View(
         route="/configuracoes",

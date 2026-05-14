@@ -34,14 +34,12 @@ async def montar_tela_historico(page: ft.Page):
             sucesso = enviar_relatorios_por_email([path_pdf, path_csv])
 
             if sucesso:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("✅ Relatórios enviados com sucesso!"))
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("✅ Relatórios enviados com sucesso!")))
                 gc.collect()  # Liberar memória após o envio de relatórios
             else:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("❌ Erro ao enviar e-mail. Verifique o .env"))
-
-            page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("❌ Erro ao enviar e-mail. Verifique o .env")))
 
         e.control.disabled = False
         e.control.text = "Enviar CSV e PDF por E-mail"

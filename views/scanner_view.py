@@ -16,10 +16,13 @@ def montar_tela_scanner(page: ft.Page):
         if not hasattr(page, "user_data") or page.user_data is None:
             page.user_data = {}
 
-        # --- 1. CONFIGURAÇÃO DE ÁUDIO (BEEP) - Conforme solicitado ---
-        audio_beep = ft.Audio(src="audio/beep.mp3", autoplay=False)
-        if audio_beep not in page.overlay:
-            page.overlay.append(audio_beep)
+        # --- 1. CONFIGURAÇÃO DE ÁUDIO (BEEP) ---
+        try:
+            audio_beep = ft.Audio(src="audio/beep.mp3", autoplay=False)
+            if audio_beep not in page.overlay:
+                page.overlay.append(audio_beep)
+        except AttributeError:
+            audio_beep = None
 
         # Elementos de UI
         modo_atual = user_data.get("modo_leitura", "AGUA")
@@ -53,8 +56,8 @@ def montar_tela_scanner(page: ft.Page):
 
         async def capturar_foto(e):
             try:
-                # GATILHO SONORO: Executa o beep ao iniciar a captura
-                audio_beep.play()
+                if audio_beep:
+                    audio_beep.play()
                 page.update()
                 pr_envio.visible = True
                 page.update()
@@ -147,11 +150,10 @@ def montar_tela_scanner(page: ft.Page):
 
             await Database.registrar_log_erro(erro_msg, contexto, user_data.get("email"), screenshot_url)
 
-            page.snack_bar = ft.SnackBar(
+            page.show_dialog(ft.SnackBar(
                 ft.Text("✅ Problema reportado com sucesso!"),
                 bgcolor=st.SUCCESS_GREEN
-            )
-            page.snack_bar.open = True
+            ))
             btn_reportar_problema.visible = False  # Esconde após reportar
             btn_reportar_problema.disabled = False
             btn_reportar_problema.text = "REPORTAR PROBLEMA"
@@ -166,9 +168,8 @@ def montar_tela_scanner(page: ft.Page):
 
         async def fechar_e_voltar(e):
             if not txt_val.value:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("Por favor, insira o valor manualmente."))
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("Por favor, insira o valor manualmente.")))
                 page.update()
                 return
 

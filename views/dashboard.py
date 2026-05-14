@@ -2,7 +2,6 @@ import flet as ft
 from datetime import datetime
 from database.database import Database
 import views.styles as st  # Importa seus estilos personalizados
-from flet import colors  # Importar colors para uso direto
 # Importa a fábrica de gráficos (Certifique-se que o arquivo existe em utils/)
 from utils.graficos_factory import criar_grafico_evolucao
 
@@ -47,7 +46,7 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
                         ft.IconButton("close",
                                       on_click=fechar_bs, icon_color="red")
                         # Corrigido alinhamento, padronizado ícone
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, icon="close"),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Divider(),
                     ft.Container(content=grafico_comp, height=250, padding=10),
                     ft.Text(f"Acumulado no mês: {total_agua:.2f} m³",

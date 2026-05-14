@@ -64,8 +64,8 @@ def montar_tela_medicao(page: ft.Page):
         if last_read_unit_id and last_read_unit_id in db_lista:
             initial_unit_value = last_read_unit_id
 
-        # Elementos Visuais com ícones padronizados
-        img_icon = ft.Icon("water", color="blue", size=140)
+        # Elementos Visuais com ícones padronizados — estado inicial: modo AGUA
+        img_icon = ft.Icon("water_drop", color="blue", size=140)
         icon_save = ft.Icon("save", color="green",
                             size=140, visible=False)
         lbl_modo = ft.Text("MODO: ÁGUA", color="blue", weight="bold", size=22)
@@ -74,7 +74,7 @@ def montar_tela_medicao(page: ft.Page):
             label="Unidade",
             options=[ft.dropdown.Option(u) for u in db_lista],
             width=320,
-            value=initial_unit_value,  # Use the determined initial value
+            value=initial_unit_value,
             border_color="blue"
         )
 
@@ -86,7 +86,8 @@ def montar_tela_medicao(page: ft.Page):
             input_filter=ft.InputFilter(
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,2})?$"),
             text_align=ft.TextAlign.CENTER,
-            hint_text="00000,00"
+            hint_text="00000,00",
+            border_color="blue"
         )
 
         txt_gas = ft.TextField(
@@ -97,7 +98,8 @@ def montar_tela_medicao(page: ft.Page):
             input_filter=ft.InputFilter(
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,2})?$"),
             text_align=ft.TextAlign.CENTER,
-            hint_text="00000,00"
+            hint_text="00000,00",
+            disabled=True
         )
 
         btn_gravar = ft.ElevatedButton(
@@ -145,9 +147,8 @@ def montar_tela_medicao(page: ft.Page):
                 RelatorioEngine.gerar_relatorio_consumo(dados)
                 RelatorioEngine.gerar_csv_consumo(dados)
 
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"✅ {qtd} leituras sincronizadas e relatórios gerados!"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(
+                ft.Text(f"✅ {qtd} leituras sincronizadas e relatórios gerados!")))
             btn_finalizar_sinc.visible = False
             btn_reiniciar_ciclo.visible = True
             page.update()
@@ -217,7 +218,7 @@ def montar_tela_medicao(page: ft.Page):
 
         def abrir_dialogo_gas():
             def fechar(escolha_gas):
-                page.dialog.open = False
+                page.pop_dialog()
                 if escolha_gas:
                     state["modo"] = "GAS"
                     unidade_atual = txt_unidade.value
@@ -235,7 +236,7 @@ def montar_tela_medicao(page: ft.Page):
                 if not escolha_gas:
                     avancar()
 
-            page.dialog = ft.AlertDialog(
+            page.show_dialog(ft.AlertDialog(
                 modal=True,
                 title=ft.Text("Hall Concluído"),
                 content=ft.Text(
@@ -246,9 +247,7 @@ def montar_tela_medicao(page: ft.Page):
                     ft.TextButton("Não, próximo",
                                   on_click=lambda _: fechar(False)),
                 ]
-            )
-            page.dialog.open = True
-            page.update()
+            ))
 
         async def salvar_clique(e):
             valor_agua = (txt_agua.value or "").replace(",", ".").strip()
@@ -256,9 +255,8 @@ def montar_tela_medicao(page: ft.Page):
 
             # Validação: Água é obrigatória (bloqueia o salvamento se vazio)
             if not valor_agua:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("A leitura de Água é obrigatória!"), bgcolor=st.RED_ERROR)
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(
+                    ft.Text("A leitura de Água é obrigatória!"), bgcolor=st.RED_ERROR))
                 page.update()
                 return
 
@@ -272,12 +270,11 @@ def montar_tela_medicao(page: ft.Page):
             if current_unit_index > 0:  # If it's not the very first unit
                 previous_unit = db_lista[current_unit_index - 1]
                 if previous_unit not in lidos:
-                    page.snack_bar = ft.SnackBar(
+                    page.show_dialog(ft.SnackBar(
                         ft.Text(
                             f"Atenção: A unidade anterior ({previous_unit}) não foi lida. Por favor, siga a sequência."),
                         bgcolor=st.ACCENT_ORANGE
-                    )
-                    page.snack_bar.open = True
+                    ))
                     page.update()
                     return
 
@@ -291,8 +288,7 @@ def montar_tela_medicao(page: ft.Page):
                 data_coleta = datetime.now(fuso_sp).isoformat(
                     sep=' ', timespec='seconds')
             except ValueError:
-                page.snack_bar = ft.SnackBar(ft.Text("Valor inválido."))
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(ft.Text("Valor inválido.")))
                 page.update()
                 return
 
@@ -336,8 +332,7 @@ def montar_tela_medicao(page: ft.Page):
             btn_limpar_ultima_leitura.visible = True
             page.update()
 
-        # Sincroniza o estado visual inicial baseado no modo
-        atualizar_estilos_modo()
+        # Estado visual inicial já definido diretamente nos controles acima (modo AGUA)
 
         async def limpar_ultima_leitura(e):
             """Remove as chaves de última leitura do page.user_data e reseta os campos."""
@@ -362,13 +357,16 @@ def montar_tela_medicao(page: ft.Page):
         return ft.View(
             route="/medicao",
             bgcolor="#121417",
-            appbar=ft.AppBar(
-                title=ft.Text("Nova Medição"),
-                center_title=True,
-                leading=ft.IconButton("arrow_back",
-                                      on_click=lambda _: page.go("/menu"))
-            ),
+            scroll=ft.ScrollMode.ADAPTIVE,
+            vertical_alignment=ft.MainAxisAlignment.START,
+            horizontal_alignment="center",
             controls=[
+                ft.AppBar(
+                    title=ft.Text("Nova Medição"),
+                    center_title=True,
+                    leading=ft.IconButton("arrow_back",
+                                          on_click=lambda _: page.go("/menu"))
+                ),
                 ft.Column([
                     ft.Container(
                         content=ft.Stack([img_icon, icon_save]),
@@ -385,7 +383,7 @@ def montar_tela_medicao(page: ft.Page):
                     btn_reiniciar_ciclo,
                     ft.TextButton("ABRIR SCANNER OCR", icon="camera_alt",
                                   on_click=lambda _: page.go("/scanner"))
-                ], horizontal_alignment="center", alignment=ft.MainAxisAlignment.CENTER, expand=True)
+                ], horizontal_alignment="center", spacing=10, expand=True)
             ]
         )
     except Exception as e:
