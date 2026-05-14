@@ -82,7 +82,7 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         border_color="#33373E",
         color="white",
         text_size=10,
-        font_family="monospace"
+        text_style=ft.TextStyle(font_family="monospace")
     )
 
     def carregar_log_file(e):
@@ -148,7 +148,7 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
                 ft.Divider(color="white10"),
                 ft.Row([
                     # VERSÃO AUTOMÁTICA: Puxa direto do updater.py
-                    ft.Text(AppUpdater.get_version_footer(),
+                    ft.Text(AppUpdater.get_footer(),
                             size=11, color="grey70"),
                 ], alignment=ft.MainAxisAlignment.CENTER)
             ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
