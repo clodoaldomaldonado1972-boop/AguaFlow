@@ -173,4 +173,4 @@ async def main(page: ft.Page):
 
 # --- 5. MOTOR FLET ---
 if __name__ == "__main__":
-    ft.app(target=main, assets_dir="assets")
+    ft.run(target=main, assets_dir="assets")
