@@ -27,6 +27,21 @@ def montar_tela_medicao(page: ft.Page):
         # Configuração de fuso horário para a coleta
         fuso_sp = pytz.timezone('America/Sao_Paulo')
 
+        def buscar_primeira_pendente():
+            """Retorna a primeira unidade da lista que ainda não foi lida no mês atual."""
+            try:
+                leituras_mes = Database.get_leituras_mes_atual()
+                if state["modo"] == "AGUA":
+                    lidos = {l['unidade_id'] for l in leituras_mes if l.get('leitura_agua') is not None}
+                else:
+                    lidos = {l['unidade_id'] for l in leituras_mes if l.get('leitura_gas') is not None}
+                for u in db_lista:
+                    if u not in lidos:
+                        return u
+            except Exception:
+                pass
+            return None
+
         def buscar_proxima_pendente():
             """Busca a próxima unidade na lista que ainda não foi lida."""
             try:
@@ -47,7 +62,7 @@ def montar_tela_medicao(page: ft.Page):
                 for i in range(idx_atual + 1, len(db_lista)):
                     if db_lista[i] not in lidos:
                         return db_lista[i]
-            except:
+            except (ValueError, AttributeError, NameError):
                 pass
             return None
 
@@ -58,7 +73,7 @@ def montar_tela_medicao(page: ft.Page):
         last_read_agua_value = user_data.get("last_read_agua_value")
         last_read_gas_value = user_data.get("last_read_gas_value")
 
-        proxima_pendente = buscar_proxima_pendente()
+        proxima_pendente = buscar_primeira_pendente()
         initial_unit_value = proxima_pendente if proxima_pendente else (
             db_lista[0] if db_lista else None)
         if last_read_unit_id and last_read_unit_id in db_lista:
