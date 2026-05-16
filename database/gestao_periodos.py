@@ -21,15 +21,14 @@ def finalizar_mes_e_enviar(email_destino=None):
         if not dados:
             return False
 
-        # 3. Gera ambos os relatórios para envio
-        caminho_pdf = RelatorioEngine.gerar_relatorio_consumo(dados)
-        caminho_csv = RelatorioEngine.gerar_csv_consumo(dados)
-        if not caminho_pdf or not caminho_csv:
+        # 3. Gera os 4 arquivos (PDF agua, PDF gas, CSV agua, CSV gas)
+        arquivos = RelatorioEngine.gerar_todos(dados)
+        if not arquivos:
             return False
 
-        # 4. Envia por e-mail usando serviço centralizado
-        # (destino customizado pode ser implementado no serviço posteriormente)
-        enviou = enviar_relatorios_por_email([caminho_pdf, caminho_csv])
+        # 4. Envia todos os arquivos por e-mail
+        lista_caminhos = list(arquivos.values())
+        enviou = enviar_relatorios_por_email(lista_caminhos)
 
         if enviou:
             # 5. Sucesso: prepara ciclo seguinte

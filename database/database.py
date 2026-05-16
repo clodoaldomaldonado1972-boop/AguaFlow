@@ -285,7 +285,8 @@ class Database:
             return False
 
     @classmethod
-    def salvar_leitura(cls, unidade, valor_agua, valor_gas, modo, data_hora, foto_url=None):
+    def salvar_leitura(cls, unidade, valor_agua, valor_gas, modo, data_hora,
+                       foto_url=None, leiturista=None):
         """Salva uma nova leitura no banco de dados local.
 
         Unidades duplex (ex: '163/164') são salvas como uma única linha,
@@ -299,9 +300,12 @@ class Database:
             with cls.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado, valor_leitura, foto_url)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (unidade.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_leitura, foto_url))
+                    INSERT INTO leituras
+                        (unidade_id, leitura_agua, leitura_gas, tipo,
+                         data_hora_coleta, sincronizado, valor_leitura, foto_url, leiturista)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (unidade.strip(), valor_agua, valor_gas, tipo_final,
+                      data_hora, 0, valor_leitura, foto_url, leiturista))
                 conn.commit()
                 logger.debug(f"💾 Leitura salva localmente para unidade {unidade}")
                 return {"sucesso": True}
@@ -368,15 +372,17 @@ class Database:
 
     @classmethod
     def get_leituras_mes_atual(cls):
-        """Retorna todas as leituras realizadas no mês corrente."""
+        """Retorna todas as leituras realizadas no mês corrente, incluindo leiturista."""
         try:
             mes_atual = datetime.now().strftime('%Y-%m')
             with cls.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT id, unidade_id, leitura_agua, leitura_gas, data_hora_coleta, consumo FROM leituras 
-                    WHERE data_hora_coleta LIKE ? 
-                    ORDER BY data_hora_coleta DESC
+                    SELECT id, unidade_id, leitura_agua, leitura_gas,
+                           data_hora_coleta, consumo, leiturista
+                    FROM leituras
+                    WHERE data_hora_coleta LIKE ?
+                    ORDER BY data_hora_coleta ASC
                 """, (f"{mes_atual}%",))
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:

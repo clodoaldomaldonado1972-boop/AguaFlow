@@ -159,15 +159,21 @@ def montar_tela_medicao(page: ft.Page):
 
             qtd = await SyncService.executar_sincronismo_manual()
 
-            # Aciona geração de relatório se houver dados
             from relatorio_engine import RelatorioEngine
-            dados = Database.get_leituras_mes_atual()
+            dados = await asyncio.to_thread(Database.get_leituras_mes_atual)
+
+            leiturista = user_data.get("nome") or user_data.get("email", "Zelador")
+
+            msg_relatorio = ""
             if dados:
-                RelatorioEngine.gerar_relatorio_consumo(dados)
-                RelatorioEngine.gerar_csv_consumo(dados)
+                arquivos = await asyncio.to_thread(
+                    RelatorioEngine.gerar_todos, dados, leiturista)
+                sucesso_email, msg_email = await asyncio.to_thread(
+                    RelatorioEngine.enviar_relatorios_por_email, arquivos)
+                msg_relatorio = f" | {msg_email}"
 
             page.show_dialog(ft.SnackBar(
-                ft.Text(f"✅ {qtd} leituras sincronizadas e relatórios gerados!")))
+                ft.Text(f"✅ {qtd} leituras sincronizadas e relatórios gerados!{msg_relatorio}")))
             btn_finalizar_sinc.visible = False
             btn_reiniciar_ciclo.visible = True
             page.update()
@@ -316,9 +322,10 @@ def montar_tela_medicao(page: ft.Page):
                 return
 
             foto_url = user_data.pop("foto_url_scanner", None)
+            leiturista = user_data.get("nome") or user_data.get("email", "Zelador")
             res = await asyncio.to_thread(
                 Database.salvar_leitura,
-                current_unit, v_agua, v_gas, state["modo"], data_coleta, foto_url
+                current_unit, v_agua, v_gas, state["modo"], data_coleta, foto_url, leiturista
             )
             # Update last read unit in page.user_data for resuming
             # Also store the values for potential restoration/clearing

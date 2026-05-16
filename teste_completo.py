@@ -97,7 +97,7 @@ for i, u in enumerate(unidades):
         continue
     ts = datetime.now().strftime(f'%Y-%m-%d %H:%M:{i:02d}') if i < 60 else data_base
     v_agua = valor_agua()
-    res = Database.salvar_leitura(u, v_agua, None, "AGUA", ts, None)
+    res = Database.salvar_leitura(u, v_agua, None, "AGUA", ts, None, "Zelador-Teste")
     if not res["sucesso"]:
         erros_insercao.append(f"AGUA-{u}: {res.get('erro')}")
 
@@ -111,7 +111,7 @@ for i, u in enumerate(unidades):
         continue
     ts = datetime.now().strftime(f'%Y-%m-%d %H:%M:{i:02d}') if i < 60 else data_base
     v_gas = valor_gas()
-    res = Database.salvar_leitura(u, None, v_gas, "GAS", ts, None)
+    res = Database.salvar_leitura(u, None, v_gas, "GAS", ts, None, "Zelador-Teste")
     if not res["sucesso"]:
         erros_gas.append(f"GAS-{u}: {res.get('erro')}")
 
@@ -152,51 +152,50 @@ for r in duplex_registros[:4]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. GERAÇÃO DE RELATÓRIO PDF
+# 4 e 5. GERAÇÃO DE TODOS OS RELATÓRIOS (PDF agua, PDF gas, CSV agua, CSV gas)
 # ─────────────────────────────────────────────────────────────────────────────
-print("\n-- ETAPA 4: Geração de Relatório PDF --")
-pdf_path = None
+print("\n-- ETAPA 4+5: Geração de Relatórios (4 arquivos) --")
+arquivos = {}
 try:
-    pdf_path = RelatorioEngine.gerar_relatorio_consumo(leituras)
-    pdf_existe = os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 1024
-    log(pdf_existe, "PDF gerado com sucesso", pdf_path)
-    if pdf_existe:
-        size_kb = os.path.getsize(pdf_path) // 1024
-        print(f"  Tamanho do PDF: {size_kb} KB")
-except Exception as ex:
-    log(False, "Falha ao gerar PDF", str(ex))
+    arquivos = RelatorioEngine.gerar_todos(leituras, leiturista="Zelador-Teste")
 
+    for chave, caminho in arquivos.items():
+        existe = os.path.exists(caminho) and os.path.getsize(caminho) > 100
+        size_kb = os.path.getsize(caminho) // 1024 if existe else 0
+        log(existe, f"Arquivo {chave}: {os.path.basename(caminho)}", f"{size_kb} KB | {caminho}")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. GERAÇÃO DE CSV
-# ─────────────────────────────────────────────────────────────────────────────
-print("\n-- ETAPA 5: Geração de CSV --")
-csv_path = None
-try:
-    csv_path = RelatorioEngine.gerar_csv_consumo(leituras)
-    csv_existe = os.path.exists(csv_path) and os.path.getsize(csv_path) > 100
-    log(csv_existe, "CSV gerado com sucesso", csv_path)
-    if csv_existe:
-        with open(csv_path, encoding='utf-8-sig') as f:
+    # Verifica ordenacao no CSV de agua
+    csv_agua = arquivos.get("csv_agua")
+    if csv_agua and os.path.exists(csv_agua):
+        with open(csv_agua, encoding='utf-8-sig') as f:
             linhas = f.readlines()
-        print(f"  Total de linhas no CSV: {len(linhas)} (header + {len(linhas)-1} dados)")
-        print(f"  Exemplo linha 2: {linhas[1].strip() if len(linhas) > 1 else 'vazio'}")
+        print(f"\n  CSV agua: {len(linhas)-1} unidades")
+        print(f"  Linha 2 (menor unidade): {linhas[1].strip() if len(linhas) > 1 else 'vazio'}")
+        print(f"  Linha -1 (maior unidade): {linhas[-1].strip() if len(linhas) > 1 else 'vazio'}")
+
+    # Verifica leiturista no CSV
+    if csv_agua and os.path.exists(csv_agua):
+        with open(csv_agua, encoding='utf-8-sig') as f:
+            conteudo = f.read()
+        tem_leiturista = "Zelador-Teste" in conteudo
+        log(tem_leiturista, "Leiturista presente no CSV", "'Zelador-Teste' encontrado")
+
 except Exception as ex:
-    log(False, "Falha ao gerar CSV", str(ex))
+    log(False, "Falha ao gerar relatorios", str(ex))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. ENVIO DE EMAIL
 # ─────────────────────────────────────────────────────────────────────────────
-print("\n-- ETAPA 6: Envio de Email --")
-if pdf_path and csv_path:
+print("\n-- ETAPA 6: Envio de Email (4 anexos) --")
+if arquivos:
     try:
-        sucesso_email, msg_email = RelatorioEngine.enviar_relatorios_por_email(pdf_path, csv_path)
-        log(sucesso_email, "Email enviado com sucesso", msg_email)
+        sucesso_email, msg_email = RelatorioEngine.enviar_relatorios_por_email(arquivos)
+        log(sucesso_email, "Email enviado com sucesso (4 anexos)", msg_email)
     except Exception as ex:
         log(False, "Falha no envio de email", str(ex))
 else:
-    log(False, "Email não enviado", "PDF ou CSV não gerados")
+    log(False, "Email nao enviado", "Arquivos nao gerados")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
