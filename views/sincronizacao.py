@@ -123,7 +123,7 @@ def montar_tela_sincronizacao(page: ft.Page):
                 ft.TextButton("Voltar ao Menu",
                               on_click=lambda _: page.go("/menu"))
 
-            ], horizontal_alignment="center", scroll=ft.ScrollMode.ADAPTIVE)
+            ], horizontal_alignment="center", scroll=ft.ScrollMode.AUTO, expand=True)
         ]
     )
 

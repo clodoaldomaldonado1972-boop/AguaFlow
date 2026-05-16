@@ -80,7 +80,8 @@ async def montar_tela_historico(page: ft.Page):
                 leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
             ),
             ft.Column(
-                scroll=ft.ScrollMode.ADAPTIVE,
+                scroll=ft.ScrollMode.AUTO,
+                expand=True,
                 controls=[
                     ft.Text("Leituras pendentes. O envio estará disponível após concluir todas as unidades.",
                             visible=not ciclo_concluido, color="orange"),

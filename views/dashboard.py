@@ -91,7 +91,8 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
         ),
         controls=[
             ft.Column(
-                scroll=ft.ScrollMode.ADAPTIVE,
+                scroll=ft.ScrollMode.AUTO,
+                expand=True,
                 controls=[
                     ft.Container(height=10),
                     # Cards de Resumo

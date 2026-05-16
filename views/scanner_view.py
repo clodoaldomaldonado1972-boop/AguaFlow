@@ -217,11 +217,15 @@ def montar_tela_scanner(page: ft.Page):
             content=ft.Stack([
                 mira_visual,
                 ft.Container(
-                    content=ft.Icon("camera_alt", color="white54", size=36),
-                    alignment=ft.alignment.Alignment(0, 0)
+                    content=ft.Icon(ft.Icons.CAMERA_ALT, color="white54", size=36),
+                    alignment=ft.alignment.Alignment(0, 0),
+                    width=300,
+                    height=300
                 )
             ]),
             alignment=ft.alignment.Alignment(0, 0),
+            width=300,
+            height=300,
             on_click=lambda e: page.run_task(_capturar),
             ink=True
         )
@@ -235,7 +239,7 @@ def montar_tela_scanner(page: ft.Page):
                 title=ft.Text(f"Scanner — {'ÁGUA' if modo == 'AGUA' else 'GÁS'}"),
                 center_title=True,
                 bgcolor=cor_appbar,
-                leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/medicao"))
+                leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/medicao"))
             ),
             controls=[
                 ft.Column([
@@ -256,8 +260,9 @@ def montar_tela_scanner(page: ft.Page):
                     ft.Text(AppUpdater.get_footer(), size=10, color="grey40", italic=True)
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.ADAPTIVE,
-                spacing=8)
+                scroll=ft.ScrollMode.AUTO,
+                spacing=8,
+                expand=True)
             ]
         )
 

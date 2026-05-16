@@ -80,8 +80,8 @@ def montar_tela_medicao(page: ft.Page):
             initial_unit_value = last_read_unit_id
 
         # Elementos Visuais com ícones padronizados — estado inicial: modo AGUA
-        img_icon = ft.Icon("water_drop", color="blue", size=140)
-        icon_save = ft.Icon("save", color="green",
+        img_icon = ft.Icon(ft.Icons.WATER_DROP, color="blue", size=140)
+        icon_save = ft.Icon(ft.Icons.SAVE, color="green",
                             size=140, visible=False)
         lbl_modo = ft.Text("MODO: ÁGUA", color="blue", weight="bold", size=22)
 
@@ -143,7 +143,7 @@ def montar_tela_medicao(page: ft.Page):
             # Atualiza o cabeçalho visual
             lbl_modo.value = f"MODO: {'ÁGUA' if is_agua else 'GÁS'}"
             lbl_modo.color = cor
-            img_icon.icon = icone
+            img_icon.icon = ft.Icons.WATER_DROP if is_agua else ft.Icons.LOCAL_FIRE_DEPARTMENT
             img_icon.color = cor
             page.update()
 
@@ -215,7 +215,7 @@ def montar_tela_medicao(page: ft.Page):
         def exibir_concluido():
             lbl_modo.value = "TODAS AS UNIDADES LIDAS"
             lbl_modo.color = st.SUCCESS_GREEN
-            img_icon.icon = "check_circle"
+            img_icon.icon = ft.Icons.CHECK_CIRCLE
             img_icon.color = st.SUCCESS_GREEN
             txt_unidade.visible = txt_agua.visible = txt_gas.visible = btn_gravar.visible = False
             btn_finalizar_sinc.visible = True
@@ -281,44 +281,38 @@ def montar_tela_medicao(page: ft.Page):
                 return
 
             current_unit = txt_unidade.value
-            # Otimização para validação
-            lidos = {l.get('unidade_id')
-                     for l in Database.get_leituras_mes_atual()}
+            lidos = await asyncio.to_thread(
+                lambda: {l.get('unidade_id') for l in Database.get_leituras_mes_atual()}
+            )
 
             # --- Validação da Unidade Anterior (Offline-First) ---
             current_unit_index = db_lista.index(current_unit)
-            if current_unit_index > 0:  # If it's not the very first unit
+            if current_unit_index > 0:
                 previous_unit = db_lista[current_unit_index - 1]
                 if previous_unit not in lidos:
                     page.show_dialog(ft.SnackBar(
                         ft.Text(
                             f"Atenção: A unidade anterior ({previous_unit}) não foi lida. Por favor, siga a sequência."),
-                        bgcolor=st.ACCENT_ORANGE
+                        bgcolor=st.ACCENT_ORANGE,
+                        show_close_icon=True
                     ))
                     page.update()
                     return
 
             try:
-                # Converte para float; campo vazio (modo oposto) vira None
                 v_agua = round(float(valor_agua), 2) if valor_agua else None
                 v_gas = round(float(valor_gas), 3) if valor_gas else None
-                # Padronização para ISO (YYYY-MM-DD) para busca correta no SQLite
                 data_coleta = datetime.now(fuso_sp).isoformat(
                     sep=' ', timespec='seconds')
             except ValueError:
-                page.show_dialog(ft.SnackBar(ft.Text("Valor inválido.")))
+                page.show_dialog(ft.SnackBar(ft.Text("Valor inválido."), show_close_icon=True))
                 page.update()
                 return
 
-            # Salva no banco local para o SyncService sincronizar depois
             foto_url = user_data.pop("foto_url_scanner", None)
-            res = Database.salvar_leitura(
-                unidade=current_unit,
-                valor_agua=v_agua,
-                valor_gas=v_gas,
-                modo=state["modo"],
-                data_hora=data_coleta,
-                foto_url=foto_url
+            res = await asyncio.to_thread(
+                Database.salvar_leitura,
+                current_unit, v_agua, v_gas, state["modo"], data_coleta, foto_url
             )
             # Update last read unit in page.user_data for resuming
             # Also store the values for potential restoration/clearing

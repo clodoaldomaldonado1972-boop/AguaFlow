@@ -50,7 +50,7 @@ def montar_tela_sobre(page: ft.Page):
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 expand=True,
-                scroll=ft.ScrollMode.ADAPTIVE
+                scroll=ft.ScrollMode.AUTO
             )
         ]
     )

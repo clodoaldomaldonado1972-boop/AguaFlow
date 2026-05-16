@@ -160,6 +160,6 @@ def montar_tela_configs(page: ft.Page):
                 
                 ft.Divider(height=40, color="white10"),
                 ft.TextButton("Voltar ao Menu Principal", on_click=lambda _: page.go("/menu"))
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.ADAPTIVE)
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO, expand=True)
         ]
     )
