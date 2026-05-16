@@ -27,6 +27,12 @@ def montar_tela_medicao(page: ft.Page):
         # Configuração de fuso horário para a coleta
         fuso_sp = pytz.timezone('America/Sao_Paulo')
 
+        def _unidade_lida(unidade, lidos):
+            """Verifica se unidade (ou suas partes, no caso de duplex como '163/164') está em lidos."""
+            if unidade in lidos:
+                return True
+            return any(p.strip() in lidos for p in unidade.split('/') if p.strip())
+
         def buscar_primeira_pendente():
             """Retorna a primeira unidade da lista que ainda não foi lida no mês atual."""
             try:
@@ -36,7 +42,7 @@ def montar_tela_medicao(page: ft.Page):
                 else:
                     lidos = {l['unidade_id'] for l in leituras_mes if l.get('leitura_gas') is not None}
                 for u in db_lista:
-                    if u not in lidos:
+                    if not _unidade_lida(u, lidos):
                         return u
             except Exception:
                 pass
@@ -45,7 +51,6 @@ def montar_tela_medicao(page: ft.Page):
         def buscar_proxima_pendente():
             """Busca a próxima unidade na lista que ainda não foi lida."""
             try:
-                # Busca leituras do mês para filtrar pendências por tipo
                 leituras_mes = Database.get_leituras_mes_atual()
                 if state["modo"] == "AGUA":
                     lidos = {l['unidade_id']
@@ -58,9 +63,8 @@ def montar_tela_medicao(page: ft.Page):
                 idx_atual = db_lista.index(
                     unidade_atual) if unidade_atual in db_lista else -1
 
-                # Procura da atual em diante
                 for i in range(idx_atual + 1, len(db_lista)):
-                    if db_lista[i] not in lidos:
+                    if not _unidade_lida(db_lista[i], lidos):
                         return db_lista[i]
             except (ValueError, AttributeError, NameError):
                 pass
@@ -289,7 +293,7 @@ def montar_tela_medicao(page: ft.Page):
             current_unit_index = db_lista.index(current_unit)
             if current_unit_index > 0:
                 previous_unit = db_lista[current_unit_index - 1]
-                if previous_unit not in lidos:
+                if not _unidade_lida(previous_unit, lidos):
                     page.show_dialog(ft.SnackBar(
                         ft.Text(
                             f"Atenção: A unidade anterior ({previous_unit}) não foi lida. Por favor, siga a sequência."),
