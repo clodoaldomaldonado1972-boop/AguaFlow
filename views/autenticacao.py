@@ -64,7 +64,7 @@ def montar_tela_autenticacao(page: ft.Page):
             bgcolor="#121417",
             controls=[
                 ft.Column([
-                    ft.Icon("person_add", size=80, color="blue"),
+                    ft.Icon(ft.Icons.PERSON_ADD, size=80, color="blue"),
                     ft.Text("Novo Cadastro", size=26,
                             weight="bold", color="white"),
                     ft.Text("Crie sua conta para acesso offline",

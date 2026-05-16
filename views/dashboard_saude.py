@@ -62,11 +62,11 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
 
     # Componentes de interface atualizados
     status_db = criar_card_status(
-        "storage", "Banco de Dados Local", checar_db_local)
+        ft.Icons.STORAGE, "Banco de Dados Local", checar_db_local)
     status_cloud = criar_card_status(
-        "cloud_done", "Conexão Supabase", checar_supabase)
+        ft.Icons.CLOUD_DONE, "Conexão Supabase", checar_supabase)
     status_disk = criar_card_status(
-        "sd_card", "Armazenamento", checar_armazenamento)
+        ft.Icons.SD_CARD, "Armazenamento", checar_armazenamento)
 
     # --- LOG VIEWER ---
     # Define o caminho do arquivo de log de forma robusta
@@ -104,7 +104,7 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         appbar=ft.AppBar(
             title=ft.Text("Saúde do Sistema"),
             bgcolor="blue",
-            leading=ft.IconButton("arrow_back", on_click=ao_voltar),
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=ao_voltar),
             actions=[sincronizador.btn_sync]
         ),
         controls=[

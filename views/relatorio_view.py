@@ -65,14 +65,14 @@ def montar_tela_relatorio(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("Relatórios e Etiquetas"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
         ),
         controls=[
             ft.Column([
                 ft.Container(height=20),
                 ft.Container(
                     content=ft.Column([
-                        ft.Icon("recycling", size=50,
+                        ft.Icon(ft.Icons.RECYCLING, size=50,
                                 color=st.PRIMARY_BLUE),
                         ft.Text("FINALIZAR MÊS ATUAL", size=18, weight="bold"),
                         pr, lbl_status,

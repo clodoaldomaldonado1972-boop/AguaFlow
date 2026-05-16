@@ -58,7 +58,7 @@ def montar_tela_sincronizacao(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("Sincronização com Nuvem"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
         ),
         controls=[
             ft.Column([
@@ -67,7 +67,7 @@ def montar_tela_sincronizacao(page: ft.Page):
                 # Card de Status
                 ft.Container(
                     content=ft.Column([
-                        ft.Icon("cloud_sync", size=50, color=st.PRIMARY_BLUE),
+                        ft.Icon(ft.Icons.CLOUD_SYNC, size=50, color=st.PRIMARY_BLUE),
                         ft.Text("STATUS DA SINCRONIZAÇÃO",
                                 size=16, weight="bold"),
                         lbl_status_geral,

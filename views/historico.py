@@ -77,7 +77,7 @@ async def montar_tela_historico(page: ft.Page):
             ft.AppBar(
                 title=ft.Text("Histórico de Medições"),
                 bgcolor=st.PRIMARY_BLUE,
-                leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
+                leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
             ),
             ft.Column(
                 scroll=ft.ScrollMode.AUTO,

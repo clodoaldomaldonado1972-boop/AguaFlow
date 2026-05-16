@@ -61,6 +61,7 @@ class SyncService:
                         FROM leituras
                         WHERE sincronizado = 0
                         ORDER BY id ASC
+                        LIMIT 50
                     """)
                     pendentes = [dict(r) for r in cursor.fetchall()]
 
@@ -114,16 +115,22 @@ class SyncService:
                             logger.info(
                                 f"✔️ Unidade {item['unidade_id']} sincronizada.")
                         else:
-                            # 3. Falha: Registra erro para nova tentativa posterior[cite: 6]
+                            # 3. Falha: conta tentativas e desiste após 5
+                            cursor.execute(
+                                "SELECT COUNT(*) FROM sync_log WHERE leitura_id = ? AND status = 'FALHA'",
+                                (item['id'],))
+                            n_falhas = cursor.fetchone()[0]
                             cls._registrar_log_sync(
                                 cursor, conn, item['id'], item['unidade_id'], "FALHA", resultado.get('erro'))
+                            if n_falhas >= 4:
+                                cursor.execute(
+                                    "UPDATE leituras SET sincronizado = -1 WHERE id = ?", (item['id'],))
+                                logger.warning(
+                                    f"⛔ Unidade {item['unidade_id']}: 5 falhas consecutivas, marcado como ignorado.")
+                            else:
+                                logger.warning(
+                                    f"❌ Falha na unidade {item['unidade_id']} ({n_falhas + 1}/5): {resultado.get('erro')}")
                             conn.commit()
-                            logger.warning(
-                                f"❌ Falha na unidade {item['unidade_id']}: {resultado.get('erro')}")
-
-                            # Gatilho de E-mail para falha específica de upload
-                            from utils.logger_config import enviar_report_erro
-                            enviar_report_erro(resultado.get('erro'), unidade=item['unidade_id'])
 
                 await asyncio.sleep(60)
             except Exception as e:

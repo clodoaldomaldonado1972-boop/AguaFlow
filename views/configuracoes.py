@@ -136,12 +136,12 @@ def montar_tela_configs(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("Configurações"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton("arrow_back", on_click=lambda _: page.go("/menu"))
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
         ),
         controls=[
             ft.Column([
                 ft.Container(height=20),
-                ft.Icon("lock_person", size=64, color=st.PRIMARY_BLUE),
+                ft.Icon(ft.Icons.LOCK_PERSON, size=64, color=st.PRIMARY_BLUE),
                 ft.Text("Trocar Senha", size=20, weight="bold"),
                 ft.Text(f"Utilizador: {user_email}", size=14, color="grey"),
                 

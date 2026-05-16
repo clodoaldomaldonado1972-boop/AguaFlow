@@ -107,7 +107,7 @@ async def main(page: ft.Page):
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 controls=[
-                    ft.Icon("error_outline", size=64, color="red"),
+                    ft.Icon(ft.Icons.ERROR_OUTLINE, size=64, color="red"),
                     ft.Text("Erro ao carregar tela", size=18, color="white"),
                     ft.Text(str(ex), size=12, color="grey", text_align=ft.TextAlign.CENTER),
                     ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: page.go("/menu")),

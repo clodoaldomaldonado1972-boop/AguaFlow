@@ -45,7 +45,7 @@ def criar_tela_recuperacao(page: ft.Page):
         controls=[
             ft.Container(
                 content=ft.Column([
-                    ft.Icon("mark_email_read", size=80, color="blue"),
+                    ft.Icon(ft.Icons.MARK_EMAIL_READ, size=80, color="blue"),
                     ft.Text("Recuperar Senha", style=st.TEXT_TITLE),
                     ft.Text("Enviaremos um link para o seu e-mail", style=st.TEXT_SUB),
                     ft.Divider(height=20, color="transparent"),

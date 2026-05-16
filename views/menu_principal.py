@@ -28,7 +28,7 @@ def montar_menu(page: ft.Page):
             app_bar_actions.append(
                 ft.Container(
                     # Usando string para evitar AttributeError no Android
-                    content=ft.Icon("cloud_off", color="orange"),
+                    content=ft.Icon(ft.Icons.CLOUD_OFF, color="orange"),
                     tooltip="Modo Offline: As medições serão salvas apenas no dispositivo",
                     padding=ft.padding.only(right=20)
                 )

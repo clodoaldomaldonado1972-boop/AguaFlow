@@ -43,7 +43,7 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
                     ft.Row([
                         ft.Text(
                             f"Evolução: Unidade {unidade}", size=20, weight="bold"),
-                        ft.IconButton("close",
+                        ft.IconButton(icon=ft.Icons.CLOSE,
                                       on_click=fechar_bs, icon_color="red")
                         # Corrigido alinhamento, padronizado ícone
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -87,7 +87,7 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
         appbar=ft.AppBar(
             title=ft.Text("Análise Vivere Prudente"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton("arrow_back", on_click=ao_voltar)
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=ao_voltar)
         ),
         controls=[
             ft.Column(

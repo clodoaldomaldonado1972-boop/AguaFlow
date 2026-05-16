@@ -17,13 +17,13 @@ def montar_tela_sobre(page: ft.Page):
             title=ft.Text("Sobre o AguaFlow"),
             bgcolor=st.PRIMARY_BLUE,
             leading=ft.IconButton(
-                "arrow_back", on_click=lambda _: page.go("/menu"))
+                icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
         ),
         controls=[
             ft.Column(
                 [
                     ft.Container(height=20),
-                    ft.Icon("info_outline", size=64,
+                    ft.Icon(ft.Icons.INFO_OUTLINE, size=64,
                             color=st.PRIMARY_BLUE),
                     ft.Text("AguaFlow", size=24,
                             weight="bold", color=st.WHITE),

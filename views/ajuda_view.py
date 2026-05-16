@@ -55,13 +55,13 @@ def montar_tela_ajuda(page: ft.Page, on_back):
         appbar=ft.AppBar(
             title=ft.Text("Ajuda e Suporte"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton("arrow_back", on_click=on_back),
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=on_back),
         ),
         controls=[
             ft.Column(
                 [
                     ft.Container(height=20),
-                    ft.Icon("help_center_outlined", size=80, color=st.PRIMARY_BLUE),
+                    ft.Icon(ft.Icons.HELP_CENTER_OUTLINED, size=80, color=st.PRIMARY_BLUE),
                     ft.Text("Suporte Técnico", size=24, weight="bold", color="white"),
                     ft.Container(height=20),
                     ft.ElevatedButton(
