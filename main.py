@@ -102,7 +102,7 @@ async def main(page: ft.Page):
             logger.error(f"❌ Erro na rota: {ex}", exc_info=True)
             page.views.clear()
             page.views.append(ft.View(
-                "/",
+                route="/",
                 bgcolor="#121417",
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,

@@ -102,3 +102,18 @@ BTN_SPECIAL = ft.ButtonStyle(
     shape=ft.RoundedRectangleBorder(radius=15)
 )
 
+
+def criar_card_metrica(titulo, valor, icone, cor, col=3):
+    return ft.Container(
+        col=col,
+        content=ft.Column([
+            ft.Icon(icone, color=cor, size=28),
+            ft.Text(valor, size=22, weight="bold", color=WHITE),
+            ft.Text(titulo, size=12, color=GREY_TEXT),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4),
+        bgcolor="#1E2126",
+        border_radius=12,
+        padding=16,
+        alignment=ft.Alignment(0, 0),
+    )
+

@@ -16,7 +16,7 @@ def criar_grafico_evolucao(dados_historicos, titulo="Consumo"):
     for i, dado in enumerate(dados_historicos):
         # O campo 'valor' deve bater com o nome da coluna no seu banco (ex: 'consumo')
         valor = dado.get('consumo') or dado.get('valor') or 0
-        pontos.append(ft.LineChartDataPoint(i, valor))[cite: 4]
+        pontos.append(ft.LineChartDataPoint(i, valor))
 
     return ft.LineChart(
         data_series=[
