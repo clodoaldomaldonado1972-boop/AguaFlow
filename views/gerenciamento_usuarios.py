@@ -195,7 +195,7 @@ def montar_tela_usuarios(page: ft.Page):
                                 ft.dropdown.Option("user", text="Usuário"),
                                 ft.dropdown.Option("admin", text="Admin"),
                             ],
-                            on_change=lambda e, u=email: page.run_task(
+                            on_select=lambda e, u=email: page.run_task(
                                 alterar_role, u, e.control.value)
                         ),
                         ft.IconButton(
