@@ -99,7 +99,18 @@ class Database:
                         # Se der erro (ex: sqlite3.OperationalError), a coluna já existe
                         pass
 
-                # 3. Cria a tabela de usuários se não existir para suporte offline
+                # 3. Tabela de referência — guarda a última leitura de cada ciclo
+                #    para exibir "Leitura Anterior" no próximo ciclo
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS leituras_referencia (
+                        unidade_id TEXT PRIMARY KEY,
+                        leitura_agua REAL,
+                        leitura_gas REAL,
+                        data_referencia TEXT
+                    )
+                """)
+
+                # 4. Cria a tabela de usuários se não existir para suporte offline
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS usuarios (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -372,22 +383,57 @@ class Database:
 
     @classmethod
     def get_leituras_mes_atual(cls):
-        """Retorna todas as leituras realizadas no mês corrente, incluindo leiturista."""
+        """Retorna leituras do mês corrente com leitura_anterior via join na tabela de referência."""
         try:
             mes_atual = datetime.now().strftime('%Y-%m')
             with cls.get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT id, unidade_id, leitura_agua, leitura_gas,
-                           data_hora_coleta, consumo, leiturista
-                    FROM leituras
-                    WHERE data_hora_coleta LIKE ?
-                    ORDER BY data_hora_coleta ASC
+                    SELECT l.id, l.unidade_id, l.leitura_agua, l.leitura_gas,
+                           l.data_hora_coleta, l.consumo, l.leiturista,
+                           r.leitura_agua AS leitura_anterior_agua,
+                           r.leitura_gas  AS leitura_anterior_gas
+                    FROM leituras l
+                    LEFT JOIN leituras_referencia r ON l.unidade_id = r.unidade_id
+                    WHERE l.data_hora_coleta LIKE ?
+                    ORDER BY l.data_hora_coleta ASC
                 """, (f"{mes_atual}%",))
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             logger.error(f"Erro ao buscar leituras do mês: {e}")
             return []
+
+    @classmethod
+    def salvar_referencias_ciclo(cls, dados):
+        """
+        Salva as leituras do ciclo encerrado como referência (leitura anterior)
+        para o próximo ciclo. Chamado antes do reset mensal.
+        """
+        try:
+            refs = {}
+            for row in dados:
+                uid = row['unidade_id']
+                if uid not in refs:
+                    refs[uid] = {'agua': None, 'gas': None, 'data': row.get('data_hora_coleta')}
+                if row.get('leitura_agua') is not None:
+                    refs[uid]['agua'] = row['leitura_agua']
+                if row.get('leitura_gas') is not None:
+                    refs[uid]['gas'] = row['leitura_gas']
+
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                for uid, vals in refs.items():
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO leituras_referencia
+                            (unidade_id, leitura_agua, leitura_gas, data_referencia)
+                        VALUES (?, ?, ?, ?)
+                    """, (uid, vals['agua'], vals['gas'], vals.get('data')))
+                conn.commit()
+            logger.info(f"📌 {len(refs)} referências de leitura salvas para o próximo ciclo.")
+            return True
+        except Exception as e:
+            logger.error(f"Erro ao salvar referências de ciclo: {e}")
+            return False
 
     @classmethod
     def exportar_csv_mes(cls):

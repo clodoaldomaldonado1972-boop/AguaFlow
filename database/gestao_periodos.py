@@ -26,12 +26,15 @@ def finalizar_mes_e_enviar(email_destino=None):
         if not arquivos:
             return False
 
-        # 4. Envia todos os arquivos por e-mail
+        # 4. Salva as leituras atuais como referência (leitura anterior) do próximo ciclo
+        Database.salvar_referencias_ciclo(dados)
+
+        # 5. Envia todos os arquivos por e-mail
         lista_caminhos = list(arquivos.values())
         enviou = enviar_relatorios_por_email(lista_caminhos)
 
         if enviou:
-            # 5. Sucesso: prepara ciclo seguinte
+            # 6. Sucesso: prepara ciclo seguinte
             return resetar_banco_para_novo_mes()
 
         return False
