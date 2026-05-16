@@ -15,7 +15,7 @@ def validar_sessao(page: ft.Page, rota: str, required_role: str = None):
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Icon("lock_outline", size=64, color="#2196F3"),
+                ft.Icon(ft.Icons.LOCK_OUTLINE, size=64, color="#2196F3"),
                 ft.Text("Sessão expirada", size=18, color="white"),
                 ft.Text("Redirecionando para o login...", size=12, color="grey"),
             ]
@@ -32,7 +32,7 @@ def validar_sessao(page: ft.Page, rota: str, required_role: str = None):
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 controls=[
-                    ft.Icon("block", size=64, color="red"),
+                    ft.Icon(ft.Icons.BLOCK, size=64, color="#FF5252"),
                     ft.Text("Acesso restrito a administradores.", size=14, color="white"),
                     ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: page.go("/menu")),
                 ]

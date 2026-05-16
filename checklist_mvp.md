@@ -1,199 +1,239 @@
-# Checklist MVP — AguaFlow v1.2.0
-**Condominio Vivere Prudente | Teste realizado em: 2026-05-15**
+﻿# Checklist MVP — AguaFlow v1.2.0
+
+Análise completa do sistema realizada em 16/05/2026.
+Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
 
-## 1. Inicializacao e Estrutura
+## 1. Autenticação (`views/auth.py`, `utils/auth_utils.py`)
 
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 1.1 | Banco SQLite inicializado | PASSOU | `database/aguaflow.db` criado/migrado |
-| 1.2 | Tabela `leituras` com colunas corretas | PASSOU | Todas as colunas Supabase mapeadas |
-| 1.3 | Tabela `usuarios` para login offline | PASSOU | Com migracao de colunas |
-| 1.4 | Variaveis de ambiente (.env) carregadas | PASSOU | Supabase + Email configurados |
-
----
-
-## 2. Lista de Unidades
-
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 2.1 | Total de unidades correto | PASSOU | **96 unidades** (16x6 - 4 individuais + 2 duplex + 2 areas comuns) |
-| 2.2 | Duplex `163/164` como unidade unica | PASSOU | Uma entrada na lista, nao duas separadas |
-| 2.3 | Duplex `23/24` como unidade unica | PASSOU | Uma entrada na lista, nao duas separadas |
-| 2.4 | Unidades `163`, `164`, `23`, `24` ausentes | PASSOU | Nao aparecem individualmente |
-| 2.5 | Area comum `LAZER GAS` presente | PASSOU | Penultima da lista |
-| 2.6 | Area comum `TERREO GERAL AGUA` presente | PASSOU | Ultima da lista (fim de ciclo) |
-
-**Sequencia gerada (primeiras 10):**
-```
-166 | 165 | 163/164 | 162 | 161 | 156 | 155 | 154 | 153 | 152
-```
+- [x] Login com e-mail e senha (SQLite local)
+- [x] Fallback offline — autenticação local quando Supabase indisponível
+- [x] Proteção de rota com `validar_sessao()` em todas as views sensíveis
+- [x] Controle de permissão por `role` (user / admin)
+- [x] Sessão armazenada em `page.user_data`
+- [x] Logout com confirmação via `AlertDialog`
+- [x] Ícones usando `ft.Icons.*` (sem banners de erro Flutter)
+- [ ] Recuperação de senha (não implementada)
+- [ ] Expiração automática de sessão por inatividade
 
 ---
 
-## 3. Insercao de Leituras
+## 2. Menu Principal (`views/menu_principal.py`)
 
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 3.1 | Leituras de AGUA inseridas | PASSOU | 95 unidades (exceto LAZER GAS) |
-| 3.2 | Leituras de GAS inseridas | PASSOU | 95 unidades (exceto TERREO GERAL AGUA) |
-| 3.3 | Duplex `163/164` salvo como UMA linha no banco | PASSOU | `unidade_id='163/164'` — nao dividido |
-| 3.4 | Duplex `23/24` salvo como UMA linha no banco | PASSOU | `unidade_id='23/24'` — nao dividido |
-| 3.5 | Total de registros no banco | PASSOU | 190 registros (95 agua + 95 gas) |
-| 3.6 | Nenhum erro de insercao | PASSOU | 0 erros |
-
-**Amostra dos registros duplex no banco:**
-```
-unidade_id=163/164  agua=243.51  gas=None    tipo=AGUA (Duplex)
-unidade_id=163/164  agua=None    gas=10.937  tipo=GAS  (Duplex)
-unidade_id=23/24    agua=224.57  gas=None    tipo=AGUA (Duplex)
-unidade_id=23/24    agua=None    gas=13.936  tipo=GAS  (Duplex)
-```
+- [x] Saudação personalizada com nome do usuário
+- [x] Indicador de modo offline na AppBar
+- [x] Botões administrativos ocultos para `role=user`
+- [x] Navegação para todas as rotas principais
+- [x] Logout com confirmação
+- [x] Rodapé com versão do app (`AppUpdater.get_footer()`)
+- [x] Ícones `ft.Icons.*` no IconButton da AppBar (sem banner vermelho)
 
 ---
 
-## 4. Logica de Fluxo por Hall (Medicao)
+## 3. Medição (`views/medicao.py`)
 
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 4.1 | Agua do hall lida em sequencia | CORRIGIDO | Descendente: 166->161, 156->151, etc. |
-| 4.2 | Ao terminar hall, pergunta sobre GAS | CORRIGIDO | Dialog "Deseja ler Gas deste andar?" |
-| 4.3 | Gas do hall lido em sequencia | CORRIGIDO | Retorna ao inicio do hall para gas |
-| 4.4 | Ao terminar gas do hall -> volta para AGUA | CORRIGIDO | Troca `modo="AGUA"` antes de avancar |
-| 4.5 | Proximo hall comeca com AGUA | CORRIGIDO | Nao continua em modo GAS |
-| 4.6 | Campos limpos ao trocar modo | CORRIGIDO | `txt_agua` e `txt_gas` zerados |
-| 4.7 | Fluxo termina em TERREO GERAL AGUA | ESPERADO | Fim de ciclo -> botao "Sincronizar e Gerar Relatorio" |
-
-**Bug corrigido (2026-05-15):**
-> Ao terminar gas do hall 16 (unidade 161), o sistema continuava inserindo gas
-> para o hall 15 (156, 155...) em vez de voltar para AGUA.
->
-> Causa: condicao `if state["modo"] == "AGUA"` bloqueava a troca de modo apos gas.
->
-> Fix em `views/medicao.py`: adicionada ramificacao `else: state["modo"] = "AGUA"`
-> quando `prefixo_atual != prefixo_prox` em modo GAS.
+- [x] Seleção de unidade e tipo (Água / Gás)
+- [x] Registro de leitura com timestamp
+- [x] Validação de leitura (não pode ser menor que anterior)
+- [x] Foto do medidor via câmera ou galeria
+- [x] OCR via Claude Haiku Vision (primário) + Tesseract (fallback)
+- [x] Confirmação antes de salvar
+- [x] Salvo localmente em SQLite com flag `sincronizado=0`
+- [ ] Edição de leitura já registrada
+- [ ] Cancelamento de leitura em lote
 
 ---
 
-## 5. Unidades Duplex — Compatibilidade Supabase
+## 4. Scanner / OCR (`views/scanner_view.py`, `utils/ocr_service.py`)
 
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 5.1 | Banco local usa mesma chave do Supabase | CORRIGIDO | `unidade_id='163/164'` igual ao Supabase |
-| 5.2 | Sem erro de FK na sincronizacao | CORRIGIDO | "164" nao existe em `medidores`; "163/164" existe |
-| 5.3 | Sincronizacao envia `unidade_id` correto | CORRIGIDO | `_upload_individual` usa campo como-esta |
-
-**Bug anterior:**
-> `salvar_leitura("163/164", ...)` dividia em `["163", "164"]` e salvava 2 linhas.
-> Ao sincronizar, `unidade_id=164` nao existia em `medidores` -> FK constraint error.
->
-> Fix em `database/database.py`: remocao do split. "163/164" salvo como string unica.
+- [x] Captura de imagem do medidor
+- [x] OCR automático com Claude Haiku Vision
+- [x] Fallback para Tesseract quando API indisponível
+- [x] Exibição do resultado para confirmação manual
+- [ ] Calibração de região de interesse (ROI) por modelo de medidor
+- [ ] Histórico de leituras com imagem anexada
 
 ---
 
-## 6. Geracao de Relatorio PDF
+## 5. Dashboard (`views/dashboard.py`, `utils/graficos_factory.py`)
 
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 6.1 | PDF gerado sem erro | PASSOU | `relatorio_consumo.pdf` |
-| 6.2 | Tamanho adequado | PASSOU | 9 KB (190 linhas de dados) |
-| 6.3 | Cabecalho com data e condominio | PASSOU | "Vivere Prudente — 15/05/2026" |
-| 6.4 | Tabela AGUA em azul | PASSOU | Linhas com `leitura_agua IS NOT NULL` |
-| 6.5 | Tabela GAS em laranja | PASSOU | Linhas com `leitura_gas IS NOT NULL` |
-
----
-
-## 7. Geracao de CSV
-
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 7.1 | CSV gerado sem erro | PASSOU | `dados_consumo.csv` |
-| 7.2 | Encoding UTF-8 BOM (Excel PT-BR) | PASSOU | Abre corretamente no Excel |
-| 7.3 | Delimitador ponto-e-virgula | PASSOU | Padrao PT-BR |
-| 7.4 | Total de linhas | PASSOU | 191 (1 header + 190 dados) |
-| 7.5 | Colunas corretas | PASSOU | `unidade_id; leitura_agua; leitura_gas; data_hora_coleta` |
+- [x] Cards de métricas: Lidas, Pendentes, Total Água, Total Gás
+- [x] Grid visual de unidades (verde=lida, vermelho=pendente)
+- [x] Cores via hex (`#43A047`, `#EF5350`) — não strings CSS
+- [x] Ícones `ft.Icons.*` nos cards (sem ícones cinzas)
+- [x] `criar_card_metrica` sem `alignment` (sem expansão indesejada)
+- [x] Gráfico de barras customizado (sem `ft.LineChart` — não existe em Flet 0.82)
+- [x] BottomSheet com detalhes e histórico da unidade
+- [x] Filtro por período (mês/ano)
+- [x] `ft.BorderRadius.only()` (API atualizada)
+- [ ] Exportar gráfico como imagem
+- [ ] Comparativo entre períodos no gráfico
 
 ---
 
-## 8. Envio de Email
+## 6. Sincronização (`views/sincronizacao.py`, `database/sync_service.py`)
 
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 8.1 | Conexao SMTP Gmail estabelecida | PASSOU | `smtp.gmail.com:465` SSL |
-| 8.2 | Login com App Password | PASSOU | `EMAIL_USER` + `EMAIL_PASS` do `.env` |
-| 8.3 | Email enviado para destinatario | PASSOU | `clodoaldomaldonado112@gmail.com` |
-| 8.4 | Anexo PDF incluido | PASSOU | `relatorio_consumo.pdf` |
-| 8.5 | Anexo CSV incluido | PASSOU | `dados_consumo.csv` |
-| 8.6 | Assunto correto | PASSOU | "Relatorio de Consumo Agua/Gas — 05/2026" |
-
----
-
-## 9. Interface — Tela de Medicao
-
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 9.1 | Icone gota d'agua renderiza corretamente | CORRIGIDO | `ft.Icons.WATER_DROP` (enum, nao string) |
-| 9.2 | Icone chama de gas renderiza corretamente | CORRIGIDO | `ft.Icons.LOCAL_FIRE_DEPARTMENT` |
-| 9.3 | Botao voltar (AppBar) funciona | CORRIGIDO | `ft.Icons.ARROW_BACK` |
-| 9.4 | Tela nao fica branca (layout collapse) | CORRIGIDO | `scroll=AUTO, expand=True` na Column |
-| 9.5 | Validacao de sequencia funciona | CORRIGIDO | Unidade anterior deve estar lida |
-| 9.6 | Duplex `163/164` aceito sem loop de validacao | CORRIGIDO | `_unidade_lida()` verifica partes |
-| 9.7 | UI nao trava ao salvar | CORRIGIDO | `asyncio.to_thread` para chamadas DB |
+- [x] Sincronização manual com Supabase
+- [x] Contagem de registros pendentes vs sincronizados
+- [x] Backup automático após sincronização bem-sucedida
+- [x] SnackBar de feedback (sucesso / já atualizado / erro)
+- [x] Ícone `ft.Icons.CLOUD_UPLOAD` (sem banner vermelho)
+- [x] Cores de estado em hex (azul, verde, cinza, vermelho)
+- [x] `SincronizadorUI` reutilizável em outras views
+- [ ] Sincronização automática em background (periódica)
+- [ ] Log detalhado de sincronizações com timestamps
 
 ---
 
-## 10. Login e Navegacao
+## 7. Relatórios (`views/relatorios.py`)
 
-| # | Item | Status | Detalhe |
-|---|------|--------|---------|
-| 10.1 | Logo gota d'agua na tela de login | CORRIGIDO | `ft.Icons.WATER_DROP` em vez de string |
-| 10.2 | Icone cadeado na tela "Esqueci Senha" | CORRIGIDO | `ft.Icons.LOCK_RESET` |
-| 10.3 | Login online (Supabase) | ESPERADO | Testado com credenciais validas |
-| 10.4 | Fallback login offline (SQLite) | ESPERADO | Funciona sem internet |
-
----
-
-## Resultado Final do Teste Automatizado
-
-```
-Script: python -X utf8 teste_completo.py
-Data:   2026-05-15
-
-Total de checks: 15
-Aprovados:       15  [100%]
-Falhos:           0
-
-*** TODOS OS TESTES PASSARAM -- MVP PRONTO PARA USO! ***
-```
+- [x] Geração de relatório mensal em PDF
+- [x] Envio de relatório por e-mail (SMTP Gmail)
+- [x] Filtro por período e tipo (Água / Gás)
+- [x] Acesso restrito a administradores
+- [ ] Relatório por unidade individual
+- [ ] Exportação em CSV/Excel
 
 ---
 
-## Fixes Aplicados Nesta Sessao (2026-05-15)
+## 8. Histórico (`views/historico.py`)
 
-| Arquivo | Fix |
-|---------|-----|
-| `database/database.py` | `salvar_leitura`: remocao do split duplex — salva "163/164" como unidade unica |
-| `views/medicao.py` | Logica de hall: GAS completo -> troca para AGUA no proximo hall |
-| `views/medicao.py` | Limpa campos (`txt_agua`, `txt_gas`) ao trocar de modo |
-| `views/medicao.py` | `ft.IconButton(icon=ft.Icons.ARROW_BACK)` — enum correto |
-| `views/medicao.py` | `ft.Icons.WATER_DROP` e `ft.Icons.LOCAL_FIRE_DEPARTMENT` — enum correto |
-| `views/medicao.py` | `asyncio.to_thread` para chamadas DB em async handler |
-| `views/medicao.py` | `_unidade_lida()` helper para validacao de duplex |
-| `views/medicao.py` | Layout: `scroll=AUTO, expand=True` — corrige tela branca |
-| `views/auth.py` | `ft.Icons.WATER_DROP` no logo do login |
-| `views/auth.py` | `ft.Icons.LOCK_RESET` na tela "Esqueci Senha" |
-| `views/scanner_view.py` | Icones enum + layout corrigido |
-| `main.py` | `ft.run(main)` em vez de `ft.app(target=main)` |
-| `requirements.txt` | `flet==0.82.2` — versao compativel com o executavel |
+- [x] Listagem de leituras com data, unidade e valor
+- [x] Filtro por unidade e período
+- [x] Indicador visual de sincronização
+- [ ] Busca por texto livre
+- [ ] Exclusão de leitura com confirmação
 
 ---
 
-## Pendencias para Proxima Versao
+## 9. Gestão de Usuários (`views/gerenciamento_usuarios.py`)
 
-- [ ] Confirmar que `medidores` no Supabase tem "163/164" e "23/24" como chaves
-- [ ] Testar sincronizacao real com Supabase apos correcao do split
-- [ ] Adicionar contador de progresso no ciclo por hall (ex: "Hall 16: 4/6 lidos")
-- [ ] Relatorio: consolidar linhas duplex em uma so linha por unidade
-- [ ] Dashboard de saude: verificar compatibilidade de icones restantes
-- [ ] Scanner: testar OCR com imagens reais de hidrometros
+- [x] Listagem com busca por nome/e-mail
+- [x] Criação de usuário (nome, e-mail, senha, role)
+- [x] Alteração de role com dropdown
+- [x] Exclusão com confirmação
+- [x] Sincronização de alterações com Supabase
+- [x] Indicador de pendência de sync por usuário
+- [x] Administradores listados primeiro
+- [x] Ícones `ft.Icons.*` (sem banners de erro)
+- [x] Cores `st.RED_ERROR` em hex (sem `"red700"` não suportado)
+- [x] Auto-protegido — não exibe botão excluir para o próprio usuário logado
+- [x] Acesso restrito a `role=admin`
+
+---
+
+## 10. Configurações (`views/configuracoes.py`)
+
+- [x] Alteração de senha do usuário logado
+- [x] Configurações de SMTP (e-mail)
+- [x] Número WhatsApp para alertas (`WHATSAPP_CONTATO`)
+- [x] Limpeza de cache local
+- [ ] Tema claro/escuro
+- [ ] Configuração de número de unidades do condomínio
+
+---
+
+## 11. Dashboard de Saúde (`views/dashboard_saude.py`)
+
+- [x] Diagnóstico de conectividade Supabase
+- [x] Verificação de tabelas e integridade do banco local
+- [x] Listagem de erros recentes nos logs
+- [x] Acesso restrito a administradores
+- [x] Ícones corrigidos (sem banners Flutter)
+- [ ] Gráfico de latência de sync
+- [ ] Alertas proativos quando pendentes > threshold
+
+---
+
+## 12. Ajuda (`views/ajuda_view.py`)
+
+- [x] Perguntas frequentes (FAQ)
+- [x] Botão WhatsApp com `url=` (não `page.launch_url` async)
+- [x] Link de suporte abre WhatsApp Web corretamente
+- [ ] Vídeos tutoriais embutidos
+- [ ] Busca no FAQ
+
+---
+
+## 13. Sobre (`views/sobre_view.py`)
+
+- [x] Versão, autor, contato
+- [x] Licença MIT exibida inline
+- [x] Botão "Ver Licença Online" com `url=` — abre corretamente
+- [ ] Changelog embutido
+
+---
+
+## 14. Alertas Engine (`utils/alertas_engine.py`)
+
+- [x] Alerta de leitura pendente por unidade
+- [x] Alerta de possível vazamento
+- [x] Alerta de fechamento mensal
+- [x] Alerta de falha de sincronização
+- [x] Alerta genérico de manutenção
+- [x] Typo `unidad` corrigido para `unidade` (linhas 27 e 33)
+- [x] URL aberta via `ft.UrlLauncher().launch_url()` (não async)
+- [x] Contato padrão via variável de ambiente `WHATSAPP_CONTATO`
+- [ ] Integração com API oficial do WhatsApp Business
+- [ ] Agendamento de alertas (não apenas on-demand)
+
+---
+
+## 15. Backup (`utils/backup.py`)
+
+- [x] Geração de arquivo ZIP com banco SQLite
+- [x] Backup automático pós-sincronização
+- [x] Localização configurável via `.env`
+- [ ] Restauração de backup pela interface
+- [ ] Retenção automática (ex: manter últimos N backups)
+
+---
+
+## 16. Compatibilidade Flet 0.82
+
+- [x] `ft.Icons.*` em todos os `ft.Icon` e `ft.IconButton`
+- [x] `ft.BorderRadius.only/all()` (não `ft.border_radius.*`)
+- [x] `ft.Padding.symmetric/only()` (não `ft.padding.*`)
+- [x] `ft.Margin.only()` (não `ft.margin.*`)
+- [x] `ft.Alignment(x, y)` onde necessário
+- [x] `bgcolor` com hex em todos os SnackBars e Containers
+- [x] Sem uso de `ft.LineChart` (não existe em 0.82)
+- [x] `page.show_dialog()` / `page.pop_dialog()` no lugar de `open_dialog`
+- [x] Coroutines `async def` chamadas via `page.run_task()`
+
+---
+
+## 17. Infraestrutura
+
+- [x] SQLite local com tabelas: `usuarios`, `unidades`, `medidores`, `leituras`
+- [x] Supabase como backend remoto (PostgreSQL + Auth)
+- [x] `.env` para credenciais (não hardcoded)
+- [x] `sync_service.py` — fila de sincronização offline-first
+- [x] `database.py` — context manager `get_db()` com commit/rollback automático
+- [x] `supabase_client.py` — abstrações de CRUD e deleção de usuário
+- [x] `AppUpdater` — versão centralizada em `version.py`
+- [ ] Migrations de banco (schema versionado)
+- [ ] Testes automatizados (unitários / integração)
+- [ ] CI/CD pipeline
+
+---
+
+## Pendências Prioritárias para v1.3.0
+
+| # | Item | Prioridade | Complexidade |
+|---|------|-----------|-------------|
+| 1 | Sincronização automática em background | Alta | Média |
+| 2 | Recuperação de senha | Alta | Baixa |
+| 3 | Testes automatizados (pytest) | Alta | Alta |
+| 4 | Restauração de backup pela UI | Média | Média |
+| 5 | Relatório por unidade individual | Média | Baixa |
+| 6 | Exportação CSV/Excel | Média | Baixa |
+| 7 | Edição de leitura registrada | Média | Média |
+| 8 | Migrations de banco versionadas | Alta | Média |
+| 9 | CI/CD (GitHub Actions) | Baixa | Alta |
+| 10 | Tema claro/escuro | Baixa | Baixa |
+
+---
+
+*Gerado automaticamente pela análise do código-fonte em 16/05/2026.*

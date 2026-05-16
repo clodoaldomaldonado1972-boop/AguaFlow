@@ -18,19 +18,19 @@ class AlertasEngine:
 
         link = f"https://wa.me/{contato}?text={texto_url}"
         if page:
-            page.launch_url(link)
+            ft.UrlLauncher().launch_url(link)
         return True
 
     @staticmethod
     def alerta_leitura_pendente(page: ft.Page, unidade: str, tipo: str = "Água"):
         """Alerta de leitura pendente para unidade específica."""
-        mensagem = f"Alerta AguaFlow: Leitura de {tipo} da unidade {unidad} está pendente."
+        mensagem = f"Alerta AguaFlow: Leitura de {tipo} da unidade {unidade} está pendente."
         return AlertasEngine.enviar_alerta_mensagem(page, mensagem)
 
     @staticmethod
     def alerta_vazamento(page: ft.Page, unidade: str, leitura: float):
         """Alerta de possível vazamento baseado em leitura anômala."""
-        mensagem = f"ALERTA: Unidade {unidad} - Leitura anômala detectada: {leitura}m³. Possível vazamento!"
+        mensagem = f"ALERTA: Unidade {unidade} - Leitura anômala detectada: {leitura}m³. Possível vazamento!"
         return AlertasEngine.enviar_alerta_mensagem(page, mensagem)
 
     @staticmethod
