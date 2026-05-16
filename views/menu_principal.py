@@ -93,6 +93,8 @@ def montar_menu(page: ft.Page):
                                     on_click=lambda _: page.go("/medicao"),
                                     width=250, height=50
                                 ),
+                                ft.ElevatedButton("Dashboard", icon="dashboard", on_click=lambda _: page.go(
+                                    "/dashboard"), width=250, height=50),
                                 ft.ElevatedButton("Scanner", icon="qr_code_scanner", on_click=lambda _: page.go(
                                     "/scanner"), width=250, height=50),
                                 ft.ElevatedButton("Sincronizar Dados", icon="cloud_upload", on_click=lambda _: page.go(
