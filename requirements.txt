@@ -1,4 +1,4 @@
-﻿flet==0.84.0
+﻿flet==0.82.2
 pytz
 supabase
 httpx
