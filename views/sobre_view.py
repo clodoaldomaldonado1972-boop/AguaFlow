@@ -41,8 +41,10 @@ def montar_tela_sobre(page: ft.Page):
                         text_align=ft.TextAlign.CENTER
                     ),
                     ft.Container(height=20),
-                    ft.TextButton("Ver Licença Completa (Online)", on_click=lambda e: page.launch_url(
-                        "https://opensource.org/licenses/MIT")),
+                    ft.TextButton(
+                        "Ver Licença Completa (Online)",
+                        url="https://opensource.org/licenses/MIT",
+                    ),
                     ft.Container(expand=True),
                     ft.TextButton("Voltar ao Menu",
                                   on_click=lambda _: page.go("/menu")),

@@ -87,7 +87,7 @@ def criar_mira_scanner():
                 2, PRIMARY_BLUE), border_radius=20),
             linha_scanner
         ], alignment="center"),
-        margin=ft.margin.only(top=20, bottom=20)
+        margin=ft.Margin.only(top=20, bottom=20)
     )
 
 
@@ -114,6 +114,5 @@ def criar_card_metrica(titulo, valor, icone, cor, col=3):
         bgcolor="#1E2126",
         border_radius=12,
         padding=16,
-        alignment=ft.Alignment(0, 0),
     )
 

@@ -30,7 +30,7 @@ def montar_menu(page: ft.Page):
                     # Usando string para evitar AttributeError no Android
                     content=ft.Icon(ft.Icons.CLOUD_OFF, color="orange"),
                     tooltip="Modo Offline: As medições serão salvas apenas no dispositivo",
-                    padding=ft.padding.only(right=20)
+                    padding=ft.Padding.only(right=20)
                 )
             )
 
@@ -61,7 +61,7 @@ def montar_menu(page: ft.Page):
         # Adiciona o botão de Logout (Sair) na AppBar usando ícone universal
         app_bar_actions.append(
             ft.IconButton(
-                icon="power_settings_new",
+                icon=ft.Icons.POWER_SETTINGS_NEW,
                 tooltip="Sair do Sistema",
                 on_click=confirmar_logout
             )

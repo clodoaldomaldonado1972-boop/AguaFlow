@@ -129,7 +129,7 @@ def criar_tela_login(page: ft.Page):
                             content=ft.Icon(ft.Icons.WATER_DROP, color="white", size=48),
                             width=90, height=90,
                             bgcolor="#1565C0",
-                            border_radius=ft.border_radius.all(45),
+                            border_radius=ft.BorderRadius.all(45),
                             alignment=ft.alignment.Alignment(0, 0),
                             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                         ),

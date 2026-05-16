@@ -30,31 +30,39 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
         # Gera o gráfico usando a factory externa
         grafico_comp = criar_grafico_evolucao(historico, f"Unidade {unidade}")
 
+        # Remove BottomSheets anteriores do overlay para evitar acúmulo
+        page.overlay[:] = [o for o in page.overlay if not isinstance(o, ft.BottomSheet)]
+
         def fechar_bs(e):
             bs.open = False
+            if bs in page.overlay:
+                page.overlay.remove(bs)
             page.update()
 
         bs = ft.BottomSheet(
             ft.Container(
                 padding=20,
-                bgcolor="#1e1e1e",  # Cor direta para evitar erro de modulo 'styles'
-                border_radius=ft.border_radius.only(top_left=20, top_right=20),
+                bgcolor="#1e1e1e",
+                border_radius=ft.BorderRadius.only(top_left=20, top_right=20),
                 content=ft.Column([
                     ft.Row([
-                        ft.Text(
-                            f"Evolução: Unidade {unidade}", size=20, weight="bold"),
-                        ft.IconButton(icon=ft.Icons.CLOSE,
-                                      on_click=fechar_bs, icon_color="red")
-                        # Corrigido alinhamento, padronizado ícone
+                        ft.Text(f"Evolução: Unidade {unidade}", size=20, weight="bold"),
+                        ft.IconButton(
+                            icon=ft.Icons.CLOSE,
+                            on_click=fechar_bs,
+                            icon_color="red"
+                        ),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Divider(),
-                    ft.Container(content=grafico_comp, height=250, padding=10),
-                    ft.Text(f"Acumulado no mês: {total_agua:.2f} m³",
-                            size=12, color="grey", italic=True),
-                    # Corrigido alinhamento
+                    ft.Container(content=grafico_comp, height=220, padding=10),
+                    ft.Text(
+                        f"Acumulado no mês: {total_agua:.2f} m³",
+                        size=12, color="grey", italic=True
+                    ),
                 ], tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             ),
             open=True,
+            on_dismiss=fechar_bs,
         )
         page.overlay.append(bs)
         page.update()
@@ -63,14 +71,12 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
     lista_unidades_controles = []
     for u in todas_unidades:
         esta_lida = u in unidades_lidas_nomes
-        # CORREÇÃO 1: Usando strings para cores ("green", "red") para evitar NameError
-        cor_fundo = "green" if esta_lida else "red"
+        cor_fundo = "#43A047" if esta_lida else "#EF5350"
 
         lista_unidades_controles.append(
             ft.Container(
                 content=ft.Text(u, size=10, weight="bold", color="white"),
-                # CORREÇÃO 2: Ajustado para ft.alignment.Center (PascalCase)
-                alignment="center",
+                alignment=ft.Alignment(0, 0),
                 bgcolor=cor_fundo,
                 border_radius=5,
                 on_click=lambda e, unidade=u: abrir_detalhes_unidade(
@@ -97,15 +103,11 @@ def montar_tela_dashboard(page: ft.Page, ao_voltar):
                     ft.Container(height=10),
                     # Cards de Resumo
                     ft.ResponsiveRow([
-                        st.criar_card_metrica("Lidas", str(
-                            lidas), "check_circle", "green", 3),
-                        st.criar_card_metrica("Pendentes", str(
-                            unidades_pendentes), "pending", st.ACCENT_ORANGE, 3),
-                        st.criar_card_metrica(
-                            "Total Água", f"{total_agua:.1f}m³", "water_drop", st.PRIMARY_BLUE, 3),
-                        st.criar_card_metrica(
-                            "Total Gás", f"{total_gas:.1f}m³", "local_fire_department", st.ACCENT_ORANGE, 3),
-                    ]),
+                        st.criar_card_metrica("Lidas", str(lidas), ft.Icons.CHECK_CIRCLE, "#43A047", 3),
+                        st.criar_card_metrica("Pendentes", str(unidades_pendentes), ft.Icons.PENDING, st.ACCENT_ORANGE, 3),
+                        st.criar_card_metrica("Total Água", f"{total_agua:.1f}m³", ft.Icons.WATER_DROP, st.PRIMARY_BLUE, 3),
+                        st.criar_card_metrica("Total Gás", f"{total_gas:.1f}m³", ft.Icons.LOCAL_FIRE_DEPARTMENT, st.ACCENT_ORANGE, 3),
+                    ], spacing=8, run_spacing=8),
 
                     ft.Text("Mapa de Coleta (Clique na unidade)",
                             size=16, weight="bold"),

@@ -68,7 +68,7 @@ def montar_tela_ajuda(page: ft.Page, on_back):
                         "CHAMAR SUPORTE NO WHATSAPP",
                         icon="whatsapp",
                         style=st.BTN_SPECIAL,
-                        on_click=lambda _: page.launch_url(url_suporte),
+                        url=url_suporte,
                         width=320, height=60
                     ),
                     ft.ElevatedButton(

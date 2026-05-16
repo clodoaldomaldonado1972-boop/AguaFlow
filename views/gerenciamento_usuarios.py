@@ -172,13 +172,13 @@ def montar_tela_usuarios(page: ft.Page):
                 ft.Container(
                     content=ft.Row([
                         ft.Icon(
-                            "person", color=st.PRIMARY_BLUE if role == "admin" else "grey"),
+                            ft.Icons.PERSON, color=st.PRIMARY_BLUE if role == "admin" else "grey"),
                         ft.Column([
                             ft.Row([
                                 ft.Text(user['nome'], weight="bold", size=14),
                                 # Indicador de Sincronização (Nuvem cortada se offline)
                                 ft.Icon(
-                                    "cloud_off_outlined",
+                                    ft.Icons.CLOUD_OFF_OUTLINED,
                                     color=st.ACCENT_ORANGE,
                                     size=16,
                                     tooltip="Alteração local pendente de sincronia",
@@ -199,12 +199,10 @@ def montar_tela_usuarios(page: ft.Page):
                                 alterar_role, u, e.control.value)
                         ),
                         ft.IconButton(
-                            icon="delete_outline",
-                            icon_color="red700",
+                            icon=ft.Icons.DELETE_OUTLINE,
+                            icon_color=st.RED_ERROR,
                             tooltip="Excluir Usuário",
-                            on_click=lambda e, u=email: abrir_dialogo_exclusao(
-                                u),
-                            # Impede que o admin logado exclua a si mesmo
+                            on_click=lambda e, u=email: abrir_dialogo_exclusao(u),
                             visible=email != page.user_data.get("email")
                         ),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -225,7 +223,7 @@ def montar_tela_usuarios(page: ft.Page):
             title=ft.Text("Gestão de Acessos"),
             bgcolor=st.PRIMARY_BLUE,
             leading=ft.IconButton(
-                "arrow_back", on_click=lambda _: page.go("/menu"))
+                icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
         ),
         controls=[
             ft.Container(
