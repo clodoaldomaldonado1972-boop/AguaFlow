@@ -286,44 +286,30 @@ class Database:
 
     @classmethod
     def salvar_leitura(cls, unidade, valor_agua, valor_gas, modo, data_hora, foto_url=None):
-        """Salva uma nova leitura no banco de dados local."""
+        """Salva uma nova leitura no banco de dados local.
+
+        Unidades duplex (ex: '163/164') são salvas como uma única linha,
+        preservando a identidade da unidade igual ao Supabase.
+        """
         try:
-            # Lógica para Unidades Duplex: Replica o valor se houver "/"
-            unidades_alvo = [unidade]
-            if unidade and "/" in unidade:
-                unidades_alvo = [u.strip() for u in unidade.split("/")]
-                logger.info(f"Replicando leitura duplex para: {unidades_alvo}")
+            # Duplex: mantém "163/164" como unidade_id único (igual ao Supabase)
+            tipo_final = f"{modo} (Duplex)" if unidade and "/" in unidade else modo
+            valor_leitura = valor_agua if valor_agua is not None else (valor_gas or 0)
 
             with cls.get_db() as conn:
                 cursor = conn.cursor()
-                for u_id in unidades_alvo:
-                    if not u_id:
-                        continue
-
-                    # Adiciona nota de Duplex no tipo de registro para o relatório
-                    tipo_final = f"{modo} (Duplex)" if len(
-                        unidades_alvo) > 1 else modo
-
-                    # valor_leitura reflete o campo ativo: agua em AGUA, gas em GAS
-                    valor_leitura = valor_agua if valor_agua is not None else (valor_gas or 0)
-                    cursor.execute("""
-                        INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado, valor_leitura, foto_url)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (u_id.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_leitura, foto_url))
-
-
-
+                cursor.execute("""
+                    INSERT INTO leituras (unidade_id, leitura_agua, leitura_gas, tipo, data_hora_coleta, sincronizado, valor_leitura, foto_url)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (unidade.strip(), valor_agua, valor_gas, tipo_final, data_hora, 0, valor_leitura, foto_url))
                 conn.commit()
-                cursor.close()
-                logger.debug(
-                    f"💾 Leitura salva localmente para unidade {unidade}")
+                logger.debug(f"💾 Leitura salva localmente para unidade {unidade}")
                 return {"sucesso": True}
 
         except Exception as e:
             logging.error(e)
             logger.error(
                 f"❌ Erro ao salvar leitura no SQLite (Unidade {unidade}): {str(e)}", exc_info=True)
-            # Gatilho de E-mail para falha na gravação local
             from utils.logger_config import enviar_report_erro
             enviar_report_erro(traceback.format_exc(), unidade=unidade)
             return {"sucesso": False, "erro": str(e)}

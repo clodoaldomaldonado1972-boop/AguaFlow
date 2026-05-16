@@ -240,6 +240,8 @@ def montar_tela_medicao(page: ft.Page):
                 page.pop_dialog()
                 if escolha_gas:
                     state["modo"] = "GAS"
+                    txt_agua.value = ""
+                    txt_gas.value = ""
                     unid_val = txt_unidade.value
                     # Extrai o andar (ex: "16" de "166" ou "163/164") para voltar ao início do hall
                     prefixo = unid_val[:2] if unid_val and unid_val[0].isdigit() and len(
@@ -341,8 +343,15 @@ def montar_tela_medicao(page: ft.Page):
                 prefixo_prox = proxima_unid[:2] if proxima_unid and proxima_unid[0].isdigit(
                 ) and len(proxima_unid) >= 3 else "FIM"
 
-                if prefixo_atual != prefixo_prox and state["modo"] == "AGUA":
-                    abrir_dialogo_gas()  # Oferece Gás antes de mudar de andar
+                if prefixo_atual != prefixo_prox:
+                    if state["modo"] == "AGUA":
+                        abrir_dialogo_gas()  # Oferece Gás antes de mudar de andar
+                    else:  # GAS completo no hall → volta para AGUA no próximo hall
+                        state["modo"] = "AGUA"
+                        txt_agua.value = ""
+                        txt_gas.value = ""
+                        atualizar_estilos_modo()
+                        avancar()
                 else:
                     avancar()
             # Ensure the clear button visibility is updated
@@ -378,7 +387,7 @@ def montar_tela_medicao(page: ft.Page):
                 title=ft.Text("Nova Medição"),
                 center_title=True,
                 leading=ft.IconButton(
-                    icon="arrow_back",
+                    icon=ft.Icons.ARROW_BACK,
                     on_click=lambda _: page.go("/menu")
                 )
             ),

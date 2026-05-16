@@ -20,7 +20,7 @@ def montar_tela_esqueci_senha(page: ft.Page):
             vertical_alignment="center",
             horizontal_alignment="center",
             controls=[
-                ft.Icon("lock_reset", size=80, color="orange"),
+                ft.Icon(ft.Icons.LOCK_RESET, size=80, color="orange"),
                 ft.Text("Recuperar Senha", size=24, weight="bold", color="white"),
                 ft.Container(height=10),
                 txt_email,
@@ -126,7 +126,7 @@ def criar_tela_login(page: ft.Page):
                 ft.Container(
                     content=ft.Column([
                         ft.Container(
-                            content=ft.Icon("water_drop", color="white", size=48),
+                            content=ft.Icon(ft.Icons.WATER_DROP, color="white", size=48),
                             width=90, height=90,
                             bgcolor="#1565C0",
                             border_radius=ft.border_radius.all(45),
