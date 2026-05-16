@@ -143,7 +143,7 @@ def montar_tela_medicao(page: ft.Page):
             # Atualiza o cabeçalho visual
             lbl_modo.value = f"MODO: {'ÁGUA' if is_agua else 'GÁS'}"
             lbl_modo.color = cor
-            img_icon.name = icone
+            img_icon.icon = icone
             img_icon.color = cor
             page.update()
 
@@ -215,7 +215,7 @@ def montar_tela_medicao(page: ft.Page):
         def exibir_concluido():
             lbl_modo.value = "TODAS AS UNIDADES LIDAS"
             lbl_modo.color = st.SUCCESS_GREEN
-            img_icon.name = "check_circle"
+            img_icon.icon = "check_circle"
             img_icon.color = st.SUCCESS_GREEN
             txt_unidade.visible = txt_agua.visible = txt_gas.visible = btn_gravar.visible = False
             btn_finalizar_sinc.visible = True
@@ -376,19 +376,21 @@ def montar_tela_medicao(page: ft.Page):
         return ft.View(
             route="/medicao",
             bgcolor="#121417",
-            vertical_alignment=ft.MainAxisAlignment.START,
-            horizontal_alignment="center",
             appbar=ft.AppBar(
                 title=ft.Text("Nova Medição"),
                 center_title=True,
-                leading=ft.IconButton("arrow_back",
-                                      on_click=lambda _: page.go("/menu"))
+                leading=ft.IconButton(
+                    icon="arrow_back",
+                    on_click=lambda _: page.go("/menu")
+                )
             ),
             controls=[
                 ft.Column([
                     ft.Container(
                         content=ft.Stack([img_icon, icon_save]),
-                        alignment=ft.alignment.Alignment(0, 0)
+                        alignment=ft.alignment.Alignment(0, 0),
+                        width=320,
+                        height=160
                     ),
                     lbl_modo,
                     txt_unidade,
@@ -408,7 +410,8 @@ def montar_tela_medicao(page: ft.Page):
                         )
                     )
                 ], horizontal_alignment="center", spacing=10,
-                   scroll=ft.ScrollMode.ADAPTIVE)
+                   scroll=ft.ScrollMode.AUTO,
+                   expand=True)
             ]
         )
     except Exception as e:
