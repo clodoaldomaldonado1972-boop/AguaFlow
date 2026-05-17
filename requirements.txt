@@ -10,8 +10,8 @@ pillow
 requests
 anthropic
 
-# Relatórios Desktop
-reportlab
+# Relatórios Desktop (somente desktop — não compilar no APK)
+# reportlab
 
 # OCR Desktop (opcional — instale manualmente se necessário)
 # opencv-python

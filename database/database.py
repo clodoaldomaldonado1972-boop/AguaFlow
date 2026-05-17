@@ -8,8 +8,10 @@ from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# Carrega variáveis do arquivo .env
-load_dotenv()
+# Caminho explícito para achar .env tanto no desktop quanto no Android
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env')
+load_dotenv(_ENV_PATH, override=False)
+load_dotenv(override=False)  # fallback: cwd e variáveis de ambiente do sistema
 
 # Utiliza o logger configurado centralmente
 logger = logging.getLogger(__name__)
