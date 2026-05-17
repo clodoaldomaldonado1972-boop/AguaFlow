@@ -88,9 +88,8 @@ def montar_tela_scanner(page: ft.Page):
 
         state = {"foto_path": None, "unidade": None}
 
-        # ── Android: FilePicker ────────────────────────────────────────────────
+        # ── FilePicker (Service no Flet 0.82 — vai em View.services) ──────────
         file_picker = ft.FilePicker()
-        page.overlay.append(file_picker)
 
         async def _processar_foto(path: str):
             """Processa foto capturada (desktop via cv2 ou Android via FilePicker)."""
@@ -272,6 +271,7 @@ def montar_tela_scanner(page: ft.Page):
         return ft.View(
             route="/scanner",
             bgcolor="#121417",
+            services=[file_picker],
             appbar=ft.AppBar(
                 title=ft.Text(f"Scanner — {'ÁGUA' if modo == 'AGUA' else 'GÁS'}"),
                 center_title=True,
