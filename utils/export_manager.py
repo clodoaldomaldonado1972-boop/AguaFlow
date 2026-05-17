@@ -1,12 +1,17 @@
 import os
 import io
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
-from reportlab.lib.utils import ImageReader
-import qrcode
 import gc
 from utils.platform_utils import get_storage_dir
+
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.units import cm
+    from reportlab.lib.utils import ImageReader
+    import qrcode
+    EXPORT_AVAILABLE = True
+except ImportError:
+    EXPORT_AVAILABLE = False
 
 # Unidades exclusivas de cada tipo de medidor
 _EXCLUSIVO_GAS = {"LAZER GÁS"}
@@ -19,7 +24,9 @@ class ExportManager:
         return get_storage_dir("etiquetas")
 
     @staticmethod
-    def _qr_image_reader(conteudo: str) -> ImageReader:
+    def _qr_image_reader(conteudo: str):
+        if not EXPORT_AVAILABLE:
+            raise RuntimeError("reportlab/qrcode não disponível nesta plataforma")
         img = qrcode.make(conteudo).convert("RGB")
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -53,6 +60,8 @@ class ExportManager:
 
     @staticmethod
     def gerar_etiquetas_qr_50_por_folha(lista_unidades, tipo_medidor="Água"):
+        if not EXPORT_AVAILABLE:
+            raise RuntimeError("Geração de PDF não disponível nesta plataforma")
         pasta = ExportManager.obter_caminho_exportacao()
         prefixo = "Agua" if tipo_medidor == "Água" else "Gas"
         pdf_path = os.path.join(pasta, f"Etiquetas_50_{prefixo}.pdf")

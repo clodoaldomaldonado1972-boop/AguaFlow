@@ -4,7 +4,7 @@ import gc
 from database.database import Database
 from views import styles as st
 from database.gestao_periodos import finalizar_mes_e_enviar
-from utils.export_manager import ExportManager
+from utils.export_manager import ExportManager, EXPORT_AVAILABLE
 from utils.auth_utils import validar_sessao
 
 
@@ -91,17 +91,20 @@ def montar_tela_relatorio(page: ft.Page):
                 ft.Row([
                     ft.ElevatedButton(
                         "QR ÁGUA", icon="water",
-                        on_click=lambda _: page.run_task(
-                            acao_gerar_qrs, "Água"),
+                        on_click=lambda _: page.run_task(acao_gerar_qrs, "Água"),
                         expand=True
                     ),
                     ft.ElevatedButton(
-                        "QR GÁS", icon="local_fire_department",  # Padronizado para string
-                        on_click=lambda _: page.run_task(
-                            acao_gerar_qrs, "Gás"),
+                        "QR GÁS", icon="local_fire_department",
+                        on_click=lambda _: page.run_task(acao_gerar_qrs, "Gás"),
                         expand=True, bgcolor="orange900", color="white"
                     ),
-                ], spacing=10),
+                ], spacing=10, visible=EXPORT_AVAILABLE),
+                ft.Text(
+                    "Geração de etiquetas PDF disponível apenas no desktop.",
+                    size=12, color="grey", italic=True,
+                    visible=not EXPORT_AVAILABLE
+                ),
                 ft.Container(height=20),
                 ft.TextButton("Voltar ao Menu Principal",
                               on_click=lambda _: page.go("/menu")),
