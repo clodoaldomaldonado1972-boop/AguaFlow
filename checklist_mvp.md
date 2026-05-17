@@ -1,6 +1,6 @@
-﻿# Checklist MVP — AguaFlow v1.2.0
+# Checklist MVP — AguaFlow v1.2.0
 
-Análise completa do sistema realizada em 16/05/2026.
+Análise completa do sistema realizada em 16/05/2026. Atualizado em 16/05/2026 após sessão de correções.
 Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
@@ -14,7 +14,10 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Sessão armazenada em `page.user_data`
 - [x] Logout com confirmação via `AlertDialog`
 - [x] Ícones usando `ft.Icons.*` (sem banners de erro Flutter)
-- [ ] Recuperação de senha (não implementada)
+- [x] Login HTTP em `asyncio.to_thread` (sem bloquear event loop)
+- [x] `await page.push_route("/menu")` após autenticação bem-sucedida
+- [x] `user_metadata or {}` — guard contra metadata None
+- [x] Recuperação de senha via Supabase (`reset_password_for_email`) — `/recuperar-email`
 - [ ] Expiração automática de sessão por inatividade
 
 ---
@@ -40,17 +43,20 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] OCR via Claude Haiku Vision (primário) + Tesseract (fallback)
 - [x] Confirmação antes de salvar
 - [x] Salvo localmente em SQLite com flag `sincronizado=0`
+- [x] `Database.criar_usuario()` em `asyncio.to_thread` (sem bloquear event loop)
 - [ ] Edição de leitura já registrada
 - [ ] Cancelamento de leitura em lote
 
 ---
 
-## 4. Scanner / OCR (`views/scanner_view.py`, `utils/ocr_service.py`)
+## 4. Scanner / OCR (`views/scanner_view.py`, `utils/vision.py`)
 
 - [x] Captura de imagem do medidor
 - [x] OCR automático com Claude Haiku Vision
 - [x] Fallback para Tesseract quando API indisponível
 - [x] Exibição do resultado para confirmação manual
+- [x] `FilePicker` em `View(services=[])` — correção Flet 0.82 (não `page.overlay`)
+- [x] Upload de foto em background via `asyncio.create_task`
 - [ ] Calibração de região de interesse (ROI) por modelo de medidor
 - [ ] Histórico de leituras com imagem anexada
 
@@ -75,23 +81,25 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 ## 6. Sincronização (`views/sincronizacao.py`, `database/sync_service.py`)
 
 - [x] Sincronização manual com Supabase
+- [x] Sincronização automática em background — `asyncio.create_task(SyncService.processar_fila())` no boot
 - [x] Contagem de registros pendentes vs sincronizados
 - [x] Backup automático após sincronização bem-sucedida
 - [x] SnackBar de feedback (sucesso / já atualizado / erro)
 - [x] Ícone `ft.Icons.CLOUD_UPLOAD` (sem banner vermelho)
 - [x] Cores de estado em hex (azul, verde, cinza, vermelho)
 - [x] `SincronizadorUI` reutilizável em outras views
-- [ ] Sincronização automática em background (periódica)
-- [ ] Log detalhado de sincronizações com timestamps
+- [x] `supabase.table().insert().execute()` em `asyncio.to_thread` (sem congelar UI)
+- [ ] Log detalhado de sincronizações com timestamps na UI
 
 ---
 
-## 7. Relatórios (`views/relatorios.py`)
+## 7. Relatórios (`views/relatorio_view.py`)
 
 - [x] Geração de relatório mensal em PDF
 - [x] Envio de relatório por e-mail (SMTP Gmail)
 - [x] Filtro por período e tipo (Água / Gás)
 - [x] Acesso restrito a administradores
+- [x] Botões de etiqueta PDF ocultos no Android (`EXPORT_AVAILABLE` flag)
 - [ ] Relatório por unidade individual
 - [ ] Exportação em CSV/Excel
 
@@ -172,7 +180,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Alerta de fechamento mensal
 - [x] Alerta de falha de sincronização
 - [x] Alerta genérico de manutenção
-- [x] Typo `unidad` corrigido para `unidade` (linhas 27 e 33)
+- [x] Typo `unidad` corrigido para `unidade`
 - [x] URL aberta via `ft.UrlLauncher().launch_url()` (não async)
 - [x] Contato padrão via variável de ambiente `WHATSAPP_CONTATO`
 - [ ] Integração com API oficial do WhatsApp Business
@@ -201,10 +209,29 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Sem uso de `ft.LineChart` (não existe em 0.82)
 - [x] `page.show_dialog()` / `page.pop_dialog()` no lugar de `open_dialog`
 - [x] Coroutines `async def` chamadas via `page.run_task()`
+- [x] `await page.push_route()` em funções async (não sem await)
+- [x] `page.go()` em lambdas e funções síncronas (substitui push_route sem await)
+- [x] `FilePicker` em `View(services=[file_picker])` — não em `page.overlay`
 
 ---
 
-## 17. Infraestrutura
+## 17. Compatibilidade Android / APK
+
+- [x] `cv2`, `pytesseract`, `numpy` — imports condicionais com `try/except ImportError`
+- [x] `reportlab`, `qrcode` — imports condicionais com `try/except ImportError` + flag `EXPORT_AVAILABLE`
+- [x] Caminhos de storage via `platform_utils.py` (`FLET_APP_STORAGE_DATA`, `FLET_APP_STORAGE_TEMP`)
+- [x] `FilePicker` como `services=[]` no View (funciona no Android via intent de câmera)
+- [x] `asyncio.to_thread` em todas as chamadas HTTP síncronas (login, registro, reset senha, sync)
+- [x] `buildozer.spec` — `reportlab` excluído dos requirements, `fpdf2`/`pillow`/`anthropic` incluídos
+- [x] `source.exclude_dirs` excluindo `.venv`, `tests`, `bin`, `__pycache__`
+- [x] Permissões Android: `CAMERA`, `INTERNET`, `READ/WRITE_EXTERNAL_STORAGE`, `ACCESS_NETWORK_STATE`
+- [x] Arquivos de OCR desktop (`camera_utils.py`, `processamento.py`, `ocr_engine.py`) não importados pelo app
+- [ ] Compilação efetiva do APK no ambiente WSL2/Linux com Android NDK 25b
+- [ ] Teste do APK em dispositivo físico Android
+
+---
+
+## 18. Infraestrutura
 
 - [x] SQLite local com tabelas: `usuarios`, `unidades`, `medidores`, `leituras`
 - [x] Supabase como backend remoto (PostgreSQL + Auth)
@@ -219,21 +246,26 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 
 ---
 
-## Pendências Prioritárias para v1.3.0
+## Prioridades antes de compilar o APK
 
-| # | Item | Prioridade | Complexidade |
-|---|------|-----------|-------------|
-| 1 | Sincronização automática em background | Alta | Média |
-| 2 | Recuperação de senha | Alta | Baixa |
-| 3 | Testes automatizados (pytest) | Alta | Alta |
-| 4 | Restauração de backup pela UI | Média | Média |
-| 5 | Relatório por unidade individual | Média | Baixa |
-| 6 | Exportação CSV/Excel | Média | Baixa |
-| 7 | Edição de leitura registrada | Média | Média |
-| 8 | Migrations de banco versionadas | Alta | Média |
-| 9 | CI/CD (GitHub Actions) | Baixa | Alta |
-| 10 | Tema claro/escuro | Baixa | Baixa |
+| # | Item | Prioridade | Status |
+|---|------|-----------|--------|
+| 1 | `await page.push_route()` — navegação corrigida | 🔴 Crítico | ✅ Feito |
+| 2 | `FilePicker` como `services=[]` no scanner | 🔴 Crítico | ✅ Feito |
+| 3 | `reportlab` import condicional (crash Android) | 🔴 Crítico | ✅ Feito |
+| 4 | `asyncio.to_thread` no SyncService (UI freeze) | 🔴 Crítico | ✅ Feito |
+| 5 | `asyncio.to_thread` em autenticacao.py e recuperar_senha | 🔴 Crítico | ✅ Feito |
+| 6 | Compilar APK em WSL2 + Android NDK 25b | 🔴 Crítico | ⬜ Pendente |
+| 7 | Teste em dispositivo físico Android | 🔴 Crítico | ⬜ Pendente |
+| 8 | Relatório por unidade individual | 🟡 Importante | ⬜ Pendente |
+| 9 | Restauração de backup pela UI | 🟡 Importante | ⬜ Pendente |
+| 10 | Edição de leitura registrada | 🟡 Importante | ⬜ Pendente |
+| 11 | Migrations de banco versionadas | 🟡 Importante | ⬜ Pendente |
+| 12 | Exportação CSV/Excel | 🟢 Desejável | ⬜ Pendente |
+| 13 | Testes automatizados (pytest) | 🟢 Desejável | ⬜ Pendente |
+| 14 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
+| 15 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
 
 ---
 
-*Gerado automaticamente pela análise do código-fonte em 16/05/2026.*
+*Atualizado em 16/05/2026 — sessão de correções Android/APK.*

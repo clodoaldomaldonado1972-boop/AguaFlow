@@ -1,7 +1,6 @@
+import asyncio
 import flet as ft
 from database.database import Database
-# Importamos os estilos para manter o padrão visual do AguaFlow
-# Certifique-se do caminho correto do import
 from utils.updater import AppUpdater
 from views import styles as st
 
@@ -35,7 +34,8 @@ def montar_tela_autenticacao(page: ft.Page):
             # Tenta criar o utilizador
             try:
                 if hasattr(Database, 'criar_usuario'):
-                    sucesso = Database.criar_usuario(
+                    sucesso = await asyncio.to_thread(
+                        Database.criar_usuario,
                         nome_input.value,
                         email_input.value,
                         senha_input.value
@@ -44,7 +44,6 @@ def montar_tela_autenticacao(page: ft.Page):
                     sucesso = True
 
                 if sucesso:
-                    # Salva dados na sessão temporária da página (user_data)
                     page.user_data = {"email": email_input.value,
                                       "role": "user", "offline": True}
                     await page.push_route("/menu")

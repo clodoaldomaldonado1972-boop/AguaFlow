@@ -1,3 +1,4 @@
+import asyncio
 import flet as ft
 from database.database import Database, get_supabase_client
 from views import styles as st
@@ -24,8 +25,8 @@ def criar_tela_recuperacao(page: ft.Page):
             return
 
         try:
-            # Comando oficial do Supabase para disparar o e-mail
-            supabase.auth.reset_password_for_email(
+            await asyncio.to_thread(
+                supabase.auth.reset_password_for_email,
                 txt_email.value,
                 {"redirect_to": "https://rpacxhgvscqnlawxgwfk.supabase.co/auth/v1/verify"}
             )
