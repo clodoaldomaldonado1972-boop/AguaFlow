@@ -42,7 +42,7 @@ def montar_menu(page: ft.Page):
                     content=ft.Text("Logout realizado com sucesso!"),
                     bgcolor=st.SUCCESS_GREEN
                 ))
-                page.push_route("/")
+                page.go("/")
                 page.update()
 
             def fechar_dialogo(e):
@@ -90,32 +90,32 @@ def montar_menu(page: ft.Page):
                                 ft.ElevatedButton(
                                     "Medição",
                                     icon="speed",
-                                    on_click=lambda _: page.push_route("/medicao"),
+                                    on_click=lambda _: page.go("/medicao"),
                                     width=250, height=50
                                 ),
-                                ft.ElevatedButton("Dashboard", icon="dashboard", on_click=lambda _: page.push_route(
+                                ft.ElevatedButton("Dashboard", icon="dashboard", on_click=lambda _: page.go(
                                     "/dashboard"), width=250, height=50),
-                                ft.ElevatedButton("Scanner", icon="qr_code_scanner", on_click=lambda _: page.push_route(
+                                ft.ElevatedButton("Scanner", icon="qr_code_scanner", on_click=lambda _: page.go(
                                     "/scanner"), width=250, height=50),
-                                ft.ElevatedButton("Sincronizar Dados", icon="cloud_upload", on_click=lambda _: page.push_route(
+                                ft.ElevatedButton("Sincronizar Dados", icon="cloud_upload", on_click=lambda _: page.go(
                                     "/sincronizar"), width=250, height=50),
 
                                 # Funcionalidades Administrativas
                                 ft.Column([
-                                    ft.ElevatedButton("Dashboard de Saúde", icon="health_and_safety", on_click=lambda _: page.push_route(
+                                    ft.ElevatedButton("Dashboard de Saúde", icon="health_and_safety", on_click=lambda _: page.go(
                                         "/dashboard_saude"), width=250, height=50),
-                                    ft.ElevatedButton("Gerenciar Usuários", icon="people_alt", on_click=lambda _: page.push_route(
+                                    ft.ElevatedButton("Gerenciar Usuários", icon="people_alt", on_click=lambda _: page.go(
                                         "/usuarios"), width=250, height=50),
-                                    ft.ElevatedButton("Relatórios", icon="summarize", on_click=lambda _: page.push_route(
+                                    ft.ElevatedButton("Relatórios", icon="summarize", on_click=lambda _: page.go(
                                         "/relatorios"), width=250, height=50),
                                 ], visible=user_role == "admin", horizontal_alignment="center"),
 
-                                ft.ElevatedButton("Configurações", icon="settings", on_click=lambda _: page.push_route(
+                                ft.ElevatedButton("Configurações", icon="settings", on_click=lambda _: page.go(
                                     "/configuracoes"), width=250, height=50),
                                 ft.Row([
-                                    ft.TextButton("Histórico", icon="history", on_click=lambda _: page.push_route("/historico")),
-                                    ft.TextButton("Ajuda", icon="help_outline", on_click=lambda _: page.push_route("/ajuda")),
-                                    ft.TextButton("Sobre", icon="info_outline", on_click=lambda _: page.push_route("/sobre")),
+                                    ft.TextButton("Histórico", icon="history", on_click=lambda _: page.go("/historico")),
+                                    ft.TextButton("Ajuda", icon="help_outline", on_click=lambda _: page.go("/ajuda")),
+                                    ft.TextButton("Sobre", icon="info_outline", on_click=lambda _: page.go("/sobre")),
                                 ], alignment=ft.MainAxisAlignment.CENTER, wrap=True),
                             ],
                             horizontal_alignment="center", spacing=10,

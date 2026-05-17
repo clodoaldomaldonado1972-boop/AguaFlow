@@ -170,8 +170,10 @@ class SyncService:
             if foto_url:
                 dados["foto_url"] = foto_url
 
-            # Realiza a inserção no Supabase
-            supabase.table("leituras").insert(dados).execute()
+            # Realiza a inserção no Supabase (em thread para não bloquear o event loop)
+            await asyncio.to_thread(
+                lambda: supabase.table("leituras").insert(dados).execute()
+            )
             return {'sucesso': True}
         except Exception as e:
             logger.error(f"Erro no upload individual ({item['unidade_id']}): {e}")

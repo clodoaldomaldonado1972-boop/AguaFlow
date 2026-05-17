@@ -27,9 +27,9 @@ def montar_tela_esqueci_senha(page: ft.Page):
                 ft.ElevatedButton(
                     "Enviar Instruções",
                     width=320,
-                    on_click=lambda _: page.push_route("/recuperar-email"),
+                    on_click=lambda _: page.go("/recuperar-email"),
                 ),
-                ft.TextButton("Voltar ao Login", on_click=lambda _: page.push_route("/")),
+                ft.TextButton("Voltar ao Login", on_click=lambda _: page.go("/")),
                 ft.Divider(color="white10"),
                 ft.Text(AppUpdater.get_footer(), size=10, color="grey")
             ]
@@ -58,30 +58,38 @@ def criar_tela_login(page: ft.Page):
         btn_entrar.content = _content_loading
         btn_entrar.disabled = True
         page.update()
-        email = txt_user.value
+        email = txt_user.value.strip()
         senha = txt_pass.value
         supabase_client = get_supabase_client()
+
+        def _do_online_login():
+            """Executa login online em thread separada para não bloquear o event loop."""
+            auth_response = supabase_client.auth.sign_in_with_password({
+                "email": email, "password": senha
+            })
+            return auth_response
 
         try:
             # Tenta Login Online (Supabase)
             if supabase_client:
                 try:
-                    auth_response = supabase_client.auth.sign_in_with_password({
-                        "email": email, "password": senha
-                    })
-                    if auth_response.user:
-                        role = auth_response.user.user_metadata.get(
-                            "role", "user")
-                        full_name = auth_response.user.user_metadata.get(
-                            "full_name", "")
+                    auth_response = await asyncio.to_thread(_do_online_login)
+                    if auth_response and auth_response.user:
+                        meta = auth_response.user.user_metadata or {}
+                        role = meta.get("role", "user")
+                        full_name = meta.get("full_name", "")
                         page.user_data = {"email": email, "role": role, "nome": full_name}
-                        page.push_route("/menu")
+                        await page.push_route("/menu")
                         return
-                except Exception:
-                    logger.info("ℹ️ Login: Falha na autenticação online. Tentando fallback offline (SQLite)...")
+                    else:
+                        logger.warning("⚠️ Login: resposta sem user — fallback offline")
+                except Exception as ex_online:
+                    logger.warning(f"⚠️ Login online falhou: {ex_online}", exc_info=True)
 
             # Fallback: Login Offline (SQLite)
-            user_local = Database.validar_login_offline(email, senha)
+            user_local = await asyncio.to_thread(
+                Database.validar_login_offline, email, senha
+            )
             if user_local:
                 page.user_data = {
                     "email": email,
@@ -89,7 +97,7 @@ def criar_tela_login(page: ft.Page):
                     "role": user_local.get('role', 'user'),
                     "offline": True
                 }
-                page.push_route("/menu")
+                await page.push_route("/menu")
                 return
 
             lbl_erro.value = "E-mail ou senha incorretos."
@@ -99,6 +107,7 @@ def criar_tela_login(page: ft.Page):
             page.update()
 
         except Exception as ex:
+            logger.error(f"❌ Erro crítico no login: {ex}", exc_info=True)
             lbl_erro.value = "Erro técnico ao acessar o sistema."
             lbl_erro.visible = True
             btn_entrar.content = _content_normal
@@ -144,9 +153,9 @@ def criar_tela_login(page: ft.Page):
                         btn_entrar,
                         ft.Row([
                             ft.TextButton("Criar nova conta",
-                                          on_click=lambda _: page.push_route("/registro")),
+                                          on_click=lambda _: page.go("/registro")),
                             ft.TextButton(
-                                "Esqueci minha senha", on_click=lambda _: page.push_route("/esqueci_senha"))
+                                "Esqueci minha senha", on_click=lambda _: page.go("/esqueci_senha"))
                         ], alignment="center"),
                         ft.Divider(height=30, color="transparent"),
                         ft.Divider(color="white10"),

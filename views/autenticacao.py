@@ -47,7 +47,7 @@ def montar_tela_autenticacao(page: ft.Page):
                     # Salva dados na sessão temporária da página (user_data)
                     page.user_data = {"email": email_input.value,
                                       "role": "user", "offline": True}
-                    page.push_route("/menu")
+                    await page.push_route("/menu")
                 else:
                     lbl_mensagem.value = "Erro ao criar conta. Tente outro e-mail."
                     lbl_mensagem.color = "red"
@@ -84,7 +84,7 @@ def montar_tela_autenticacao(page: ft.Page):
                         on_click=executar_cadastro
                     ),
                     ft.TextButton("Já tenho conta? Entrar",
-                                  on_click=lambda _: page.push_route("/")),
+                                  on_click=lambda _: page.go("/")),
                     ft.Text(AppUpdater.get_footer(),
                             size=10, color="grey")
                 ], horizontal_alignment="center")
