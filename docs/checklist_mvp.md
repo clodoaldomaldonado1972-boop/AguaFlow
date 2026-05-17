@@ -55,6 +55,20 @@
 - [x] **Auditoria SMTP**: Teste de conexao SMTP no boot — logado como INFO.
 - [x] **Auditoria Supabase**: Registro detalhado de mensagens de erro do Supabase.
 
+## Teste Automatizado (validado em 2026-05-16)
+- [x] **Script `test_ciclo_completo.py`**: executa ciclo headless completo — 6/6 passos OK.
+- [x] **96 unidades inseridas**: todos os andares (16x6), duplex 163/164 e 23/24, LAZER GAS, TERREO GERAL AGUA.
+- [x] **Backup ZIP gerado**: banco + 6 relatorios, 41 KB, sem erros.
+- [x] **4 arquivos de relatorio**: PDF agua, PDF gas, CSV agua, CSV gas — todos criados e validos.
+- [x] **E-mail enviado**: 4 anexos entregues com sucesso via SMTP/Gmail.
+- [x] **114 referencias salvas**: base do proximo ciclo gravada corretamente.
+
+## Pendencias Android (para compilacao APK)
+- [ ] **OpenCV (cv2)**: scanner usa `cv2.VideoCapture` — nao compila no Android NDK. Substituir por Flet Camera ou desabilitar no APK.
+- [ ] **Caminhos de storage**: `ft.app_cache_dir` ainda nao usado no `export_manager` e `relatorio_engine` — necessario para Android.
+- [ ] **Buildozer.spec**: nao existe — criar com permissoes de camera, internet e storage.
+- [ ] **Tesseract/pytesseract**: fallback OCR usa binario Windows — desabilitar no build Android.
+
 ## Pendencias Conhecidas (nao-bloqueantes)
 - [x] **DeprecationWarning resolvido**: `page.go()` substituído por `page.push_route()` em todos os 14 arquivos do projeto (auth, menu, medicao, scanner, historico, relatorios, configuracoes, sincronizacao, sobre, autenticacao, gerenciamento_usuarios, recuperar_senha_email, auth_utils, main).
 - [ ] **Encoding UI**: Caracteres especiais (ex: "Condominio", "servico") aparecem com encoding errado no log interno do Flet — nao afeta o usuario final, apenas o log de debug.
