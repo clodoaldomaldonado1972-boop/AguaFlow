@@ -1,4 +1,22 @@
-﻿flet==0.82.2
-pytz
+# === Desktop (todas as funcionalidades) ===
+flet==0.82.2
 supabase
 httpx
+pytz
+python-dotenv
+fpdf2
+qrcode
+pillow
+requests
+anthropic
+
+# Relatórios Desktop
+reportlab
+
+# OCR Desktop (opcional — instale manualmente se necessário)
+# opencv-python
+# pytesseract
+# numpy
+
+# Servidor de desenvolvimento (NUNCA incluir no APK)
+# pyngrok

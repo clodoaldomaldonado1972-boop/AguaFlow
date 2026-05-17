@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Pasta de saida — nao apaga automaticamente
-RELATORIOS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relatorios")
+# Pasta de saida — usa path seguro para Android e Desktop
+from utils.platform_utils import get_relatorios_dir as _get_relatorios_dir
+RELATORIOS_DIR = _get_relatorios_dir()
 
 # Larguras das colunas (mm) — total 190mm (A4 com margem 10mm cada lado)
 # Unidade larga o suficiente para "TERREO GERAL AGUA" (18 chars)
@@ -131,8 +132,8 @@ class RelatorioEngine:
 
     @staticmethod
     def _garantir_pasta():
-        os.makedirs(RELATORIOS_DIR, exist_ok=True)
-        return RELATORIOS_DIR
+        pasta = _get_relatorios_dir()
+        return pasta
 
     @staticmethod
     def _caminho(tipo, ext):

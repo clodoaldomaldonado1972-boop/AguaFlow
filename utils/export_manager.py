@@ -6,6 +6,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 import qrcode
 import gc
+from utils.platform_utils import get_storage_dir
 
 # Unidades exclusivas de cada tipo de medidor
 _EXCLUSIVO_GAS = {"LAZER GÁS"}
@@ -15,12 +16,7 @@ _EXCLUSIVO_AGUA = {"TERREO GERAL ÁGUA"}
 class ExportManager:
     @staticmethod
     def obter_caminho_exportacao():
-        if os.environ.get("FLET_PLATFORM") == "android":
-            caminho = os.path.join(os.getcwd(), "storage")
-        else:
-            caminho = os.path.join(os.getcwd(), "exports")
-        os.makedirs(caminho, exist_ok=True)
-        return caminho
+        return get_storage_dir("etiquetas")
 
     @staticmethod
     def _qr_image_reader(conteudo: str) -> ImageReader:
