@@ -33,9 +33,9 @@ def montar_tela_sobre(page: ft.Page):
                     ft.Text("Licença de Uso", size=18,
                             weight="bold", color=st.WHITE),
                     ft.Text(
-                        "Este aplicativo é distribuído sob a licença MIT. "
-                        "Você pode encontrar os termos completos da licença no repositório do projeto "
-                        "ou na documentação oficial.",
+                        "Este aplicativo é distribuído gratuitamente sob a Licença MIT. "
+                        "É permitido o uso, cópia e modificação do software, desde que mantidos "
+                        "os créditos dos autores originais, aplicando-se o princípio de isenção de responsabilidade.",
                         size=12,
                         color=st.GREY_TEXT,
                         text_align=ft.TextAlign.CENTER
@@ -43,7 +43,7 @@ def montar_tela_sobre(page: ft.Page):
                     ft.Container(height=20),
                     ft.TextButton(
                         "Ver Licença Completa (Online)",
-                        url="https://opensource.org/licenses/MIT",
+                        url="https://github.com/clodoaldomaldonado1972-boop/AguaFlow/blob/main/LICENSE",
                     ),
                     ft.Container(expand=True),
                     ft.TextButton("Voltar ao Menu",
