@@ -44,7 +44,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Confirmação antes de salvar
 - [x] Salvo localmente em SQLite com flag `sincronizado=0`
 - [x] `Database.criar_usuario()` em `asyncio.to_thread` (sem bloquear event loop)
-- [ ] Edição de leitura já registrada
+- [x] Edição de leitura já registrada (via tela Histórico — `Database.editar_leitura`)
 - [ ] Cancelamento de leitura em lote
 
 ---
@@ -100,8 +100,8 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Filtro por período e tipo (Água / Gás)
 - [x] Acesso restrito a administradores
 - [x] Botões de etiqueta PDF ocultos no Android (`EXPORT_AVAILABLE` flag)
-- [ ] Relatório por unidade individual
-- [ ] Exportação em CSV/Excel
+- [x] Relatório por unidade individual (seção "RELATÓRIO POR UNIDADE" com dropdown + geração PDF/CSV)
+- [x] Exportação em CSV (sempre disponível via `csv.DictWriter`); PDF via `EXPORT_AVAILABLE`
 
 ---
 
@@ -110,8 +110,9 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Listagem de leituras com data, unidade e valor
 - [x] Filtro por unidade e período
 - [x] Indicador visual de sincronização
-- [ ] Busca por texto livre
-- [ ] Exclusão de leitura com confirmação
+- [x] Busca por texto livre (campo "Buscar" com filtro em unidade_id, tipo e leiturista)
+- [x] Exclusão de leitura com confirmação (AlertDialog + `Database.deletar_leitura`)
+- [x] Edição de leitura já registrada (dialog inline + `Database.editar_leitura`)
 
 ---
 
@@ -193,8 +194,9 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Geração de arquivo ZIP com banco SQLite
 - [x] Backup automático pós-sincronização
 - [x] Localização configurável via `.env`
-- [ ] Restauração de backup pela interface
-- [ ] Retenção automática (ex: manter últimos N backups)
+- [x] Restauração de backup pela interface (`BackupManager.restaurar_backup` + UI em Configurações)
+- [x] Listagem de backups disponíveis na UI (`BackupManager.listar_backups`)
+- [x] Retenção automática — remove ZIPs com mais de 30 dias (`limpar_backups_antigos`)
 
 ---
 
@@ -240,7 +242,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] `database.py` — context manager `get_db()` com commit/rollback automático
 - [x] `supabase_client.py` — abstrações de CRUD e deleção de usuário
 - [x] `AppUpdater` — versão centralizada em `version.py`
-- [ ] Migrations de banco (schema versionado)
+- [x] Migrations versionadas — tabela `schema_version` criada em `inicializar_tabelas`; versão registrada no boot
 - [ ] Testes automatizados (unitários / integração)
 - [ ] CI/CD pipeline
 
@@ -257,15 +259,15 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 | 5 | `asyncio.to_thread` em autenticacao.py e recuperar_senha | 🔴 Crítico | ✅ Feito |
 | 6 | Compilar APK em WSL2 + Android NDK 25b | 🔴 Crítico | ⬜ Pendente |
 | 7 | Teste em dispositivo físico Android | 🔴 Crítico | ⬜ Pendente |
-| 8 | Relatório por unidade individual | 🟡 Importante | ⬜ Pendente |
-| 9 | Restauração de backup pela UI | 🟡 Importante | ⬜ Pendente |
-| 10 | Edição de leitura registrada | 🟡 Importante | ⬜ Pendente |
-| 11 | Migrations de banco versionadas | 🟡 Importante | ⬜ Pendente |
-| 12 | Exportação CSV/Excel | 🟢 Desejável | ⬜ Pendente |
+| 8 | Relatório por unidade individual | 🟡 Importante | ✅ Feito |
+| 9 | Restauração de backup pela UI | 🟡 Importante | ✅ Feito |
+| 10 | Edição de leitura registrada | 🟡 Importante | ✅ Feito |
+| 11 | Migrations de banco versionadas | 🟡 Importante | ✅ Feito |
+| 12 | Exportação CSV/Excel | 🟢 Desejável | ✅ Feito (CSV via historico/relatorio) |
 | 13 | Testes automatizados (pytest) | 🟢 Desejável | ⬜ Pendente |
 | 14 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
 | 15 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
 
 ---
 
-*Atualizado em 16/05/2026 — sessão de correções Android/APK.*
+*Atualizado em 17/05/2026 — implementação dos itens essenciais 🟡 Importante.*

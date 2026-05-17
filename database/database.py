@@ -132,8 +132,20 @@ class Database:
                 except:
                     pass
 
+                # 5. Tracking de versão do schema (migrações versionadas)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS schema_version (
+                        version INTEGER NOT NULL,
+                        aplicado_em TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                v_atual = cursor.execute(
+                    "SELECT COALESCE(MAX(version), 0) FROM schema_version"
+                ).fetchone()[0]
+                if v_atual == 0:
+                    cursor.execute("INSERT INTO schema_version (version) VALUES (1)")
+
                 conn.commit()
-                # Esta linha abaixo estava com erro de indentação
                 logger.info(
                     "🚀 Estrutura do banco de dados (SQLite) sincronizada.")
         except Exception as e:
@@ -493,6 +505,64 @@ class Database:
         except Exception as e:
             logger.error(
                 f"❌ Falha ao enviar log para o Supabase: {e}", exc_info=True)
+
+    @classmethod
+    def editar_leitura(cls, leitura_id: int, valor_agua, valor_gas):
+        """Atualiza os valores de uma leitura existente e marca como não sincronizada."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE leituras SET leitura_agua=?, leitura_gas=?, sincronizado=0 WHERE id=?",
+                    (valor_agua, valor_gas, leitura_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Erro ao editar leitura {leitura_id}: {e}")
+            return False
+
+    @classmethod
+    def deletar_leitura(cls, leitura_id: int):
+        """Remove uma leitura do banco local."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM leituras WHERE id=?", (leitura_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Erro ao deletar leitura {leitura_id}: {e}")
+            return False
+
+    @classmethod
+    def buscar_leituras_filtradas(cls, texto=None, unidade=None, mes=None):
+        """Busca leituras com filtros opcionais de texto, unidade e mês (YYYY-MM)."""
+        try:
+            with cls.get_db() as conn:
+                cursor = conn.cursor()
+                query = """
+                    SELECT id, unidade_id, leitura_agua, leitura_gas, tipo,
+                           data_hora_coleta, leiturista, sincronizado
+                    FROM leituras WHERE 1=1
+                """
+                params = []
+                if unidade and unidade != "Todas":
+                    query += " AND unidade_id = ?"
+                    params.append(unidade)
+                if mes:
+                    query += " AND data_hora_coleta LIKE ?"
+                    params.append(f"{mes}%")
+                if texto:
+                    t = f"%{texto}%"
+                    query += " AND (unidade_id LIKE ? OR leiturista LIKE ? OR tipo LIKE ?)"
+                    params += [t, t, t]
+                query += " ORDER BY data_hora_coleta DESC LIMIT 200"
+                cursor.execute(query, params)
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Erro na busca filtrada: {e}")
+            return []
 
     @classmethod
     def upload_foto_hidrometro_sync(cls, caminho_foto: str, unidade: str, modo: str) -> str | None:

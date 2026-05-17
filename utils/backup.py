@@ -6,6 +6,7 @@ import gc
 import logging
 from datetime import datetime
 from database.database import Database
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,96 @@ class BackupManager:
                         logger.info(f"Backup antigo removido: {ficheiro}")
         except Exception:
             pass
+
+
+    @staticmethod
+    def listar_backups():
+        """Retorna lista de backups disponíveis, ordenados do mais recente ao mais antigo.
+
+        Cada item: {'arquivo': str, 'nome': str, 'tamanho_kb': int, 'data': str}
+        """
+        base_dir = os.path.dirname(Database.DB_PATH)
+        pasta_backup = os.path.join(base_dir, "Backups")
+
+        if not os.path.isdir(pasta_backup):
+            return []
+
+        resultado = []
+        for nome in sorted(os.listdir(pasta_backup), reverse=True):
+            if not nome.endswith(".zip"):
+                continue
+            caminho = os.path.join(pasta_backup, nome)
+            try:
+                data_mod = datetime.fromtimestamp(
+                    os.path.getmtime(caminho)
+                ).strftime("%d/%m/%Y %H:%M")
+                resultado.append({
+                    "arquivo": caminho,
+                    "nome": nome,
+                    "tamanho_kb": os.path.getsize(caminho) // 1024,
+                    "data": data_mod,
+                })
+            except Exception:
+                pass
+        return resultado
+
+    @staticmethod
+    def restaurar_backup(arquivo_zip: str) -> dict:
+        """Restaura o banco SQLite a partir de um ZIP de backup.
+
+        Mantém uma cópia de segurança do banco atual antes de restaurar.
+        Retorna {'sucesso': bool, 'mensagem': str}.
+        """
+        db_path = Database.DB_PATH
+        db_antes = db_path + ".antes_restauracao"
+        db_temp = None
+
+        try:
+            if not os.path.exists(arquivo_zip):
+                return {"sucesso": False, "mensagem": "Arquivo de backup não encontrado."}
+
+            with zipfile.ZipFile(arquivo_zip, 'r') as zf:
+                if "aguaflow.db" not in zf.namelist():
+                    return {"sucesso": False, "mensagem": "Backup inválido: aguaflow.db não encontrado no ZIP."}
+
+            # Copia banco atual como segurança
+            if os.path.exists(db_path):
+                shutil.copy2(db_path, db_antes)
+
+            # Extrai o banco para arquivo temporário
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with zipfile.ZipFile(arquivo_zip, 'r') as zf:
+                    zf.extract("aguaflow.db", path=tmpdir)
+                db_temp = os.path.join(tmpdir, "aguaflow.db")
+
+                # Valida que o arquivo extraído é um SQLite válido
+                conn_test = sqlite3.connect(db_temp)
+                conn_test.execute("SELECT name FROM sqlite_master LIMIT 1")
+                conn_test.close()
+
+                # Substitui o banco atual
+                shutil.copy2(db_temp, db_path)
+
+            # Remove a cópia de segurança se tudo ocorreu bem
+            if os.path.exists(db_antes):
+                os.remove(db_antes)
+
+            logger.info(f"Backup restaurado com sucesso: {os.path.basename(arquivo_zip)}")
+            return {"sucesso": True, "mensagem": f"Banco restaurado a partir de {os.path.basename(arquivo_zip)}."}
+
+        except Exception as e:
+            logger.error(f"Erro ao restaurar backup: {e}", exc_info=True)
+            # Tenta reverter para o banco anterior
+            if os.path.exists(db_antes):
+                try:
+                    shutil.copy2(db_antes, db_path)
+                    os.remove(db_antes)
+                    logger.info("Banco revertido para estado anterior após falha na restauração.")
+                except Exception:
+                    pass
+            return {"sucesso": False, "mensagem": f"Falha na restauração: {e}"}
+        finally:
+            gc.collect()
 
 
 # Alias de retrocompatibilidade

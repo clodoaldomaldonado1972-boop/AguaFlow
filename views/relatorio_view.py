@@ -1,11 +1,20 @@
 import flet as ft
 import asyncio
 import gc
+import csv
+import os
+from datetime import datetime
 from database.database import Database
 from views import styles as st
 from database.gestao_periodos import finalizar_mes_e_enviar
 from utils.export_manager import ExportManager, EXPORT_AVAILABLE
 from utils.auth_utils import validar_sessao
+
+try:
+    from utils.report_generator import ReportGenerator
+    _REPORT_OK = True
+except Exception:
+    _REPORT_OK = False
 
 
 def montar_tela_relatorio(page: ft.Page):
@@ -59,6 +68,111 @@ def montar_tela_relatorio(page: ft.Page):
         pr.visible = False
         page.update()
 
+    # --- SEÇÃO: RELATÓRIO POR UNIDADE ---
+    unidades = ["Todas"] + Database._gerar_lista_unidades()
+    hoje = datetime.now()
+    meses_disp = []
+    for i in range(6):
+        from datetime import timedelta
+        ref = datetime(hoje.year, hoje.month, 1) - timedelta(days=i * 30)
+        meses_disp.append(ref.strftime("%Y-%m"))
+
+    dd_unid = ft.Dropdown(
+        label="Unidade",
+        options=[ft.dropdown.Option(u) for u in unidades],
+        value="Todas",
+        width=200,
+        text_size=13,
+    )
+    dd_mes_unid = ft.Dropdown(
+        label="Mês",
+        options=[ft.dropdown.Option(m) for m in meses_disp],
+        value=meses_disp[0],
+        width=140,
+        text_size=13,
+    )
+    lbl_unid_status = ft.Text("", size=12, color="grey")
+
+    async def acao_relatorio_unidade(_):
+        unidade_sel = dd_unid.value
+        mes_sel = dd_mes_unid.value
+        lbl_unid_status.value = "⏳ Gerando..."
+        lbl_unid_status.color = "grey"
+        page.update()
+
+        try:
+            dados = await asyncio.to_thread(
+                Database.buscar_leituras_filtradas,
+                None,
+                None if unidade_sel == "Todas" else unidade_sel,
+                mes_sel,
+            )
+            if not dados:
+                lbl_unid_status.value = "⚠️ Nenhuma leitura encontrada para o período."
+                lbl_unid_status.color = st.ACCENT_ORANGE
+                page.update()
+                return
+
+            # Adapta nomes de campos para o ReportGenerator
+            for row in dados:
+                row.setdefault("unidade", row.get("unidade_id", "?"))
+                row.setdefault("data_leitura_atual", row.get("data_hora_coleta", ""))
+
+            titulo = f"Relatório — {unidade_sel} — {mes_sel}"
+            os.makedirs("relatorios", exist_ok=True)
+            caminhos = []
+
+            if _REPORT_OK and EXPORT_AVAILABLE:
+                caminho_pdf = await asyncio.to_thread(ReportGenerator.gerar_pdf, dados, titulo)
+                if caminho_pdf:
+                    caminhos.append(caminho_pdf)
+
+            # CSV sempre disponível
+            nome_csv = f"relatorio_{unidade_sel.replace('/', '_')}_{mes_sel}.csv"
+            caminho_csv = os.path.join("relatorios", nome_csv)
+            with open(caminho_csv, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=dados[0].keys())
+                writer.writeheader()
+                writer.writerows(dados)
+            caminhos.append(caminho_csv)
+
+            msg_caminhos = ", ".join(os.path.basename(c) for c in caminhos)
+            lbl_unid_status.value = f"✅ Gerado: {msg_caminhos}"
+            lbl_unid_status.color = "green"
+        except Exception as ex:
+            lbl_unid_status.value = f"❌ Erro: {ex}"
+            lbl_unid_status.color = st.RED_ERROR
+        gc.collect()
+        page.update()
+
+    secao_unidade = ft.Container(
+        content=ft.Column([
+            ft.Row([
+                ft.Icon(ft.Icons.DESCRIPTION, color=st.ACCENT_ORANGE, size=30),
+                ft.Text("RELATÓRIO POR UNIDADE", size=16, weight="bold"),
+            ], spacing=8),
+            ft.Row([dd_unid, dd_mes_unid], spacing=8, wrap=True),
+            lbl_unid_status,
+            ft.ElevatedButton(
+                "GERAR RELATÓRIO",
+                icon=ft.Icons.FILE_DOWNLOAD,
+                on_click=lambda _: page.run_task(acao_relatorio_unidade, _),
+                style=ft.ButtonStyle(
+                    bgcolor=st.ACCENT_ORANGE, color="white",
+                    shape=ft.RoundedRectangleBorder(radius=12),
+                ),
+                width=280, height=48,
+            ),
+            ft.Text(
+                "CSV sempre disponível. PDF requer desktop.",
+                size=11, color="grey", italic=True,
+            ),
+        ], spacing=8),
+        padding=20,
+        bgcolor="#1E2126",
+        border_radius=15,
+    )
+
     return ft.View(
         route="/relatorios",
         bgcolor=st.BG_DARK,
@@ -85,7 +199,9 @@ def montar_tela_relatorio(page: ft.Page):
                     ], horizontal_alignment="center"),
                     padding=20, bgcolor="#1E2126", border_radius=15
                 ),
-                ft.Divider(height=40, color="white10"),
+                ft.Divider(height=30, color="white10"),
+                secao_unidade,
+                ft.Divider(height=30, color="white10"),
                 ft.Text("IMPRESSÃO DE ETIQUETAS (50/FOLHA)",
                         size=14, weight="bold", color="grey"),
                 ft.Row([
