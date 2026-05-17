@@ -65,7 +65,7 @@ def montar_tela_relatorio(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("Relatórios e Etiquetas"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.push_route("/menu"))
         ),
         controls=[
             ft.Column([
@@ -104,7 +104,7 @@ def montar_tela_relatorio(page: ft.Page):
                 ], spacing=10),
                 ft.Container(height=20),
                 ft.TextButton("Voltar ao Menu Principal",
-                              on_click=lambda _: page.go("/menu")),
+                              on_click=lambda _: page.push_route("/menu")),
             ], scroll="auto", spacing=20, horizontal_alignment="center")
         ]
     )

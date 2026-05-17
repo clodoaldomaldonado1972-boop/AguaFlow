@@ -56,5 +56,5 @@
 - [x] **Auditoria Supabase**: Registro detalhado de mensagens de erro do Supabase.
 
 ## Pendencias Conhecidas (nao-bloqueantes)
-- [ ] **DeprecationWarning**: `page.go()` deprecado desde Flet 0.80 — substituir por `page.push_route()` em `main.py:87` antes da versao 0.90.
+- [x] **DeprecationWarning resolvido**: `page.go()` substituído por `page.push_route()` em todos os 14 arquivos do projeto (auth, menu, medicao, scanner, historico, relatorios, configuracoes, sincronizacao, sobre, autenticacao, gerenciamento_usuarios, recuperar_senha_email, auth_utils, main).
 - [ ] **Encoding UI**: Caracteres especiais (ex: "Condominio", "servico") aparecem com encoding errado no log interno do Flet — nao afeta o usuario final, apenas o log de debug.

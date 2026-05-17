@@ -69,7 +69,7 @@ async def main(page: ft.Page):
                 nova_view = montar_tela_configs(page)
             elif page.route == "/dashboard_saude":
                 from views.dashboard_saude import montar_tela_saude
-                nova_view = montar_tela_saude(page, ao_voltar=lambda _: page.go("/menu"))
+                nova_view = montar_tela_saude(page, ao_voltar=lambda _: page.push_route("/menu"))
             elif page.route == "/recuperar-email":
                 from views.recuperar_senha_email import criar_tela_recuperacao
                 nova_view = criar_tela_recuperacao(page)
@@ -78,13 +78,13 @@ async def main(page: ft.Page):
                 nova_view = montar_tela_sobre(page)
             elif page.route == "/ajuda":
                 from views.ajuda_view import montar_tela_ajuda
-                nova_view = montar_tela_ajuda(page, on_back=lambda _: page.go("/menu"))
+                nova_view = montar_tela_ajuda(page, on_back=lambda _: page.push_route("/menu"))
             elif page.route == "/historico":
                 from views.historico import montar_tela_historico
                 nova_view = await montar_tela_historico(page)
             elif page.route == "/dashboard":
                 from views.dashboard import montar_tela_dashboard
-                nova_view = montar_tela_dashboard(page, ao_voltar=lambda _: page.go("/menu"))
+                nova_view = montar_tela_dashboard(page, ao_voltar=lambda _: page.push_route("/menu"))
 
 
             if nova_view:
@@ -92,7 +92,7 @@ async def main(page: ft.Page):
                 page.views.append(nova_view)
                 page.update()
             else:
-                page.go("/")
+                page.push_route("/")
                 logger.warning(
                     f"⚠️ Rota não encontrada: {page.route}. Redirecionando para /.")
 
@@ -108,14 +108,14 @@ async def main(page: ft.Page):
                     ft.Icon(ft.Icons.ERROR_OUTLINE, size=64, color="red"),
                     ft.Text("Erro ao carregar tela", size=18, color="white"),
                     ft.Text(str(ex), size=12, color="grey", text_align=ft.TextAlign.CENTER),
-                    ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: page.go("/menu")),
+                    ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: page.push_route("/menu")),
                 ]
             ))
             page.update()
 
     # --- 2. ATRIBUIÇÃO DE EVENTOS ---
     page.on_route_change = route_change
-    page.on_view_pop = lambda view: page.go("/menu")
+    page.on_view_pop = lambda view: page.push_route("/menu")
 
     # --- 1.1 EVENTO DE FECHAMENTO EXPLÍCITO ---
     async def handle_close(e):

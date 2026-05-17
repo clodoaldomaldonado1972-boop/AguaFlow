@@ -223,7 +223,7 @@ def montar_tela_usuarios(page: ft.Page):
             title=ft.Text("Gestão de Acessos"),
             bgcolor=st.PRIMARY_BLUE,
             leading=ft.IconButton(
-                icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
+                icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.push_route("/menu"))
         ),
         controls=[
             ft.Container(
@@ -247,7 +247,7 @@ def montar_tela_usuarios(page: ft.Page):
                     ),
                     ft.Container(height=5),
                     ft.TextButton("Voltar ao Menu",
-                                  on_click=lambda _: page.go("/menu"))
+                                  on_click=lambda _: page.push_route("/menu"))
                 ], expand=True)
             )
         ]

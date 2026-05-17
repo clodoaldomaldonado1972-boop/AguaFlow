@@ -80,7 +80,7 @@ def montar_tela_scanner(page: ft.Page):
         btn_manual = ft.TextButton(
             "Pular scanner e inserir manual",
             icon="keyboard",
-            on_click=lambda _: page.go("/medicao")
+            on_click=lambda _: page.push_route("/medicao")
         )
 
         state = {"foto_path": None, "unidade": None}
@@ -211,7 +211,7 @@ def montar_tela_scanner(page: ft.Page):
         async def _confirmar_e_voltar():
             page.user_data["unidade_scanner"] = state.get("unidade") or ""
             page.user_data["valor_scanner"] = txt_valor_ocr.value or ""
-            page.go("/medicao")
+            page.push_route("/medicao")
 
         container_mira = ft.Container(
             content=ft.Stack([
@@ -239,7 +239,7 @@ def montar_tela_scanner(page: ft.Page):
                 title=ft.Text(f"Scanner — {'ÁGUA' if modo == 'AGUA' else 'GÁS'}"),
                 center_title=True,
                 bgcolor=cor_appbar,
-                leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/medicao"))
+                leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.push_route("/medicao"))
             ),
             controls=[
                 ft.Column([

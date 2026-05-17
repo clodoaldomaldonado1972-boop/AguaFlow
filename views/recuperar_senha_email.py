@@ -58,7 +58,7 @@ def criar_tela_recuperacao(page: ft.Page):
                         height=50,
                         style=st.BTN_MAIN
                     ),
-                    ft.TextButton("Voltar ao Login", on_click=lambda _: page.go("/"))
+                    ft.TextButton("Voltar ao Login", on_click=lambda _: page.push_route("/"))
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
                 padding=20
             )

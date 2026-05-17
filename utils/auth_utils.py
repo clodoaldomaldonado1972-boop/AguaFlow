@@ -8,7 +8,7 @@ def validar_sessao(page: ft.Page, rota: str, required_role: str = None):
     """
     if not page.user_data or not page.user_data.get("email"):
         print(f"🔒 Acesso negado: rota {rota} sem login.")
-        page.go("/")
+        page.push_route("/")
         return ft.View(
             route=rota,
             bgcolor="#121417",
@@ -25,7 +25,7 @@ def validar_sessao(page: ft.Page, rota: str, required_role: str = None):
         user_role = page.user_data.get("role", "user")
         if user_role != required_role and user_role != "admin":
             print(f"🚫 Acesso negado: rota {rota} exige cargo '{required_role}'.")
-            page.go("/menu")
+            page.push_route("/menu")
             return ft.View(
                 route=rota,
                 bgcolor="#121417",
@@ -34,7 +34,7 @@ def validar_sessao(page: ft.Page, rota: str, required_role: str = None):
                 controls=[
                     ft.Icon(ft.Icons.BLOCK, size=64, color="#FF5252"),
                     ft.Text("Acesso restrito a administradores.", size=14, color="white"),
-                    ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: page.go("/menu")),
+                    ft.ElevatedButton("Voltar ao Menu", on_click=lambda _: page.push_route("/menu")),
                 ]
             )
 

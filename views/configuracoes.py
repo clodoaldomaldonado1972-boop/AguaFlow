@@ -102,7 +102,7 @@ def montar_tela_configs(page: ft.Page):
             page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN))
             tocar_alerta(page, "sucesso")
             page.user_data = {}
-            page.go("/")
+            page.push_route("/")
         else:
             page.show_dialog(ft.SnackBar(
                 ft.Text("Erro ao excluir conta no dispositivo."), bgcolor=st.RED_ERROR))
@@ -136,7 +136,7 @@ def montar_tela_configs(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("Configurações"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.push_route("/menu"))
         ),
         controls=[
             ft.Column([
@@ -159,7 +159,7 @@ def montar_tela_configs(page: ft.Page):
                 ),
                 
                 ft.Divider(height=40, color="white10"),
-                ft.TextButton("Voltar ao Menu Principal", on_click=lambda _: page.go("/menu"))
+                ft.TextButton("Voltar ao Menu Principal", on_click=lambda _: page.push_route("/menu"))
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO, expand=True)
         ]
     )

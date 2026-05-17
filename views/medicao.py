@@ -181,7 +181,7 @@ def montar_tela_medicao(page: ft.Page):
         async def reiniciar_sistema(e):
             SyncService.limpar_leituras_locais()
             page.user_data["last_read_unit_id"] = None
-            page.go("/menu")
+            page.push_route("/menu")
 
         btn_finalizar_sinc = ft.ElevatedButton(
             "SINCRONIZAR E GERAR RELATÓRIO",
@@ -395,7 +395,7 @@ def montar_tela_medicao(page: ft.Page):
                 center_title=True,
                 leading=ft.IconButton(
                     icon=ft.Icons.ARROW_BACK,
-                    on_click=lambda _: page.go("/menu")
+                    on_click=lambda _: page.push_route("/menu")
                 )
             ),
             controls=[
@@ -420,7 +420,7 @@ def montar_tela_medicao(page: ft.Page):
                         icon="qr_code_scanner",
                         on_click=lambda _: (
                             page.user_data.update({"modo_leitura": state["modo"]}),
-                            page.go("/scanner")
+                            page.push_route("/scanner")
                         )
                     )
                 ], horizontal_alignment="center", spacing=10,

@@ -17,7 +17,7 @@ def montar_tela_sobre(page: ft.Page):
             title=ft.Text("Sobre o AguaFlow"),
             bgcolor=st.PRIMARY_BLUE,
             leading=ft.IconButton(
-                icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
+                icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.push_route("/menu"))
         ),
         controls=[
             ft.Column(
@@ -47,7 +47,7 @@ def montar_tela_sobre(page: ft.Page):
                     ),
                     ft.Container(expand=True),
                     ft.TextButton("Voltar ao Menu",
-                                  on_click=lambda _: page.go("/menu")),
+                                  on_click=lambda _: page.push_route("/menu")),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,

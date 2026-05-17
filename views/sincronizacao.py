@@ -58,7 +58,7 @@ def montar_tela_sincronizacao(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("Sincronização com Nuvem"),
             bgcolor=st.PRIMARY_BLUE,
-            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
+            leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.push_route("/menu"))
         ),
         controls=[
             ft.Column([
@@ -121,7 +121,7 @@ def montar_tela_sincronizacao(page: ft.Page):
 
                 ft.Container(expand=True),
                 ft.TextButton("Voltar ao Menu",
-                              on_click=lambda _: page.go("/menu"))
+                              on_click=lambda _: page.push_route("/menu"))
 
             ], horizontal_alignment="center", scroll=ft.ScrollMode.AUTO, expand=True)
         ]

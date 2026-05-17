@@ -27,9 +27,9 @@ def montar_tela_esqueci_senha(page: ft.Page):
                 ft.ElevatedButton(
                     "Enviar Instruções",
                     width=320,
-                    on_click=lambda _: page.go("/recuperar-email"),
+                    on_click=lambda _: page.push_route("/recuperar-email"),
                 ),
-                ft.TextButton("Voltar ao Login", on_click=lambda _: page.go("/")),
+                ft.TextButton("Voltar ao Login", on_click=lambda _: page.push_route("/")),
                 ft.Divider(color="white10"),
                 ft.Text(AppUpdater.get_footer(), size=10, color="grey")
             ]
@@ -75,7 +75,7 @@ def criar_tela_login(page: ft.Page):
                         full_name = auth_response.user.user_metadata.get(
                             "full_name", "")
                         page.user_data = {"email": email, "role": role, "nome": full_name}
-                        page.go("/menu")
+                        page.push_route("/menu")
                         return
                 except Exception:
                     logger.info("ℹ️ Login: Falha na autenticação online. Tentando fallback offline (SQLite)...")
@@ -89,7 +89,7 @@ def criar_tela_login(page: ft.Page):
                     "role": user_local.get('role', 'user'),
                     "offline": True
                 }
-                page.go("/menu")
+                page.push_route("/menu")
                 return
 
             lbl_erro.value = "E-mail ou senha incorretos."
@@ -144,9 +144,9 @@ def criar_tela_login(page: ft.Page):
                         btn_entrar,
                         ft.Row([
                             ft.TextButton("Criar nova conta",
-                                          on_click=lambda _: page.go("/registro")),
+                                          on_click=lambda _: page.push_route("/registro")),
                             ft.TextButton(
-                                "Esqueci minha senha", on_click=lambda _: page.go("/esqueci_senha"))
+                                "Esqueci minha senha", on_click=lambda _: page.push_route("/esqueci_senha"))
                         ], alignment="center"),
                         ft.Divider(height=30, color="transparent"),
                         ft.Divider(color="white10"),
