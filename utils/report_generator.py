@@ -47,8 +47,8 @@ class ReportGenerator:
         for d in dados:
             tabela_data.append([
                 d.get('unidade', '-'),
-                f"{d.get('leitura_agua', 0):.3f}",
-                f"{d.get('leitura_gas', 0):.3f}",
+                f"{d.get('leitura_agua') or 0:.3f}",
+                f"{d.get('leitura_gas') or 0:.3f}",
                 d.get('tipo', '-'),
                 d.get('data_leitura_atual', '-')[:16]
             ])
