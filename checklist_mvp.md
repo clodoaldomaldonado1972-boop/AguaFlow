@@ -243,7 +243,13 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] `supabase_client.py` — abstrações de CRUD e deleção de usuário
 - [x] `AppUpdater` — versão centralizada em `version.py`
 - [x] Migrations versionadas — tabela `schema_version` criada em `inicializar_tabelas`; versão registrada no boot
-- [ ] Testes automatizados (unitários / integração)
+- [x] Testes automatizados — 26 testes pytest (100% pass) em `tests/test_database.py` e `tests/test_backup.py`
+  - `TestSchemaVersion` (2): tabela criada + versão registrada
+  - `TestEditarLeitura` (4): edição de valores, flag sincronizado, edição para None, id inexistente
+  - `TestDeletarLeitura` (3): deleção, id inexistente, deleção seletiva
+  - `TestBuscarLeiturasFiltradas` (7): sem filtro, por unidade, por mês, texto, combinado, campos, ordenação
+  - `TestListarBackups` (4): pasta vazia, um backup, múltiplos ordenados, ignora não-ZIP
+  - `TestRestaurarBackup` (5): restauração correta, arquivo inexistente, ZIP inválido, preservação em falha, mensagem
 - [ ] CI/CD pipeline
 
 ---
@@ -264,10 +270,10 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 | 10 | Edição de leitura registrada | 🟡 Importante | ✅ Feito |
 | 11 | Migrations de banco versionadas | 🟡 Importante | ✅ Feito |
 | 12 | Exportação CSV/Excel | 🟢 Desejável | ✅ Feito (CSV via historico/relatorio) |
-| 13 | Testes automatizados (pytest) | 🟢 Desejável | ⬜ Pendente |
+| 13 | Testes automatizados (pytest) | 🟢 Desejável | ✅ Feito (26 testes, 100% pass) |
 | 14 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
 | 15 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
 
 ---
 
-*Atualizado em 17/05/2026 — implementação dos itens essenciais 🟡 Importante.*
+*Atualizado em 17/05/2026 — implementação dos itens essenciais 🟡 Importante + testes automatizados (26 pytest, 100% pass).*
