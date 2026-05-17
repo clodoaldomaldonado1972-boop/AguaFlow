@@ -85,9 +85,7 @@ async def main(page: ft.Page):
             elif page.route == "/dashboard":
                 from views.dashboard import montar_tela_dashboard
                 nova_view = montar_tela_dashboard(page, ao_voltar=lambda _: page.go("/menu"))
-            elif page.route == "/qrcodes":
-                from views.qrcodes_view import montar_tela_qrcodes
-                nova_view = montar_tela_qrcodes(page, on_back=lambda _: page.go("/menu"))
+
 
             if nova_view:
                 page.views.clear()
