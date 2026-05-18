@@ -187,8 +187,8 @@ async def montar_tela_historico(page: ft.Page):
         value="Todas",
         width=155,
         text_size=12,
-        on_change=on_unidade,
     )
+    dd_unidade.on_change = on_unidade
 
     dd_mes = ft.Dropdown(
         label="Mês",
@@ -196,8 +196,8 @@ async def montar_tela_historico(page: ft.Page):
         value=meses[0],
         width=125,
         text_size=12,
-        on_change=on_mes,
     )
+    dd_mes.on_change = on_mes
 
     txt_busca = ft.TextField(
         label="Buscar",
