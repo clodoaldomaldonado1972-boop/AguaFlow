@@ -10,7 +10,8 @@ pillow
 requests
 anthropic
 
-# Relatórios Desktop (somente desktop — não compilar no APK)
+# Relatórios Desktop — instalar manualmente no desktop: pip install reportlab
+# NÃO incluir no APK (buildozer não suporta compilação desta lib)
 # reportlab
 
 # OCR Desktop (opcional — instale manualmente se necessário)

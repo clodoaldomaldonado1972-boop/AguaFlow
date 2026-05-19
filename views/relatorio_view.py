@@ -24,12 +24,17 @@ def montar_tela_relatorio(page: ft.Page):
         return auth_check
 
     # --- 1. ELEMENTOS DE FEEDBACK VISUAL ---
-    # Texto que informa ao Marco Aurélio o que o sistema está fazendo
     lbl_status = ft.Text("Pronto para processar", color="grey700", size=14)
-    # Barra de progresso para dar a sensação de movimento durante o processamento
     pr = ft.ProgressBar(width=300, visible=False, color=st.PRIMARY_BLUE)
 
     async def acao_gerar_qrs(tipo):
+        if not EXPORT_AVAILABLE:
+            page.open(ft.SnackBar(
+                ft.Text("reportlab não instalado. Execute: pip install reportlab"),
+                bgcolor="orange900",
+            ))
+            page.update()
+            return
         lbl_status.value = f"⏳ Gerando etiquetas de {tipo} (50 por folha)..."
         lbl_status.color = "grey700"
         pr.visible = True
@@ -45,7 +50,7 @@ def montar_tela_relatorio(page: ft.Page):
             lbl_status.value = f"❌ Erro: {str(ex)}"
             lbl_status.color = "red"
         pr.visible = False
-        gc.collect()  # Liberar memória após geração de QR codes
+        gc.collect()
         page.update()
 
     async def acao_virada_ciclo(_):
@@ -113,7 +118,6 @@ def montar_tela_relatorio(page: ft.Page):
                 page.update()
                 return
 
-            # Adapta nomes de campos para o ReportGenerator
             for row in dados:
                 row.setdefault("unidade", row.get("unidade_id", "?"))
                 row.setdefault("data_leitura_atual", row.get("data_hora_coleta", ""))
@@ -127,7 +131,6 @@ def montar_tela_relatorio(page: ft.Page):
                 if caminho_pdf:
                     caminhos.append(caminho_pdf)
 
-            # CSV sempre disponível
             nome_csv = f"relatorio_{unidade_sel.replace('/', '_')}_{mes_sel}.csv"
             caminho_csv = os.path.join("relatorios", nome_csv)
             with open(caminho_csv, "w", newline="", encoding="utf-8") as f:
@@ -173,6 +176,51 @@ def montar_tela_relatorio(page: ft.Page):
         border_radius=15,
     )
 
+    # ── CONTEÚDO SCROLLÁVEL DA VIEW ──────────────────────────────────────────
+    # Centraliza o conteúdo dentro de uma coluna expansível e força a exibição da barra vertical
+    coluna_conteudo = ft.Column(
+        [
+            ft.Container(height=10),
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.RECYCLING, size=50, color=st.PRIMARY_BLUE),
+                    ft.Text("FINALIZAR MÊS ATUAL", size=18, weight="bold"),
+                    pr, lbl_status,
+                    ft.ElevatedButton(
+                        "EXECUTAR VIRADA DE CICLO",
+                        icon="play_circle_fill",
+                        on_click=acao_virada_ciclo,
+                        style=st.BTN_MAIN, width=320, height=55
+                    ),
+                ], horizontal_alignment="center"),
+                padding=20, bgcolor="#1E2126", border_radius=15
+            ),
+            ft.Divider(height=25, color="white10"),
+            secao_unidade,
+            ft.Divider(height=25, color="white10"),
+            ft.Text("IMPRESSÃO DE ETIQUETAS (50/FOLHA)", size=14, weight="bold", color="grey"),
+            ft.Row([
+                ft.ElevatedButton(
+                    "QR ÁGUA", icon="water",
+                    on_click=lambda _: page.run_task(acao_gerar_qrs, "Água"),
+                    expand=True
+                ),
+                ft.ElevatedButton(
+                    "QR GÁS", icon="local_fire_department",
+                    on_click=lambda _: page.run_task(acao_gerar_qrs, "Gás"),
+                    expand=True, bgcolor="orange900", color="white"
+                ),
+            ], spacing=10),
+            ft.Container(height=15),
+            ft.TextButton("Voltar ao Menu Principal", on_click=lambda _: page.go("/menu")),
+            ft.Container(height=20),
+        ],
+        scroll=ft.ScrollMode.ALWAYS, # Força a aparição da barra de rolagem na direita
+        spacing=15,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        expand=True # Obriga a coluna a preencher a View inteira habilitando o cálculo geométrico do scroll
+    )
+
     return ft.View(
         route="/relatorios",
         bgcolor=st.BG_DARK,
@@ -181,49 +229,6 @@ def montar_tela_relatorio(page: ft.Page):
             bgcolor=st.PRIMARY_BLUE,
             leading=ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda _: page.go("/menu"))
         ),
-        controls=[
-            ft.Column([
-                ft.Container(height=20),
-                ft.Container(
-                    content=ft.Column([
-                        ft.Icon(ft.Icons.RECYCLING, size=50,
-                                color=st.PRIMARY_BLUE),
-                        ft.Text("FINALIZAR MÊS ATUAL", size=18, weight="bold"),
-                        pr, lbl_status,
-                        ft.ElevatedButton(
-                            "EXECUTAR VIRADA DE CICLO",
-                            icon="play_circle_fill",
-                            on_click=acao_virada_ciclo,
-                            style=st.BTN_MAIN, width=320, height=55
-                        ),
-                    ], horizontal_alignment="center"),
-                    padding=20, bgcolor="#1E2126", border_radius=15
-                ),
-                ft.Divider(height=30, color="white10"),
-                secao_unidade,
-                ft.Divider(height=30, color="white10"),
-                ft.Text("IMPRESSÃO DE ETIQUETAS (50/FOLHA)",
-                        size=14, weight="bold", color="grey"),
-                ft.Row([
-                    ft.ElevatedButton(
-                        "QR ÁGUA", icon="water",
-                        on_click=lambda _: page.run_task(acao_gerar_qrs, "Água"),
-                        expand=True
-                    ),
-                    ft.ElevatedButton(
-                        "QR GÁS", icon="local_fire_department",
-                        on_click=lambda _: page.run_task(acao_gerar_qrs, "Gás"),
-                        expand=True, bgcolor="orange900", color="white"
-                    ),
-                ], spacing=10, visible=EXPORT_AVAILABLE),
-                ft.Text(
-                    "Geração de etiquetas PDF disponível apenas no desktop.",
-                    size=12, color="grey", italic=True,
-                    visible=not EXPORT_AVAILABLE
-                ),
-                ft.Container(height=20),
-                ft.TextButton("Voltar ao Menu Principal",
-                              on_click=lambda _: page.go("/menu")),
-            ], scroll="auto", spacing=20, horizontal_alignment="center")
-        ]
+        # Passa a coluna expansível com ScrollMode configurado diretamente no gerenciador de controles
+        controls=[coluna_conteudo]
     )
