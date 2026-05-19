@@ -1,6 +1,6 @@
 # Checklist de Prontidão para APK - AguaFlow v1.2.0
 
-> Atualizado em: 2026-05-16 — validado por ciclo completo de leituras com envio de relatório por e-mail.
+> Atualizado em: 2026-05-19 — todas as pendências Android resolvidas; APK v1.2.0 gerado.
 
 ---
 
@@ -27,6 +27,7 @@
 - [x] **Auto-Cleanup**: `os.remove` de fotos após confirmação de upload.
 - [x] **Timezone**: Auditoria via `pytz` (America/Sao_Paulo).
 - [x] **Fila de Sync**: `SyncService.processar_fila()` sincroniza pendentes em background.
+- [x] **DB Path Mobile**: `Database.configurar_db_path(page)` define caminho seguro no sandbox Android (`FLET_APP_STORAGE_DATA`) antes de `inicializar_tabelas()`.
 
 ## Ciclo Completo de Leituras (validado em 2026-05-16)
 - [x] **Registro de Leituras**: Múltiplas unidades registradas (151–166) sem erros.
@@ -47,6 +48,7 @@
 - [x] **CSV de Consumo**: Exportado com headers corretos via `csv.DictWriter`.
 - [x] **Etiquetas QR (Agua)**: PDF 50 etiquetas/folha com QR codes RGB, separadores horizontais e verticais, filtro de "LAZER GAS".
 - [x] **Etiquetas QR (Gas)**: PDF 50 etiquetas/folha, filtro de "TERREO GERAL AGUA", labels com auto-ajuste de fonte.
+- [x] **Botoes QR visiveis**: Botões sempre exibidos; SnackBar orienta instalação do `reportlab` se ausente (mobile).
 - [x] **Dashboard de Saude**: Telemetria com logs de sync e status do banco.
 - [x] **Historico**: Consulta de leituras anteriores e geracao de PDF do historico.
 
@@ -54,6 +56,30 @@
 - [x] **Logs Locais**: Tabela `sync_log` rastreia cada tentativa de envio.
 - [x] **Auditoria SMTP**: Teste de conexao SMTP no boot — logado como INFO.
 - [x] **Auditoria Supabase**: Registro detalhado de mensagens de erro do Supabase.
+
+## Motor de Visão (OCR)
+- [x] **Claude Vision API**: OCR primário via `claude-haiku-4-5-20251001` com payload Base64 otimizado.
+- [x] **Compressão Pillow**: Imagem redimensionada (máx 1024×1024, JPEG q=88) antes do envio — reduz banda e RAM no Android.
+- [x] **Detecção de Portrait**: Recorte automático da metade inferior da foto em modo retrato (foco no medidor).
+- [x] **Prompt por Tipo**: Instruções distintas para hidrômetro de água (7 dígitos) e medidor de gás (8 dígitos, fundo vermelho).
+- [x] **Resiliência Offline**: Detecta `APIConnectionError`/`APITimeoutError` e retorna `status="offline"` sem travar a UI.
+- [x] **OpenCV removido**: `CV2_AVAILABLE = False` permanente — sem dependência de binário NDK não compilável.
+- [x] **Tesseract removido**: `TESSERACT_AVAILABLE = False` permanente — sem binário Windows no APK.
+
+## Caminhos de Storage Cross-Platform (`utils/platform_utils.py`)
+- [x] **`get_storage_dir()`**: Android usa `$FLET_APP_STORAGE_DATA`; desktop usa `<raiz>/exports`.
+- [x] **`get_relatorios_dir()`**: Android usa `$FLET_APP_STORAGE_DATA/relatorios`; desktop usa `<raiz>/relatorios`.
+- [x] **`get_temp_dir()`**: Android usa `$FLET_APP_STORAGE_TEMP`; desktop usa `<raiz>/temp`.
+- [x] **`export_manager`**: usa `get_storage_dir("etiquetas")` — sem path hardcoded.
+- [x] **`relatorio_engine`**: usa `get_relatorios_dir()` — sem path hardcoded.
+- [x] **`scanner_view`**: usa `get_temp_dir()` para salvar fotos temporárias.
+
+## Build e Empacotamento APK
+- [x] **`buildozer.spec`**: Criado com API 33, NDK 25b, `arm64-v8a + armeabi-v7a`, permissões `CAMERA, INTERNET, READ/WRITE_EXTERNAL_STORAGE`.
+- [x] **`flet.yaml`**: Criado com `version: 1.2.0`, `build_number: 121`, `package_name: br.com.vivereprudente.aguaflow`.
+- [x] **Scripts de build WSL**: `build_apk_wsl.sh` e `build_wsl.sh` criados para build em ambiente Linux.
+- [x] **APK gerado**: `AguaFlow-1.2.0.apk` compilado com sucesso (excluído do repositório via `.gitignore`).
+- [x] **Requirements APK**: `reportlab` excluído do `buildozer.spec`; dependências APK declaradas em linha única.
 
 ## Teste Automatizado (validado em 2026-05-16)
 - [x] **Script `test_ciclo_completo.py`**: executa ciclo headless completo — 6/6 passos OK.
@@ -63,12 +89,8 @@
 - [x] **E-mail enviado**: 4 anexos entregues com sucesso via SMTP/Gmail.
 - [x] **114 referencias salvas**: base do proximo ciclo gravada corretamente.
 
-## Pendencias Android (para compilacao APK)
-- [ ] **OpenCV (cv2)**: scanner usa `cv2.VideoCapture` — nao compila no Android NDK. Substituir por Flet Camera ou desabilitar no APK.
-- [ ] **Caminhos de storage**: `ft.app_cache_dir` ainda nao usado no `export_manager` e `relatorio_engine` — necessario para Android.
-- [ ] **Buildozer.spec**: nao existe — criar com permissoes de camera, internet e storage.
-- [ ] **Tesseract/pytesseract**: fallback OCR usa binario Windows — desabilitar no build Android.
-
 ## Pendencias Conhecidas (nao-bloqueantes)
-- [x] **DeprecationWarning resolvido**: `page.go()` substituído por `page.push_route()` em todos os 14 arquivos do projeto (auth, menu, medicao, scanner, historico, relatorios, configuracoes, sincronizacao, sobre, autenticacao, gerenciamento_usuarios, recuperar_senha_email, auth_utils, main).
+- [x] **DeprecationWarning resolvido**: `page.go()` substituído por `page.push_route()` em todos os 14 arquivos do projeto.
 - [ ] **Encoding UI**: Caracteres especiais (ex: "Condominio", "servico") aparecem com encoding errado no log interno do Flet — nao afeta o usuario final, apenas o log de debug.
+- [ ] **Teste APK em dispositivo fisico**: APK gerado mas nao validado em hardware Android real — recomendado antes de distribuicao.
+- [ ] **Icone e Splash**: `icon.filename` e `presplash.filename` comentados no `buildozer.spec` — usar assets finais antes da publicacao na Play Store.
