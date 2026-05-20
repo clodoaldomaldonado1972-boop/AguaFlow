@@ -588,12 +588,26 @@ class Database:
             if not client or not os.path.exists(caminho_foto):
                 return None
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            # Sanitiza: remove chars inválidos para path do Supabase Storage
             import re
             unidade_safe = re.sub(r'[^a-zA-Z0-9_\-/]', '_', unidade)
             storage_path = f"{unidade_safe}/{timestamp}_{modo}.jpg"
-            with open(caminho_foto, 'rb') as f:
-                dados = f.read()
+
+            # Comprime antes do upload: máx 1024x1024, qualidade 72 (~150-300 KB)
+            dados = None
+            try:
+                import io
+                from PIL import Image as _PILImage
+                img = _PILImage.open(caminho_foto)
+                img.thumbnail((1024, 1024))
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=72)
+                dados = buf.getvalue()
+            except Exception:
+                pass
+            if not dados:
+                with open(caminho_foto, 'rb') as f:
+                    dados = f.read()
+
             client.storage.from_("fotos_hidrometros").upload(
                 storage_path,
                 dados,

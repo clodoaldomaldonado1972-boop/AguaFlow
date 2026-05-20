@@ -130,6 +130,26 @@ def _prompt_ocr(tipo: str, is_portrait: bool = False) -> str:
 
 # ── OCR via Claude Vision API ─────────────────────────────────────────────────
 
+def _log_ocr_supabase(resposta_bruta: str, valor_aceito, status: str, foi_offline: bool, tipo: str):
+    """Registra tentativa OCR na tabela ocr_log do Supabase para calibragem."""
+    try:
+        from database.database import Database
+        client = Database.supabase_admin or Database.supabase
+        if not client:
+            return
+        client.table("ocr_log").insert({
+            "resposta_bruta": resposta_bruta,
+            "valor_aceito": valor_aceito,
+            "status": status,
+            "foi_offline": foi_offline,
+            "modo": "GAS" if ("gás" in tipo.lower() or "gas" in tipo.lower()) else "AGUA",
+            "modelo": "claude-haiku-4-5-20251001",
+        }).execute()
+        logger.debug("📊 OCR logado no Supabase")
+    except Exception as ex:
+        logger.warning(f"Falha ao logar OCR: {ex}")
+
+
 def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple:
     """
     Envia a imagem otimizada para o Claude Haiku e extrai os valores do mostrador.
@@ -138,7 +158,7 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple:
     try:
         from anthropic import Anthropic
         from dotenv import load_dotenv
-        
+
         # Carrega as variáveis de ambiente locais do arquivo .env corporativo
         load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
@@ -178,28 +198,32 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple:
         logger.info(f"📡 Resposta bruta do Claude Vision: '{texto}'")
 
         if not texto or texto.lower() == "null":
+            _log_ocr_supabase(texto, None, "sem_leitura", False, tipo)
             return None, False
 
         # Sanitização básica da resposta da IA
         texto = texto.replace(",", ".")
         try:
-            float(texto)  # Validação de consistência numérica
+            float(texto)
+            _log_ocr_supabase(texto, texto, "ok", False, tipo)
             return texto, False
         except ValueError:
             logger.warning(f"⚠️ Resposta da IA não seguiu o padrão estritamente numérico: '{texto}'")
+            _log_ocr_supabase(texto, None, "formato_invalido", False, tipo)
             return None, False
 
     except Exception as e:
-        # Tratamento resiliente de conectividade móvel (Redes 3G/4G/5G oscilantes)
         try:
             from anthropic import APIConnectionError, APITimeoutError
             if isinstance(e, (APIConnectionError, APITimeoutError)):
                 logger.warning(f"📶 Falha de comunicação de rede com os servidores Anthropic: {e}")
+                _log_ocr_supabase("", None, "offline", True, tipo)
                 return None, True
         except ImportError:
             pass
-            
+
         logger.warning(f"⚠️ Erro operacional no módulo Claude Vision: {e}")
         msg_lower = str(e).lower()
         is_offline = any(keyword in msg_lower for keyword in ("connect", "timeout", "network", "unreachable", "dns"))
+        _log_ocr_supabase(str(e)[:200], None, "offline" if is_offline else "erro", is_offline, tipo)
         return None, is_offline
