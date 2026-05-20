@@ -23,7 +23,7 @@ def montar_tela_scanner(page: ft.Page):
         pasta_temp = get_temp_dir()
 
         # --- UI ---
-        mira_visual = st.criar_mira_scanner()
+        mira_visual = st.criar_mira_scanner(page)
 
         img_preview = ft.Image(
             src="", visible=False, width=300, height=200,
@@ -95,25 +95,34 @@ def montar_tela_scanner(page: ft.Page):
         # CameraService (image_picker nativo) — disponível após build com Flutter extension
         camera_service = getattr(page, 'camera', None)
 
-        # Beep de captura
-        audio_beep = None
-        try:
-            if hasattr(ft, 'Audio'):
-                audio_beep = ft.Audio(src="assets/beep.mp3", autoplay=False)
-                page.overlay.append(audio_beep)
-                page.update()
-        except Exception as ex:
-            logger.warning(f"Áudio de beep não disponível: {ex}")
+        # Feedback tátil de captura (ft.Audio não existe em Flet 0.82 — usa HapticFeedback)
+        haptic = ft.HapticFeedback()
+        page.overlay.append(haptic)
+        page.update()
+
+        # Flash visual de captura — overlay branco que aparece e some em 300ms
+        flash_overlay = ft.Container(
+            width=300, height=260,
+            bgcolor="white",
+            opacity=0,
+            animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
+            border_radius=20,
+        )
 
         async def _processar_foto(path: str):
             """Processa de forma leve a imagem retornada pela câmera nativa do Android."""
             state["foto_path"] = path
 
-            if audio_beep:
-                try:
-                    audio_beep.play()
-                except Exception:
-                    pass
+            # Vibração tátil + flash visual de captura
+            try:
+                haptic.heavy_impact()
+            except Exception:
+                pass
+            flash_overlay.opacity = 0.85
+            page.update()
+            await asyncio.sleep(0.3)
+            flash_overlay.opacity = 0
+            page.update()
 
             # Atualização do Preview local em base64
             try:
@@ -245,11 +254,12 @@ def montar_tela_scanner(page: ft.Page):
                 ft.Container(
                     content=ft.Icon(ft.Icons.PHOTO_CAMERA, color="white54", size=36),
                     alignment=ft.alignment.Alignment(0, 0),
-                    width=300, height=300
-                )
+                    width=300, height=260,
+                ),
+                flash_overlay,
             ]),
             alignment=ft.alignment.Alignment(0, 0),
-            width=300, height=300,
+            width=300, height=260,
         )
 
         btn_camera = ft.ElevatedButton(

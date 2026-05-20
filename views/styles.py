@@ -58,45 +58,53 @@ STYLE_PAGE_CONTAINER = {
 # --- 4. ELEMENTOS VISUAIS (ATUALIZADO COM ANIMAÇÃO) ---
 
 
-def criar_mira_scanner():
-    # A linha vermelha agora começa no topo (-100 unidades de offset vertical)
+def criar_mira_scanner(page=None):
+    # Offset inicial: topo do box de 220px. Fração da altura da linha (2px): 220/2/2 = 55
     linha_scanner = ft.Container(
         width=280,
         height=2,
         bgcolor=RED_ERROR,
-        offset=ft.Offset(0, -2.5),
-        animate_offset=ft.Animation(
-            1500, ft.AnimationCurve.EASE_IN_OUT)
+        offset=ft.Offset(0, -55),
+        animate_offset=ft.Animation(1500, ft.AnimationCurve.EASE_IN_OUT),
     )
 
-    # Função interna para gerenciar o movimento infinito da linha
     async def animar_linha():
         while True:
             await asyncio.sleep(0.1)
-            # Alterna entre o topo e a base do container azul
-            linha_scanner.offset = ft.Offset(
-                0, 2.5) if linha_scanner.offset.y == -2.5 else ft.Offset(0, -2.5)
+            # Alterna entre topo (-110px) e base (+110px) do box de 220px
+            linha_scanner.offset = (
+                ft.Offset(0, 55) if linha_scanner.offset.y < 0 else ft.Offset(0, -55)
+            )
             try:
-                linha_scanner.update()
-            except:
-                break  # Para a animação se a tela for fechada
+                if page:
+                    page.update()
+                else:
+                    linha_scanner.update()
+            except Exception:
+                break
             await asyncio.sleep(1.5)
 
-    # Dispara a animação em background (só funciona dentro do loop de eventos do Flet)
     try:
-        asyncio.get_running_loop()
-        asyncio.create_task(animar_linha())
+        if page:
+            page.run_task(animar_linha)
+        else:
+            asyncio.get_running_loop()
+            asyncio.create_task(animar_linha())
     except RuntimeError:
         pass
 
     return ft.Container(
+        width=300,
+        height=260,
         content=ft.Stack([
-            # Moldura azul do scanner[cite: 7]
-            ft.Container(width=300, height=220, border=ft.border.all(
-                2, PRIMARY_BLUE), border_radius=20),
-            linha_scanner
+            ft.Container(
+                width=300, height=220,
+                border=ft.border.all(2, PRIMARY_BLUE),
+                border_radius=20,
+            ),
+            linha_scanner,
         ], alignment="center"),
-        margin=ft.Margin.only(top=20, bottom=20)
+        margin=ft.Margin.only(top=10, bottom=10),
     )
 
 
