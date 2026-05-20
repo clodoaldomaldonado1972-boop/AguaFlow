@@ -1,3 +1,4 @@
+import asyncio
 import flet as ft
 import os
 import shutil
@@ -6,9 +7,8 @@ from views import styles as st
 from views.sincronizacao import SincronizadorUI
 from database.database import Database, get_supabase_client
 from utils.auth_utils import validar_sessao
-# IMPORTAÇÃO DA AUTOMAÇÃO DE VERSÃO e Path para o log
 from utils.updater import AppUpdater
-from pathlib import Path
+from utils.logger_config import get_log_path
 
 
 def montar_tela_saude(page: ft.Page, ao_voltar):
@@ -40,11 +40,17 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
             return ("OFFLINE", "red")
 
     def checar_armazenamento():
-        total, usado, livre = shutil.disk_usage("/")
-        pct_livre = (livre / total) * 100
-        if pct_livre > 15:
-            return (f"{pct_livre:.1f}% LIVRE", "green")
-        return ("ESPAÇO BAIXO", "orange")
+        # Usa o diretório de dados do app (sandbox Android ou raiz desktop)
+        check_path = os.environ.get("FLET_APP_STORAGE_DATA") or os.path.expanduser("~")
+        try:
+            total, usado, livre = shutil.disk_usage(check_path)
+            pct_livre = (livre / total) * 100
+            livre_mb = livre / (1024 * 1024)
+            if pct_livre > 15:
+                return (f"{livre_mb:.0f} MB livres ({pct_livre:.1f}%)", "green")
+            return (f"ESPAÇO BAIXO — {livre_mb:.0f} MB", "orange")
+        except Exception:
+            return ("Indisponível", "grey")
 
     def criar_card_status(icone, titulo, func_check):
         status_texto, cor = func_check()
@@ -69,9 +75,16 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         ft.Icons.SD_CARD, "Armazenamento", checar_armazenamento)
 
     # --- LOG VIEWER ---
-    log_file_path = Path(__file__).parent.parent / "aguaflow_debug.log"
+    # get_log_path() retorna o caminho resolvido no boot (Android sandbox ou desktop)
+    log_file_path = get_log_path()
+
+    lbl_log_path = ft.Text(
+        f"Arquivo: {log_file_path or 'não inicializado'}",
+        size=9, color="grey", italic=True,
+    )
+
     txt_log_content = ft.TextField(
-        label="Conteúdo do Log",
+        label="Últimas 200 linhas do Log",
         multiline=True,
         read_only=True,
         min_lines=10,
@@ -81,21 +94,36 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         border_color="#33373E",
         color="white",
         text_size=10,
-        text_style=ft.TextStyle(font_family="monospace")
+        text_style=ft.TextStyle(font_family="monospace"),
     )
 
-    def carregar_log_file(e):
+    lbl_log_size = ft.Text("", size=10, color="grey")
+
+    async def carregar_log_file(e):
         try:
-            if log_file_path.exists():
-                with open(log_file_path, "r", encoding="utf-8") as f:
-                    txt_log_content.value = f.read()
+            if log_file_path and os.path.exists(log_file_path):
+                tamanho_kb = os.path.getsize(log_file_path) / 1024
+                # Lê apenas as últimas 200 linhas para não travar a UI
+                linhas = await asyncio.to_thread(_ler_ultimas_linhas, log_file_path, 200)
+                txt_log_content.value = linhas
+                lbl_log_size.value = f"Tamanho total: {tamanho_kb:.1f} KB"
             else:
-                txt_log_content.value = "Arquivo de log não encontrado."
+                txt_log_content.value = "Arquivo de log não encontrado.\n(No Android, logs ficam no sandbox do app)"
+                lbl_log_size.value = ""
         except Exception as ex:
             txt_log_content.value = f"Erro ao ler log: {ex}"
         page.update()
 
-    carregar_log_file(None)
+    async def limpar_log(e):
+        try:
+            if log_file_path and os.path.exists(log_file_path):
+                await asyncio.to_thread(os.remove, log_file_path)
+            await carregar_log_file(None)
+        except Exception as ex:
+            txt_log_content.value = f"Erro ao limpar log: {ex}"
+            page.update()
+
+    page.run_task(carregar_log_file, None)
 
     return ft.View(
         route="/dashboard_saude",
@@ -124,21 +152,22 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
                 ft.Container(height=20),
                 ft.Text(" LOGS DO APLICATIVO", size=12,
                         color="grey", weight="bold"),
+                lbl_log_path,
+                lbl_log_size,
                 txt_log_content,
                 ft.Row([
                     ft.ElevatedButton(
                         "Atualizar Log",
-                        icon="refresh",
-                        on_click=carregar_log_file,
-                        style=st.BTN_MAIN
+                        icon=ft.Icons.REFRESH,
+                        on_click=lambda e: page.run_task(carregar_log_file, e),
+                        style=st.BTN_MAIN,
                     ),
                     ft.ElevatedButton(
                         "Limpar Log",
-                        icon="delete_sweep",
-                        on_click=lambda e: (log_file_path.unlink(missing_ok=True), carregar_log_file(
-                            None)),  # Limpa o arquivo e atualiza a exibição
-                        style=ft.ButtonStyle(color="white", bgcolor="red")
-                    )
+                        icon=ft.Icons.DELETE_SWEEP,
+                        on_click=lambda e: page.run_task(limpar_log, e),
+                        style=ft.ButtonStyle(color="white", bgcolor="red"),
+                    ),
                 ], alignment=ft.MainAxisAlignment.CENTER),
 
                 ft.Container(expand=True),
@@ -151,3 +180,13 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
             ], scroll=ft.ScrollMode.ADAPTIVE, expand=True)
         ]
     )
+
+
+def _ler_ultimas_linhas(path: str, n: int = 200) -> str:
+    """Lê as últimas N linhas do arquivo de log sem carregar tudo em memória."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            linhas = f.readlines()
+        return "".join(linhas[-n:])
+    except Exception as ex:
+        return f"Erro ao ler log: {ex}"
