@@ -89,9 +89,25 @@ def montar_tela_scanner(page: ft.Page):
             page.overlay.append(file_picker)
             page.update()
 
+        # Beep de captura — funciona em desktop e Android (Flet Audio nativo)
+        audio_beep = None
+        try:
+            if hasattr(ft, 'Audio'):
+                audio_beep = ft.Audio(src="assets/beep.mp3", autoplay=False)
+                page.overlay.append(audio_beep)
+                page.update()
+        except Exception as ex:
+            logger.warning(f"Áudio de beep não disponível: {ex}")
+
         async def _processar_foto(path: str):
             """Processa de forma leve a imagem retornada pela câmera nativa do Android."""
             state["foto_path"] = path
+
+            if audio_beep:
+                try:
+                    audio_beep.play()
+                except Exception:
+                    pass
 
             # Atualização do Preview local em base64
             try:

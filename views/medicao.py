@@ -74,27 +74,41 @@ def montar_tela_medicao(page: ft.Page):
         # 1. Check for last_read_unit_id in page.user_data
         user_data = getattr(page, "user_data", {}) or {}
         last_read_unit_id = user_data.get("last_read_unit_id")
-        last_read_agua_value = user_data.get("last_read_agua_value")
-        last_read_gas_value = user_data.get("last_read_gas_value")
+
+        # Retorno do scanner: restaura modo E unidade ANTES de buscar pendentes
+        # (buscar_primeira_pendente usa state["modo"], precisa estar correto)
+        unidade_retorno_scanner = user_data.pop("unidade_atual_medicao", None)
+        modo_retorno = user_data.pop("modo_leitura", None)
+        if unidade_retorno_scanner and modo_retorno in ("AGUA", "GAS"):
+            state["modo"] = modo_retorno
 
         proxima_pendente = buscar_primeira_pendente()
         initial_unit_value = proxima_pendente if proxima_pendente else (
             db_lista[0] if db_lista else None)
-        if last_read_unit_id and last_read_unit_id in db_lista:
-            initial_unit_value = last_read_unit_id
+        if unidade_retorno_scanner and unidade_retorno_scanner in db_lista:
+            initial_unit_value = unidade_retorno_scanner
 
-        # Elementos Visuais com ícones padronizados — estado inicial: modo AGUA
-        img_icon = ft.Icon(ft.Icons.WATER_DROP, color="blue", size=140)
+        # Widgets iniciais refletem o modo atual (AGUA ou GAS após restauração)
+        _agua = state["modo"] == "AGUA"
+        _cor = "blue" if _agua else "orange"
+
+        img_icon = ft.Icon(
+            ft.Icons.WATER_DROP if _agua else ft.Icons.LOCAL_FIRE_DEPARTMENT,
+            color=_cor, size=140
+        )
         icon_save = ft.Icon(ft.Icons.SAVE, color="green",
                             size=140, visible=False)
-        lbl_modo = ft.Text("MODO: ÁGUA", color="blue", weight="bold", size=22)
+        lbl_modo = ft.Text(
+            "MODO: ÁGUA" if _agua else "MODO: GÁS",
+            color=_cor, weight="bold", size=22
+        )
 
         txt_unidade = ft.Dropdown(
             label="Unidade",
             options=[ft.dropdown.Option(u) for u in db_lista],
             width=320,
             value=initial_unit_value,
-            border_color="blue"
+            border_color=_cor
         )
 
         txt_agua = ft.TextField(
@@ -106,7 +120,8 @@ def montar_tela_medicao(page: ft.Page):
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,2})?$"),
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,00",
-            border_color="blue"
+            border_color="blue" if _agua else None,
+            disabled=not _agua
         )
 
         txt_gas = ft.TextField(
@@ -118,7 +133,8 @@ def montar_tela_medicao(page: ft.Page):
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,3})?$"),
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,000",
-            disabled=True
+            border_color="orange" if not _agua else None,
+            disabled=_agua
         )
 
         btn_gravar = ft.ElevatedButton(
@@ -211,15 +227,12 @@ def montar_tela_medicao(page: ft.Page):
             txt_unidade.value = unidade_ocr
             user_data.pop("unidade_scanner", None)
         if valor_ocr:
-            txt_agua.value = valor_ocr
+            if state["modo"] == "AGUA":
+                txt_agua.value = valor_ocr
+            else:
+                txt_gas.value = valor_ocr
             user_data.pop("valor_scanner", None)
 
-        # --- RESTAURAÇÃO DE VALORES (Agora com campos definidos) ---
-        if last_read_unit_id and last_read_unit_id in db_lista:
-            if last_read_agua_value:
-                txt_agua.value = last_read_agua_value
-            if last_read_gas_value:
-                txt_gas.value = last_read_gas_value
 
         # --- FUNÇÕES DE LÓGICA ---
         def exibir_concluido():
@@ -419,7 +432,10 @@ def montar_tela_medicao(page: ft.Page):
                         "ABRIR SCANNER",
                         icon="qr_code_scanner",
                         on_click=lambda _: (
-                            page.user_data.update({"modo_leitura": state["modo"]}),
+                            page.user_data.update({
+                                "modo_leitura": state["modo"],
+                                "unidade_atual_medicao": txt_unidade.value,
+                            }),
                             page.go("/scanner")
                         )
                     )
