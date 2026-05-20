@@ -79,6 +79,8 @@ def criar_tela_login(page: ft.Page):
                         role = meta.get("role", "user")
                         full_name = meta.get("full_name", "")
                         page.user_data = {"email": email, "role": role, "nome": full_name}
+                        if hasattr(page, "salvar_sessao"):
+                            await page.salvar_sessao(page.user_data)
                         await page.push_route("/menu")
                         return
                     else:
@@ -97,6 +99,8 @@ def criar_tela_login(page: ft.Page):
                     "role": user_local.get('role', 'user'),
                     "offline": True
                 }
+                if hasattr(page, "salvar_sessao"):
+                    await page.salvar_sessao(page.user_data)
                 await page.push_route("/menu")
                 return
 

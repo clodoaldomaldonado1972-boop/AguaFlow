@@ -46,8 +46,10 @@ def montar_menu(page: ft.Page):
         )
 
         def confirmar_logout(e):
-            def realizar_logout(e):
+            async def realizar_logout(e):
                 page.pop_dialog()
+                if hasattr(page, "limpar_sessao"):
+                    await page.limpar_sessao()
                 page.user_data = {}
                 page.show_dialog(ft.SnackBar(
                     content=ft.Text("Logout realizado com sucesso!"),

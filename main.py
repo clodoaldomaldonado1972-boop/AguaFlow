@@ -168,6 +168,44 @@ async def main(page: ft.Page):
         except Exception:
             pass
 
+    # --- 2.3 SESSÃO PERSISTIDA ---
+    async def salvar_sessao(user_data: dict):
+        try:
+            await _prefs.set("sessao_email", user_data.get("email", ""))
+            await _prefs.set("sessao_role", user_data.get("role", "user"))
+            await _prefs.set("sessao_nome", user_data.get("nome", ""))
+            await _prefs.set("sessao_offline", str(user_data.get("offline", False)))
+        except Exception as ex:
+            logger.warning(f"⚠️ Não foi possível salvar sessão: {ex}")
+
+    async def limpar_sessao():
+        try:
+            for k in ["sessao_email", "sessao_role", "sessao_nome", "sessao_offline"]:
+                await _prefs.remove(k)
+        except Exception as ex:
+            logger.warning(f"⚠️ Não foi possível limpar sessão: {ex}")
+
+    async def restaurar_sessao():
+        try:
+            email = await _prefs.get("sessao_email")
+            if email:
+                role = await _prefs.get("sessao_role") or "user"
+                nome = await _prefs.get("sessao_nome") or ""
+                offline_str = await _prefs.get("sessao_offline") or "False"
+                page.user_data = {
+                    "email": email,
+                    "role": role,
+                    "nome": nome,
+                    "offline": offline_str == "True",
+                }
+                logger.info(f"🔑 Sessão restaurada: {email}")
+                page.go("/menu")
+        except Exception as ex:
+            logger.warning(f"⚠️ Não foi possível restaurar sessão: {ex}")
+
+    page.salvar_sessao = salvar_sessao
+    page.limpar_sessao = limpar_sessao
+
     # --- 3. BOOT EM BACKGROUND ---
     async def inicializar_background():
         global db_ready
@@ -194,6 +232,7 @@ async def main(page: ft.Page):
     await route_change(None)
 
     asyncio.create_task(carregar_tema())
+    asyncio.create_task(restaurar_sessao())
 
     # Manter a corrotina main viva para evitar Garbage Collection da sessão
     while True:
