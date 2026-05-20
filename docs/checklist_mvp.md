@@ -1,6 +1,6 @@
 # Checklist de Prontidão para APK - AguaFlow v1.2.0
 
-> Atualizado em: 2026-05-19 — todas as pendências Android resolvidas; APK v1.2.0 gerado.
+> Atualizado em: 2026-05-19 — todas as pendências Android resolvidas; APK v1.2.0 gerado; integridade do log validada.
 
 ---
 
@@ -56,6 +56,7 @@
 - [x] **Logs Locais**: Tabela `sync_log` rastreia cada tentativa de envio.
 - [x] **Auditoria SMTP**: Teste de conexao SMTP no boot — logado como INFO.
 - [x] **Auditoria Supabase**: Registro detalhado de mensagens de erro do Supabase.
+- [x] **Filtragem de ruido HTTP/2**: `hpack`, `httpcore` e `httpx` silenciados para WARNING em `logger_config.py` — elimina centenas de linhas DEBUG por sessao sem valor diagnostico.
 
 ## Motor de Visão (OCR)
 - [x] **Claude Vision API**: OCR primário via `claude-haiku-4-5-20251001` com payload Base64 otimizado.
@@ -88,6 +89,11 @@
 - [x] **4 arquivos de relatorio**: PDF agua, PDF gas, CSV agua, CSV gas — todos criados e validos.
 - [x] **E-mail enviado**: 4 anexos entregues com sucesso via SMTP/Gmail.
 - [x] **114 referencias salvas**: base do proximo ciclo gravada corretamente.
+
+## Rastreabilidade e Documentacao
+- [x] **Historico de investigacoes**: 18 arquivos `docs/investigacao_*.md` rastreados no git via regra `!docs/investigacao_*.md` no `.gitignore`.
+- [x] **STATUS_INTEGRIDADE.md**: Documento de status completo reescrito com a arquitetura atual (v1.2.0).
+- [x] **Investigacao do log validada**: `docs/investigacao_aguaflow_debug_20260519.md` — sistema saudavel, nenhum ERROR, OCR e uploads funcionais.
 
 ## Pendencias Conhecidas (nao-bloqueantes)
 - [x] **DeprecationWarning resolvido**: `page.go()` substituído por `page.push_route()` em todos os 14 arquivos do projeto.

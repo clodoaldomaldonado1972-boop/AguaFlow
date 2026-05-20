@@ -117,5 +117,6 @@ npm-debug.log
 docs/*
 !docs/README.md
 !docs/checklist_mvp.md
+!docs/STATUS_INTEGRIDADE.md
 !docs/investigacao_*.md
 agents-e-skills/
