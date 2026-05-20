@@ -565,6 +565,23 @@ class Database:
             return []
 
     @classmethod
+    async def configurar_db_path(cls, page) -> None:
+        """Define DB_PATH com sandbox seguro no mobile ou BASE_DIR no desktop.
+
+        Deve ser chamado em inicializar_background() antes de inicializar_tabelas().
+        No Android/iOS usa page.client_storage.get_app_directory() para garantir
+        acesso correto ao storage privado do app; no desktop mantém BASE_DIR.
+        """
+        is_mobile = str(page.platform).lower() in ("android", "ios")
+        if is_mobile:
+            app_dir = await page.client_storage.get_app_directory()
+            cls.DB_PATH = os.path.join(app_dir, "aguaflow.db")
+            logger.info(f"📱 Mobile detectado — DB_PATH: {cls.DB_PATH}")
+        else:
+            cls.DB_PATH = os.path.join(cls.BASE_DIR, "aguaflow.db")
+            logger.info(f"🖥️ Desktop detectado — DB_PATH: {cls.DB_PATH}")
+
+    @classmethod
     def upload_foto_hidrometro_sync(cls, caminho_foto: str, unidade: str, modo: str) -> str | None:
         """Upload síncrono da foto do hidrômetro para o bucket fotos_hidrometros no Supabase Storage."""
         try:

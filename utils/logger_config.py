@@ -91,3 +91,8 @@ def setup_logging():
             logging.StreamHandler()  # Mantém a saída no terminal para conferência
         ]
     )
+
+    # Silencia ruído de transporte HTTP/2 (hpack, httpcore, httpx)
+    # Essas libs emitem centenas de linhas DEBUG por requisição sem valor diagnóstico
+    for noisy_lib in ("hpack", "httpcore", "httpx"):
+        logging.getLogger(noisy_lib).setLevel(logging.WARNING)

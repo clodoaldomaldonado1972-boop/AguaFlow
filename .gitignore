@@ -116,4 +116,6 @@ npm-debug.log
 # ========== DOCUMENTAÇÃO & DIRETÓRIOS ==========
 docs/*
 !docs/README.md
+!docs/checklist_mvp.md
+!docs/investigacao_*.md
 agents-e-skills/
