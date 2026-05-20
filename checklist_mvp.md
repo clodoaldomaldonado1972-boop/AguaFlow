@@ -1,6 +1,6 @@
 # Checklist MVP — AguaFlow v1.2.0
 
-Análise completa do sistema realizada em 16/05/2026. Atualizado em 20/05/2026 após sessão de correções.
+Análise completa do sistema realizada em 16/05/2026. Atualizado em 20/05/2026 após sessão de correções (2ª rodada).
 Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
@@ -54,14 +54,19 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Captura de imagem do medidor
 - [x] OCR automático com Claude Haiku Vision
 - [x] Fallback para Tesseract quando API indisponível
-- [x] Exibição do resultado para confirmação manual
+- [x] Navegação automática após OCR — exibe resultado 1,5s e navega para `/medicao` sem botão confirmar
 - [x] `FilePicker` em `View(services=[])` — correção Flet 0.82 (não `page.overlay`)
 - [x] Upload de foto em background via `asyncio.create_task`
 - [x] Câmera nativa Android via Flutter extension (`image_picker`) — CameraService + CameraExtension
-- [x] Mira animada corrigida — offsets ±55 (±110px) varrem os 220px do box; `page.run_task()` para animação; dimensões explícitas 300×260
+- [x] Dart try-catch em `pickImage` — retorna `"ERROR:<msg>"` em vez de falhar silenciosamente
+- [x] Mira animada — Column+spacer com `animate` 1500ms varrem 218px do box (substituiu `ft.Offset` instável)
+- [x] Flash visual de captura — overlay branco 300ms (`animate_opacity`); `ft.HapticFeedback` removido (não registrado no Flutter 0.82, causava bloco vermelho na UI)
 - [x] Compressão antes do upload Supabase — thumbnail 1024×1024 + JPEG q72 (redução ~91% vs original)
 - [x] Log de tentativas OCR em `ocr_log` (Supabase) — resposta bruta, valor aceito, status, modo, modelo
-- [x] Feedback de captura — `ft.HapticFeedback.heavy_impact()` (vibração tátil) + flash branco 300ms (`animate_opacity`); `ft.Audio` não existe em Flet 0.82
+- [x] `enviar_report_erro` em falhas de câmera (Dart RuntimeError) e upload em background
+- [x] Scanner QR/barcode em tempo real — `mobile_scanner 6.0.0` via Flutter extension (BarcodeScannerService + BarcodeScannerExtension)
+- [x] Navigator context corrigido no barcode Dart — `_findNavigatorContext()` percorre árvore de widgets (substituiu `rootElement` que estava acima do MaterialApp)
+- [x] `NameError btn_confirmar / txt_unid / txt_valor_ocr / lbl_ocr_status` corrigidos — referências a controles removidos eliminadas de `_iniciar_captura`
 - [ ] Calibração de região de interesse (ROI) por modelo de medidor
 - [ ] Histórico de leituras com imagem anexada
 
@@ -155,6 +160,8 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Listagem de erros recentes nos logs
 - [x] Acesso restrito a administradores
 - [x] Ícones corrigidos (sem banners Flutter)
+- [x] Threshold de armazenamento — 500 MB absolutos (substituiu 15% relativo que gerava falso positivo "ESPAÇO BAIXO — 16047 MB" em discos grandes)
+- [x] Word-wrap do card "Armazenamento" corrigido — `size=13, no_wrap=True` no título
 - [ ] Gráfico de latência de sync
 - [ ] Alertas proativos quando pendentes > threshold
 
@@ -233,8 +240,8 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] `source.exclude_dirs` excluindo `.venv`, `tests`, `bin`, `__pycache__`
 - [x] Permissões Android: `CAMERA`, `INTERNET`, `READ/WRITE_EXTERNAL_STORAGE`, `ACCESS_NETWORK_STATE`
 - [x] Arquivos de OCR desktop (`camera_utils.py`, `processamento.py`, `ocr_engine.py`) não importados pelo app
-- [x] Compilação efetiva do APK no ambiente WSL2/Linux — `flet build apk` + injeção `image_picker` + `flutter build apk --release` (build dois-fases via `build_wsl.sh`)
-- [x] APK gerado: `AguaFlow-1.2.0.apk` (171 MB) — câmera nativa funcionando
+- [x] Compilação efetiva do APK no ambiente WSL2/Linux — `flet build apk` + injeção `image_picker` + `mobile_scanner` + `flutter build apk --release` (build dois-fases via `build_wsl.sh`)
+- [x] APK gerado: `AguaFlow-1.2.0.apk` (172 MB) — câmera nativa + barcode scanner
 - [x] Teste em dispositivo físico Android — câmera abre, captura foto, envia ao Supabase
 - [ ] Teste de OCR em campo (taxa de acerto por modelo de medidor)
 
@@ -273,7 +280,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 | 6 | Compilar APK em WSL2 — build dois-fases com `image_picker` | 🔴 Crítico | ✅ Feito |
 | 7 | Câmera nativa Android (CameraService Flutter extension) | 🔴 Crítico | ✅ Feito |
 | 8 | Teste em dispositivo físico Android — câmera funcional | 🔴 Crítico | ✅ Feito |
-| 9 | Mira animada do scanner (offsets e dimensões corrigidos) | 🟡 Importante | ✅ Feito |
+| 9 | Mira animada do scanner — Column+spacer (substituiu ft.Offset instável) | 🟡 Importante | ✅ Feito |
 | 10 | Compressão de foto antes do upload Supabase (~91% menor) | 🟡 Importante | ✅ Feito |
 | 11 | Log de tentativas OCR em `ocr_log` para calibragem | 🟡 Importante | ✅ Feito |
 | 12 | Relatório por unidade individual | 🟡 Importante | ✅ Feito |
@@ -282,11 +289,16 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 | 15 | Migrations de banco versionadas | 🟡 Importante | ✅ Feito |
 | 16 | Exportação CSV/Excel | 🟢 Desejável | ✅ Feito (CSV via historico/relatorio) |
 | 17 | Testes automatizados (pytest) | 🟢 Desejável | ✅ Feito (26 testes, 100% pass) |
-| 18 | Teste de OCR em campo (taxa de acerto por modelo) | 🟡 Importante | ⬜ Pendente |
-| 19 | Calibração ROI por modelo de medidor | 🟢 Desejável | ⬜ Pendente |
-| 20 | Criar tabela `ocr_log` no Supabase (SQL fornecido) | 🟡 Importante | ⬜ Aguardando usuário |
-| 21 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
-| 22 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
+| 18 | Scanner QR/barcode — `mobile_scanner 6.0.0` + fix Navigator context | 🔴 Crítico | ✅ Feito |
+| 19 | Navegação automática após OCR (sem botão confirmar) | 🟡 Importante | ✅ Feito |
+| 20 | Fix HapticFeedback (bloco vermelho cobrindo tela do scanner) | 🔴 Crítico | ✅ Feito |
+| 21 | Fix NameError btn_confirmar/txt_unid/txt_valor_ocr/lbl_ocr_status | 🔴 Crítico | ✅ Feito |
+| 22 | Storage threshold absoluto 500 MB (fix falso positivo "ESPAÇO BAIXO") | 🟡 Importante | ✅ Feito |
+| 23 | Teste de OCR em campo (taxa de acerto por modelo) | 🟡 Importante | ⬜ Pendente |
+| 24 | Calibração ROI por modelo de medidor | 🟢 Desejável | ⬜ Pendente |
+| 25 | Criar tabela `ocr_log` no Supabase (SQL fornecido) | 🟡 Importante | ⬜ Aguardando usuário |
+| 26 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
+| 27 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
 
 ---
 
@@ -304,4 +316,4 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 
 ---
 
-*Atualizado em 20/05/2026 — câmera nativa Android funcional, mira corrigida, compressão upload, log OCR, conformidade skill mobile.*
+*Atualizado em 20/05/2026 (2ª rodada) — barcode scanner QR/código de barras, fix HapticFeedback (bloco vermelho), fix NameErrors scanner, navegação automática pós-OCR, storage threshold 500 MB, mira Column+spacer.*

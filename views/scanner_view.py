@@ -146,7 +146,7 @@ def montar_tela_scanner(page: ft.Page):
             page.user_data["valor_scanner"] = valor_ocr or ""
             page.user_data["unidade_scanner"] = state.get("unidade") or ""
             logger.info(f"📋 Scanner → medição: unidade={state.get('unidade')} valor={valor_ocr}")
-            await page.push_route("/medicao")
+            page.go("/medicao")
 
 
         async def _capturar_com_camera():

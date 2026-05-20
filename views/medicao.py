@@ -13,6 +13,24 @@ from utils.logger_config import enviar_report_erro
 logger = logging.getLogger(__name__)
 
 
+def _normalizar_unidade_scanner(codigo: str, db_lista: list) -> str:
+    """Extrai ID da unidade de códigos de barras como 'AGUAFLOW|166-AGUA' → '166'.
+    Tenta match exato primeiro, depois remove prefixo (antes de '|') e sufixo de tipo."""
+    if codigo in db_lista:
+        return codigo
+    # Remove prefixo tipo "AGUAFLOW|"
+    if '|' in codigo:
+        codigo = codigo.split('|', 1)[1]
+    if codigo in db_lista:
+        return codigo
+    # Remove sufixo de tipo "-AGUA" ou "-GAS"
+    if '-' in codigo:
+        base = codigo.rsplit('-', 1)[0]
+        if base in db_lista:
+            return base
+    return codigo
+
+
 def montar_tela_medicao(page: ft.Page):
     # Proteção de Rota
     auth_check = validar_sessao(page, "/medicao")
@@ -224,7 +242,10 @@ def montar_tela_medicao(page: ft.Page):
         valor_ocr = user_data.get("valor_scanner")
 
         if unidade_ocr:
-            txt_unidade.value = unidade_ocr
+            # Normaliza formato do barcode ex: "AGUAFLOW|166-AGUA" → "166"
+            unidade_ocr = _normalizar_unidade_scanner(unidade_ocr, db_lista)
+            if unidade_ocr in db_lista:
+                txt_unidade.value = unidade_ocr
             user_data.pop("unidade_scanner", None)
         if valor_ocr:
             if state["modo"] == "AGUA":
@@ -311,6 +332,12 @@ def montar_tela_medicao(page: ft.Page):
             )
 
             # --- Validação da Unidade Anterior (Offline-First) ---
+            if current_unit not in db_lista:
+                page.show_dialog(ft.SnackBar(
+                    ft.Text(f"Unidade '{current_unit}' não encontrada na lista."),
+                    bgcolor=st.RED_ERROR, show_close_icon=True))
+                page.update()
+                return
             current_unit_index = db_lista.index(current_unit)
             if current_unit_index > 0:
                 previous_unit = db_lista[current_unit_index - 1]
