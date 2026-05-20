@@ -93,5 +93,5 @@ def setup_logging():
     )
 
     # Silencia ruído de transporte e parsing de imagens — sem valor diagnóstico
-    for noisy_lib in ("hpack", "httpcore", "httpx", "PIL.TiffImagePlugin", "PIL"):
+    for noisy_lib in ("hpack", "httpcore", "httpx", "PIL.TiffImagePlugin", "PIL", "flet_transport"):
         logging.getLogger(noisy_lib).setLevel(logging.WARNING)
