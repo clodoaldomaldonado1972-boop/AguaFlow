@@ -618,7 +618,7 @@ class Database:
             return url
         except Exception as e:
             logger.error(f"❌ Erro no upload da foto: {e}", exc_info=True)
-            return None
+            raise  # propaga para _upload_background acionar enviar_report_erro
 
 # --- FUNÇÃO GLOBAL DE ACESSO ---
 # --- FUNÇÃO GLOBAL DE ACESSO ---

@@ -59,27 +59,25 @@ STYLE_PAGE_CONTAINER = {
 
 
 def criar_mira_scanner(page=None):
-    # Offset inicial: topo do box de 220px. Fração da altura da linha (2px): 220/2/2 = 55
-    linha_scanner = ft.Container(
-        width=280,
-        height=2,
-        bgcolor=RED_ERROR,
-        offset=ft.Offset(0, -55),
-        animate_offset=ft.Animation(1500, ft.AnimationCurve.EASE_IN_OUT),
+    # Spacer animado empurra a linha de cima para baixo dentro do box de 220px.
+    # height: 0 → linha no topo; height: 218 → linha na base (218+2=220).
+    spacer_topo = ft.Container(
+        height=0,
+        animate=ft.Animation(1500, ft.AnimationCurve.EASE_IN_OUT),
     )
+    linha_scanner = ft.Container(width=300, height=2, bgcolor=RED_ERROR)
+    _direcao = [True]  # True = descendo
 
     async def animar_linha():
         while True:
             await asyncio.sleep(0.1)
-            # Alterna entre topo (-110px) e base (+110px) do box de 220px
-            linha_scanner.offset = (
-                ft.Offset(0, 55) if linha_scanner.offset.y < 0 else ft.Offset(0, -55)
-            )
+            spacer_topo.height = 218 if _direcao[0] else 0
+            _direcao[0] = not _direcao[0]
             try:
                 if page:
                     page.update()
                 else:
-                    linha_scanner.update()
+                    spacer_topo.update()
             except Exception:
                 break
             await asyncio.sleep(1.5)
@@ -95,15 +93,13 @@ def criar_mira_scanner(page=None):
 
     return ft.Container(
         width=300,
-        height=260,
-        content=ft.Stack([
-            ft.Container(
-                width=300, height=220,
-                border=ft.border.all(2, PRIMARY_BLUE),
-                border_radius=20,
-            ),
-            linha_scanner,
-        ], alignment="center"),
+        height=240,
+        content=ft.Container(
+            width=300, height=220,
+            border=ft.border.all(2, PRIMARY_BLUE),
+            border_radius=20,
+            content=ft.Column([spacer_topo, linha_scanner], spacing=0),
+        ),
         margin=ft.Margin.only(top=10, bottom=10),
     )
 

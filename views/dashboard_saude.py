@@ -44,21 +44,23 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         check_path = os.environ.get("FLET_APP_STORAGE_DATA") or os.path.expanduser("~")
         try:
             total, usado, livre = shutil.disk_usage(check_path)
-            pct_livre = (livre / total) * 100
             livre_mb = livre / (1024 * 1024)
-            if pct_livre > 15:
-                return (f"{livre_mb:.0f} MB livres ({pct_livre:.1f}%)", "green")
-            return (f"ESPAÇO BAIXO — {livre_mb:.0f} MB", "orange")
+            livre_gb = livre_mb / 1024
+            # Threshold absoluto: <500 MB é crítico, independente do tamanho do disco
+            if livre_mb >= 500:
+                label = f"{livre_gb:.1f} GB livres" if livre_gb >= 1 else f"{livre_mb:.0f} MB livres"
+                return (label, "green")
+            return (f"BAIXO: {livre_mb:.0f} MB", "orange")
         except Exception:
             return ("Indisponível", "grey")
 
     def criar_card_status(icone, titulo, func_check):
         status_texto, cor = func_check()
         return ft.Container(
-            content=ft.ListTile(  # icone is already a string here
+            content=ft.ListTile(
                 leading=ft.Icon(icone, color=cor, size=30),
-                title=ft.Text(titulo, weight="bold", size=14, color="white"),
-                trailing=ft.Text(status_texto, color=cor, weight="bold"),
+                title=ft.Text(titulo, weight="bold", size=13, color="white", no_wrap=True),
+                trailing=ft.Text(status_texto, color=cor, weight="bold", size=12),
             ),
             bgcolor="#1E2126",
             border_radius=10,

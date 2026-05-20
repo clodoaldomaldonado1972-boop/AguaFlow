@@ -11,16 +11,22 @@ class CameraService(Service):
 
     async def pick_image_from_camera(self) -> Optional[str]:
         """Abre a câmera nativa e retorna o caminho do arquivo capturado."""
-        return await self._invoke_method(
+        result = await self._invoke_method(
             "pick_image_from_camera",
             {},
             timeout=120,
         )
+        if isinstance(result, str) and result.startswith("ERROR:"):
+            raise RuntimeError(result[6:])
+        return result
 
     async def pick_image_from_gallery(self) -> Optional[str]:
         """Abre a galeria e retorna o caminho da foto selecionada."""
-        return await self._invoke_method(
+        result = await self._invoke_method(
             "pick_image_from_gallery",
             {},
             timeout=120,
         )
+        if isinstance(result, str) and result.startswith("ERROR:"):
+            raise RuntimeError(result[6:])
+        return result

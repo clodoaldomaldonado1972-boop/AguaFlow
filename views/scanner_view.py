@@ -3,12 +3,14 @@ import os
 import base64
 import logging
 import asyncio
+import traceback
 from datetime import datetime
 from database.database import Database
 import views.styles as st
 from utils.updater import AppUpdater
 from utils.vision import processar_foto_hidrometro
 from utils.platform_utils import get_temp_dir
+from utils.logger_config import enviar_report_erro
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +32,14 @@ def montar_tela_scanner(page: ft.Page):
             fit="contain", border_radius=10
         )
 
-        instrucao_box = None  # Câmera nativa via CameraService
-
+        lbl_unidade = ft.Text(
+            "Unidade: —",
+            size=13, color="grey70", weight="bold",
+            text_align=ft.TextAlign.CENTER,
+        )
         lbl_instrucao = ft.Text(
-            "Aponte para o medidor e fotografe diretamente.",
-            size=13, color="grey", text_align=ft.TextAlign.CENTER
+            "1. Escaneie o código da unidade   2. Fotografe o medidor",
+            size=12, color="grey", text_align=ft.TextAlign.CENTER
         )
         lbl_status = ft.Text(
             "", color="white", weight="bold", size=15,
@@ -42,35 +47,6 @@ def montar_tela_scanner(page: ft.Page):
         )
         pr_captura = ft.ProgressRing(visible=False, color=st.PRIMARY_BLUE)
 
-        txt_unid = ft.TextField(
-            label="Unidade detectada",
-            prefix_icon="qr_code_scanner",
-            border_radius=10,
-            read_only=True,
-            bgcolor="#1E2126",
-            width=300
-        )
-        txt_valor_ocr = ft.TextField(
-            label="Leitura OCR (confirme ou corrija)",
-            prefix_icon="straighten",
-            border_radius=10,
-            bgcolor="#1E2126",
-            width=300,
-            visible=False,
-            hint_text="ex: 00542.30",
-            keyboard_type=ft.KeyboardType.NUMBER,
-        )
-        lbl_ocr_status = ft.Text("", size=11, color="grey", italic=True)
-
-        btn_confirmar = ft.ElevatedButton(
-            "CONFIRMAR E INSERIR MANUAL",
-            icon="edit_note",
-            width=300,
-            height=55,
-            style=st.BTN_MAIN,
-            visible=False,
-            on_click=lambda e: page.run_task(_confirmar_e_voltar)
-        )
         btn_recapturar = ft.TextButton(
             "Capturar novamente",
             icon="replay",
@@ -92,17 +68,17 @@ def montar_tela_scanner(page: ft.Page):
             page.services = list(page.services) + [file_picker]
             page.update()
 
-        # CameraService (image_picker nativo) — disponível após build com Flutter extension
+        # CameraService e BarcodeScannerService — disponíveis após build com Flutter extensions
         camera_service = getattr(page, 'camera', None)
-
-        # Feedback tátil de captura (ft.Audio não existe em Flet 0.82 — usa HapticFeedback)
-        haptic = ft.HapticFeedback()
-        page.overlay.append(haptic)
-        page.update()
+        barcode_service = getattr(page, 'barcode', None)
+        if camera_service is None:
+            logger.warning("⚠️ CameraService não encontrado.")
+        if barcode_service is None:
+            logger.warning("⚠️ BarcodeScannerService não encontrado.")
 
         # Flash visual de captura — overlay branco que aparece e some em 300ms
         flash_overlay = ft.Container(
-            width=300, height=260,
+            width=300, height=240,
             bgcolor="white",
             opacity=0,
             animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
@@ -112,12 +88,11 @@ def montar_tela_scanner(page: ft.Page):
         async def _processar_foto(path: str):
             """Processa de forma leve a imagem retornada pela câmera nativa do Android."""
             state["foto_path"] = path
+            existe = os.path.exists(path) if path else False
+            tamanho = os.path.getsize(path) if existe else 0
+            logger.info(f"📷 Foto recebida: path={path} | existe={existe} | tamanho={tamanho}B")
 
-            # Vibração tátil + flash visual de captura
-            try:
-                haptic.heavy_impact()
-            except Exception:
-                pass
+            # Flash visual de captura
             flash_overlay.opacity = 0.85
             page.update()
             await asyncio.sleep(0.3)
@@ -133,8 +108,6 @@ def montar_tela_scanner(page: ft.Page):
                 logger.error(f"Erro ao gerar preview base64: {ex}")
                 img_preview.visible = False
 
-            state["unidade"] = None
-            txt_unid.value = ""
             lbl_status.value = "Imagem obtida! Processando análise inteligente..."
             lbl_status.color = "orange"
             page.update()
@@ -153,30 +126,27 @@ def montar_tela_scanner(page: ft.Page):
             except Exception as ex:
                 logger.error(f"Erro no OCR: {ex}")
 
-            txt_valor_ocr.visible = True
-            if valor_ocr:
-                txt_valor_ocr.value = valor_ocr
-                txt_valor_ocr.helper_text = None
-                lbl_ocr_status.value = f"OCR Inteligente detectou: {valor_ocr}"
-                lbl_ocr_status.color = "green600"
-            else:
-                # Fallback manual obrigatório (5.2) — abre teclado e orienta o operador
-                txt_valor_ocr.value = ""
-                txt_valor_ocr.helper_text = "Sem sinal ou falha no OCR. Insira o valor manualmente."
-                lbl_ocr_status.value = "⚠️ Insira o valor do medidor no campo acima."
-                lbl_ocr_status.color = "orange"
-                txt_valor_ocr.focus()
-
-            lbl_status.value = "Análise concluída. Por favor, valide os campos."
-            lbl_status.color = "white"
-
-            # Envia o upload assíncrono para o Supabase
+            # Upload em background (não bloqueia a navegação)
             asyncio.create_task(_upload_background(path, "DESCONHECIDA", modo))
-            
-            btn_confirmar.visible = True
-            btn_recapturar.visible = True
+
             pr_captura.visible = False
-            page.update()
+
+            if valor_ocr:
+                lbl_status.value = f"✅ OCR detectou: {valor_ocr} — voltando..."
+                lbl_status.color = "green"
+                page.update()
+                await asyncio.sleep(1.5)
+            else:
+                lbl_status.value = "⚠️ OCR sem resultado — insira o valor manualmente."
+                lbl_status.color = "orange"
+                page.update()
+                await asyncio.sleep(2.0)
+
+            # Passa valores para medição e navega automaticamente
+            page.user_data["valor_scanner"] = valor_ocr or ""
+            page.user_data["unidade_scanner"] = state.get("unidade") or ""
+            logger.info(f"📋 Scanner → medição: unidade={state.get('unidade')} valor={valor_ocr}")
+            await page.push_route("/medicao")
 
 
         async def _capturar_com_camera():
@@ -200,31 +170,74 @@ def montar_tela_scanner(page: ft.Page):
             lbl_status.color = "white"
             pr_captura.visible = True
             img_preview.visible = False
-            btn_confirmar.visible = False
             btn_recapturar.visible = False
-            txt_unid.value = ""
-            txt_valor_ocr.value = ""
-            txt_valor_ocr.visible = False
-            lbl_ocr_status.value = ""
             page.update()
 
             try:
                 if source == "camera" and camera_service:
                     path = await _capturar_com_camera()
+                elif source == "camera" and not camera_service:
+                    # CameraService não disponível: desce para galeria automaticamente
+                    logger.warning("CameraService ausente — abrindo galeria como fallback.")
+                    lbl_status.value = "Câmera nativa indisponível. Abrindo galeria..."
+                    page.update()
+                    path = await _capturar_da_galeria()
                 else:
                     path = await _capturar_da_galeria()
 
                 if path:
                     await _processar_foto(path)
                 else:
+                    logger.info(f"Captura retornou None (source={source}) — câmera fechada ou permissão negada.")
                     lbl_status.value = "Captura cancelada."
                     pr_captura.visible = False
                     page.update()
-            except Exception as ex:
-                logger.error(f"Erro ao capturar imagem: {ex}")
-                lbl_status.value = "Erro ao abrir câmera. Tente novamente."
+            except RuntimeError as ex:
+                # Erro retornado pelo Dart (ex: permissão negada, câmera indisponível)
+                logger.error(f"Erro na câmera (Dart): {ex}")
+                enviar_report_erro(f"Erro câmera Dart:\n{ex}", unidade=f"SCANNER-{modo}")
+                lbl_status.value = f"Erro câmera: {ex}"
+                lbl_status.color = "red"
                 pr_captura.visible = False
                 page.update()
+            except Exception as ex:
+                logger.error(f"Erro ao capturar imagem: {ex}", exc_info=True)
+                enviar_report_erro(traceback.format_exc(), unidade=f"SCANNER-{modo}")
+                lbl_status.value = f"Erro ao abrir câmera: {type(ex).__name__}"
+                lbl_status.color = "red"
+                pr_captura.visible = False
+                page.update()
+
+        async def _escanear_unidade(e=None):
+            """Abre o scanner de QR/barcode para identificar a unidade."""
+            if not barcode_service:
+                lbl_unidade.value = "Scanner de código indisponível neste build."
+                lbl_unidade.color = "red"
+                page.update()
+                return
+            lbl_status.value = "Abrindo scanner de código..."
+            lbl_status.color = "white"
+            page.update()
+            try:
+                codigo = await barcode_service.scan_barcode()
+                if codigo:
+                    state["unidade"] = codigo
+                    lbl_unidade.value = f"Unidade: {codigo}"
+                    lbl_unidade.color = "green"
+                    lbl_status.value = "Código detectado! Agora fotografe o medidor."
+                    lbl_status.color = "white70"
+                else:
+                    lbl_status.value = "Escaneamento cancelado."
+                    lbl_status.color = "grey"
+            except RuntimeError as ex:
+                logger.error(f"Erro no barcode (Dart): {ex}")
+                lbl_status.value = f"Erro scanner: {ex}"
+                lbl_status.color = "red"
+            except Exception as ex:
+                logger.error(f"Erro ao escanear barcode: {ex}", exc_info=True)
+                lbl_status.value = "Erro ao abrir scanner de código."
+                lbl_status.color = "red"
+            page.update()
 
         async def _upload_background(path: str, unidade: str, modo: str):
             try:
@@ -235,7 +248,8 @@ def montar_tela_scanner(page: ft.Page):
                     logger.info(f"📸 Sincronização concluída: {url}")
                     page.user_data["foto_url_scanner"] = url
             except Exception as ex:
-                logger.error(f"Erro no upload em background: {ex}")
+                logger.error(f"Erro no upload em background: {ex}", exc_info=True)
+                enviar_report_erro(traceback.format_exc(), unidade=f"UPLOAD-FOTO-{modo}")
             finally:
                 try:
                     if os.path.exists(path):
@@ -243,23 +257,19 @@ def montar_tela_scanner(page: ft.Page):
                 except Exception:
                     pass
 
-        async def _confirmar_e_voltar():
-            page.user_data["unidade_scanner"] = state.get("unidade") or ""
-            page.user_data["valor_scanner"] = txt_valor_ocr.value or ""
-            await page.push_route("/medicao")
-
         container_mira = ft.Container(
             content=ft.Stack([
                 mira_visual,
+                # Ícone centralizado sobre o box de 220px
                 ft.Container(
                     content=ft.Icon(ft.Icons.PHOTO_CAMERA, color="white54", size=36),
                     alignment=ft.alignment.Alignment(0, 0),
-                    width=300, height=260,
+                    width=300, height=240,
                 ),
                 flash_overlay,
             ]),
             alignment=ft.alignment.Alignment(0, 0),
-            width=300, height=260,
+            width=300, height=240,
         )
 
         btn_camera = ft.ElevatedButton(
@@ -280,6 +290,20 @@ def montar_tela_scanner(page: ft.Page):
             on_click=lambda e: page.run_task(_iniciar_captura, "galeria"),
         )
 
+        btn_scan_unidade = ft.ElevatedButton(
+            "Escanear Código da Unidade",
+            icon=ft.Icons.QR_CODE_SCANNER,
+            width=300,
+            height=48,
+            style=ft.ButtonStyle(
+                bgcolor="#2E3440",
+                color="white",
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
+            on_click=lambda e: page.run_task(_escanear_unidade),
+            visible=barcode_service is not None,
+        )
+
         cor_appbar = st.PRIMARY_BLUE if modo == "AGUA" else "orange"
 
         return ft.View(
@@ -297,6 +321,9 @@ def montar_tela_scanner(page: ft.Page):
             controls=[
                 ft.Column([
                     container_mira,
+                    lbl_unidade,
+                    btn_scan_unidade,
+                    ft.Divider(color="white10", height=1),
                     btn_camera,
                     btn_galeria,
                     pr_captura,
@@ -304,11 +331,6 @@ def montar_tela_scanner(page: ft.Page):
                     lbl_status,
                     ft.Container(height=8),
                     img_preview,
-                    txt_unid,
-                    txt_valor_ocr,
-                    lbl_ocr_status,
-                    ft.Container(height=10),
-                    btn_confirmar,
                     btn_recapturar,
                     ft.Divider(color="white10"),
                     btn_manual,

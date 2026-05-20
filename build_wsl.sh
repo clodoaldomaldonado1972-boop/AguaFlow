@@ -76,32 +76,44 @@ echo "===================================="
 echo "Flet build OK. Injetando extensao de camera..."
 echo "===================================="
 
-# ── PASSO 2: Injeta image_picker no pubspec.yaml (idempotente) ──
+# ── PASSO 2: Injeta dependências Flutter no pubspec.yaml (idempotente) ──
 PUBSPEC="$FLUTTER_DIR/pubspec.yaml"
 if ! grep -q "image_picker" "$PUBSPEC"; then
-    # Adiciona image_picker logo após 'flet: 0.82.2'
     sed -i 's/  flet: 0.82.2/  flet: 0.82.2\n  image_picker: ^1.1.2/' "$PUBSPEC"
     echo "✅ image_picker adicionado ao pubspec.yaml"
 else
     echo "⏭️  image_picker ja presente no pubspec.yaml"
 fi
+if ! grep -q "mobile_scanner" "$PUBSPEC"; then
+    sed -i 's/  image_picker: \^1.1.2/  image_picker: ^1.1.2\n  mobile_scanner: ^6.0.0/' "$PUBSPEC"
+    echo "✅ mobile_scanner adicionado ao pubspec.yaml"
+else
+    echo "⏭️  mobile_scanner ja presente no pubspec.yaml"
+fi
 
-# ── PASSO 3: Copia arquivos Dart da extensão de câmera ──
+# ── PASSO 3: Copia arquivos Dart das extensões ──
 FLUTTER_LIB="$FLUTTER_DIR/lib"
 cp "$BUILD_DIR/flutter_camera/camera_service.dart" "$FLUTTER_LIB/"
 cp "$BUILD_DIR/flutter_camera/camera_extension.dart" "$FLUTTER_LIB/"
-echo "✅ Arquivos Dart da camera copiados"
+cp "$BUILD_DIR/flutter_camera/barcode_service.dart" "$FLUTTER_LIB/"
+cp "$BUILD_DIR/flutter_camera/barcode_extension.dart" "$FLUTTER_LIB/"
+echo "✅ Arquivos Dart da camera e barcode copiados"
 
-# ── PASSO 4: Registra CameraExtension em main.dart (idempotente) ──
+# ── PASSO 4: Registra extensões em main.dart (idempotente) ──
 MAIN_DART="$FLUTTER_LIB/main.dart"
 if ! grep -q "CameraExtension" "$MAIN_DART"; then
-    # Adiciona import no topo
     sed -i "1s/^/import 'camera_extension.dart';\n/" "$MAIN_DART"
-    # Registra na lista de extensions
     sed -i "s/List<FletExtension> extensions = \[/List<FletExtension> extensions = [\n  CameraExtension(),/" "$MAIN_DART"
     echo "✅ CameraExtension registrada em main.dart"
 else
     echo "⏭️  CameraExtension ja registrada em main.dart"
+fi
+if ! grep -q "BarcodeScannerExtension" "$MAIN_DART"; then
+    sed -i "1s/^/import 'barcode_extension.dart';\n/" "$MAIN_DART"
+    sed -i "s/List<FletExtension> extensions = \[/List<FletExtension> extensions = [\n  BarcodeScannerExtension(),/" "$MAIN_DART"
+    echo "✅ BarcodeScannerExtension registrada em main.dart"
+else
+    echo "⏭️  BarcodeScannerExtension ja registrada em main.dart"
 fi
 
 # ── PASSO 5: Atualiza dependências e recompila com câmera ──

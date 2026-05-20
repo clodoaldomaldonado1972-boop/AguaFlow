@@ -25,21 +25,33 @@ class CameraServiceFlet extends FletService {
     debugPrint("CameraService.$name($args)");
     switch (name) {
       case "pick_image_from_camera":
-        final XFile? image = await _picker.pickImage(
-          source: ImageSource.camera,
-          imageQuality: 88,
-          maxWidth: 1920,
-          maxHeight: 1920,
-        );
-        return image?.path;
+        try {
+          final XFile? image = await _picker.pickImage(
+            source: ImageSource.camera,
+            imageQuality: 88,
+            maxWidth: 1920,
+            maxHeight: 1920,
+          );
+          debugPrint("CameraService.pick_image_from_camera result: ${image?.path}");
+          return image?.path;
+        } catch (e, st) {
+          debugPrint("CameraService ERROR (camera): $e\n$st");
+          return "ERROR:$e";
+        }
       case "pick_image_from_gallery":
-        final XFile? image = await _picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 88,
-          maxWidth: 1920,
-          maxHeight: 1920,
-        );
-        return image?.path;
+        try {
+          final XFile? image = await _picker.pickImage(
+            source: ImageSource.gallery,
+            imageQuality: 88,
+            maxWidth: 1920,
+            maxHeight: 1920,
+          );
+          debugPrint("CameraService.pick_image_from_gallery result: ${image?.path}");
+          return image?.path;
+        } catch (e, st) {
+          debugPrint("CameraService ERROR (gallery): $e\n$st");
+          return "ERROR:$e";
+        }
       default:
         throw Exception("Unknown CameraService method: $name");
     }
