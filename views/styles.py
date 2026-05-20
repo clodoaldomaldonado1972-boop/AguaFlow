@@ -10,6 +10,15 @@ ACCENT_ORANGE = "#FF9800"
 RED_ERROR = "#FF5252"
 SUCCESS_GREEN = "#2E7D32"
 
+BG_LIGHT = "#FAFAFA"
+
+
+def get_bgcolor(page):
+    if page is None or not hasattr(page, "theme_mode"):
+        return BG_DARK
+    return BG_DARK if page.theme_mode == ft.ThemeMode.DARK else BG_LIGHT
+
+
 # --- 2. APELIDOS DE COMPATIBILIDADE ---
 BG_COLOR = BG_DARK
 PRIMARY_COLOR = PRIMARY_BLUE

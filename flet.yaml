@@ -6,7 +6,6 @@ android:
   label: "AguaFlow"
   architectures:
     - arm64-v8a
-    - armeabi-v7a
   permissions:
     - android.permission.INTERNET
     - android.permission.CAMERA

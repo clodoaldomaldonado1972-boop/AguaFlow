@@ -8,6 +8,7 @@ import os
 import sys
 from utils.updater import AppUpdater
 from utils.logger_config import setup_logging
+from views.styles import BG_DARK, BG_LIGHT
 
 setup_logging()  # Inicializa o sistema de logs profissional
 logger = logging.getLogger(__name__)
@@ -21,9 +22,24 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 async def main(page: ft.Page):
     global db_ready
     is_mobile = page.platform in [ft.PagePlatform.ANDROID, ft.PagePlatform.IOS]
+    _prefs = ft.SharedPreferences()
+    page.services = [_prefs]
     page.theme_mode = ft.ThemeMode.DARK
-    page.bgcolor = "#121417"
+    page.bgcolor = BG_DARK
     page.title = AppUpdater.get_footer()
+
+    async def toggle_tema():
+        if page.theme_mode == ft.ThemeMode.DARK:
+            page.theme_mode = ft.ThemeMode.LIGHT
+            page.bgcolor = BG_LIGHT
+            await _prefs.set("tema", "light")
+        else:
+            page.theme_mode = ft.ThemeMode.DARK
+            page.bgcolor = BG_DARK
+            await _prefs.set("tema", "dark")
+        page.update()
+
+    page.toggle_tema = toggle_tema
 
     if not is_mobile:
         page.window_width = 450
@@ -141,6 +157,17 @@ async def main(page: ft.Page):
     page.user_data = {}
     asyncio.create_task(heartbeat())
 
+    # --- 2.2 CARREGA TEMA PERSISTIDO ---
+    async def carregar_tema():
+        try:
+            tema_salvo = await _prefs.get("tema")
+            if tema_salvo == "light":
+                page.theme_mode = ft.ThemeMode.LIGHT
+                page.bgcolor = BG_LIGHT
+                page.update()
+        except Exception:
+            pass
+
     # --- 3. BOOT EM BACKGROUND ---
     async def inicializar_background():
         global db_ready
@@ -165,6 +192,8 @@ async def main(page: ft.Page):
 
     # Navegação inicial manual para garantir que a tela apareça
     await route_change(None)
+
+    asyncio.create_task(carregar_tema())
 
     # Manter a corrotina main viva para evitar Garbage Collection da sessão
     while True:

@@ -34,6 +34,17 @@ def montar_menu(page: ft.Page):
                 )
             )
 
+        tema_icon = ft.Icons.LIGHT_MODE if page.theme_mode == ft.ThemeMode.DARK else ft.Icons.DARK_MODE
+        tema_tooltip = "Mudar para tema claro" if page.theme_mode == ft.ThemeMode.DARK else "Mudar para tema escuro"
+
+        async def alternar_tema(e):
+            await page.toggle_tema()
+            page.go("/menu")
+
+        app_bar_actions.append(
+            ft.IconButton(icon=tema_icon, tooltip=tema_tooltip, on_click=alternar_tema)
+        )
+
         def confirmar_logout(e):
             def realizar_logout(e):
                 page.pop_dialog()
@@ -69,7 +80,7 @@ def montar_menu(page: ft.Page):
 
         return ft.View(
             route="/menu",
-            bgcolor=st.BG_DARK,
+            bgcolor=st.get_bgcolor(page),
             appbar=ft.AppBar(
                 title=ft.Column([
                     ft.Text(f"Olá, {user_name}!", size=16, weight="bold"),

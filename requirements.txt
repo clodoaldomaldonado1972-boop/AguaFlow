@@ -7,7 +7,6 @@ python-dotenv
 fpdf2
 qrcode
 pillow
-requests
 anthropic
 
 # Relatórios Desktop — instalar manualmente no desktop: pip install reportlab
