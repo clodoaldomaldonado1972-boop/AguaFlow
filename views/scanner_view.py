@@ -72,7 +72,7 @@ def montar_tela_scanner(page: ft.Page):
             "Capturar novamente",
             icon="replay",
             visible=False,
-            on_click=lambda e: _iniciar_captura(None)
+            on_click=lambda e: page.run_task(_iniciar_captura)
         )
         btn_manual = ft.TextButton(
             "Pular scanner e inserir manual",
@@ -82,10 +82,12 @@ def montar_tela_scanner(page: ft.Page):
 
         state = {"foto_path": None, "unidade": None}
 
-        # ── FilePicker — deve estar em page.overlay no Flet 0.82 ────────
-        file_picker = ft.FilePicker()
-        page.overlay.append(file_picker)
-        page.update()
+        # FilePicker só funciona no cliente mobile (APK Android)
+        # No desktop, usa tkinter.filedialog via thread para não bloquear o event loop
+        file_picker = ft.FilePicker() if is_android() else None
+        if file_picker and is_android():
+            page.overlay.append(file_picker)
+            page.update()
 
         async def _processar_foto(path: str):
             """Processa de forma leve a imagem retornada pela câmera nativa do Android."""
@@ -155,9 +157,10 @@ def montar_tela_scanner(page: ft.Page):
                 pr_captura.visible = False
                 page.update()
 
-        file_picker.on_result = _on_file_picked
+        if file_picker:
+            file_picker.on_result = _on_file_picked
 
-        def _iniciar_captura(e=None):
+        async def _iniciar_captura(e=None):
             # Solicita permissão de câmera em runtime no Android (4.A)
             if is_android():
                 page.request_permission("android.permission.CAMERA")
@@ -173,11 +176,38 @@ def montar_tela_scanner(page: ft.Page):
             lbl_ocr_status.value = ""
             page.update()
 
-            # Chamada otimizada para acionar o seletor nativo do sistema operacional
-            file_picker.pick_files(
-                dialog_title="Selecione a câmera para registrar o medidor",
-                allow_multiple=False
-            )
+            if is_android() and file_picker:
+                # Android: FilePicker nativo (pick_files é async no Flet 0.82)
+                await file_picker.pick_files(
+                    dialog_title="Selecione a câmera para registrar o medidor",
+                    allow_multiple=False
+                )
+            else:
+                # Desktop: tkinter.filedialog em thread separada (não bloqueia event loop)
+                def _abrir_dialogo():
+                    try:
+                        import tkinter as tk
+                        from tkinter import filedialog
+                        root = tk.Tk()
+                        root.withdraw()
+                        root.attributes("-topmost", True)
+                        path = filedialog.askopenfilename(
+                            title="Selecione a foto do medidor",
+                            filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.webp")]
+                        )
+                        root.destroy()
+                        return path or None
+                    except Exception as ex:
+                        logger.error(f"Erro no diálogo desktop: {ex}")
+                        return None
+
+                path = await asyncio.to_thread(_abrir_dialogo)
+                if path:
+                    await _processar_foto(path)
+                else:
+                    lbl_status.value = "Seleção cancelada."
+                    pr_captura.visible = False
+                    page.update()
 
         async def _upload_background(path: str, unidade: str, modo: str):
             try:
@@ -212,7 +242,7 @@ def montar_tela_scanner(page: ft.Page):
             ]),
             alignment=ft.alignment.Alignment(0, 0),
             width=300, height=300,
-            on_click=lambda e: _iniciar_captura(None),
+            on_click=lambda e: page.run_task(_iniciar_captura),
             ink=True
         )
 

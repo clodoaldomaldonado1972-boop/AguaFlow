@@ -151,6 +151,7 @@ async def main(page: ft.Page):
             from utils.logger_config import testar_configuracao_email
             await asyncio.to_thread(testar_configuracao_email)
 
+            await Database.configurar_db_path(page)
             await asyncio.to_thread(Database.inicializar_tabelas)
             db_ready = True
             await SyncService.init_sync_log_table()
