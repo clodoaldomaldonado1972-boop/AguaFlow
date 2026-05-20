@@ -1,0 +1,14 @@
+version: "1.2.0"
+build_number: 121
+
+android:
+  package_name: "br.com.vivereprudente.aguaflow"
+  label: "AguaFlow"
+  architectures:
+    - arm64-v8a
+    - armeabi-v7a
+  permissions:
+    - android.permission.INTERNET
+    - android.permission.CAMERA
+    - android.permission.READ_EXTERNAL_STORAGE
+    - android.permission.WRITE_EXTERNAL_STORAGE

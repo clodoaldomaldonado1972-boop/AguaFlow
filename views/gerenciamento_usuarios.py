@@ -52,12 +52,12 @@ def montar_tela_usuarios(page: ft.Page):
                     msg = f"Alteração salva localmente. Sincronização pendente (Sem Sinal)."
                     cor = st.ACCENT_ORANGE
                 
-                page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=cor))
+                page.open(ft.SnackBar(ft.Text(msg), bgcolor=cor))
                 carregar_usuarios()
             else:
                 raise Exception("Falha na gravação local.")
         except Exception as ex:
-            page.show_dialog(ft.SnackBar(
+            page.open(ft.SnackBar(
                 ft.Text(f"Erro ao processar alteração: {str(ex)}"),
                 bgcolor=st.RED_ERROR
             ))
@@ -74,23 +74,23 @@ def montar_tela_usuarios(page: ft.Page):
             if not res_cloud['sucesso']:
                 msg += f" (Nuvem: {res_cloud['mensagem']})"
 
-            page.show_dialog(ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN))
+            page.open(ft.SnackBar(ft.Text(msg), bgcolor=st.SUCCESS_GREEN))
             carregar_usuarios()
         else:
-            page.show_dialog(ft.SnackBar(
+            page.open(ft.SnackBar(
                 ft.Text("Erro ao excluir no banco local."), bgcolor=st.RED_ERROR))
 
         page.update()
 
     def abrir_dialogo_exclusao(email):
         def fechar(e):
-            page.pop_dialog()
+            page.close(page.dialog)
 
         def confirmar(e):
             fechar(e)
             deletar_usuario_confirmado(email)
 
-        page.show_dialog(ft.AlertDialog(
+        page.open(ft.AlertDialog(
             title=ft.Text("Confirmar Exclusão"),
             content=ft.Text(
                 f"Deseja realmente excluir o usuário {email}? Esta ação é irreversível."),
@@ -105,7 +105,7 @@ def montar_tela_usuarios(page: ft.Page):
     def criar_novo_usuario_dialog(e):
         """Abre o diálogo para criar um novo usuário."""
         def fechar_dialogo(e):
-            page.pop_dialog()
+            page.close(page.dialog)
 
         def salvar_novo_usuario(e):
             nome = txt_novo_nome.value
@@ -114,28 +114,28 @@ def montar_tela_usuarios(page: ft.Page):
             role = dd_nova_role.value
 
             if not nome or not email or not senha:
-                page.show_dialog(ft.SnackBar(
+                page.open(ft.SnackBar(
                     ft.Text("Todos os campos são obrigatórios."), bgcolor=st.RED_ERROR))
                 page.update()
                 return
 
             if Database.email_existe(email):
-                page.show_dialog(ft.SnackBar(
+                page.open(ft.SnackBar(
                     ft.Text("E-mail já cadastrado."), bgcolor=st.RED_ERROR))
                 page.update()
                 return
 
             if Database.criar_usuario(nome, email, senha, role):
-                page.show_dialog(ft.SnackBar(
+                page.open(ft.SnackBar(
                     ft.Text(f"Usuário {email} criado com sucesso!"), bgcolor=st.SUCCESS_GREEN))
                 fechar_dialogo(e)
                 carregar_usuarios()
             else:
-                page.show_dialog(ft.SnackBar(
+                page.open(ft.SnackBar(
                     ft.Text("Erro ao criar usuário."), bgcolor=st.RED_ERROR))
             page.update()
 
-        page.show_dialog(ft.AlertDialog(
+        page.open(ft.AlertDialog(
             modal=True,
             title=ft.Text("Criar Novo Usuário"),
             content=ft.Column([txt_novo_nome, txt_novo_email,

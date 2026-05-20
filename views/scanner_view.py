@@ -37,7 +37,7 @@ def montar_tela_scanner(page: ft.Page):
             "", color="white", weight="bold", size=15,
             text_align=ft.TextAlign.CENTER
         )
-        pr_captura = ft.ProgressBar(visible=False, color=st.PRIMARY_BLUE)
+        pr_captura = ft.ProgressRing(visible=False, color=st.PRIMARY_BLUE)
 
         txt_unid = ft.TextField(
             label="Unidade detectada",

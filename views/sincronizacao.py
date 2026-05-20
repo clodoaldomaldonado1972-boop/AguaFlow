@@ -19,28 +19,25 @@ def montar_tela_sincronizacao(page: ft.Page):
     lbl_ultimasinc = ft.Text("Última sincronização: --", size=12, color="grey")
     lista_logs = ft.ListView(expand=True, spacing=10, padding=10, height=200)
 
+    def _consultar_contagens():
+        with Database.get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM leituras WHERE sincronizado = 0")
+            pendentes = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM leituras WHERE sincronizado = 1")
+            sincronizadas = cur.fetchone()[0]
+        return pendentes, sincronizadas
+
     async def verificar_status(e):
         """Verifica o status da sincronização e exibe logs recentes."""
         lbl_status_geral.value = "Verificando..."
         page.update()
 
         try:
-            # Verifica se há leituras pendentes
-            with Database.get_db() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT COUNT(*) FROM leituras WHERE sincronizado = 0")
-                pendentes = cursor.fetchone()[0]
-
-                cursor.execute(
-                    "SELECT COUNT(*) FROM leituras WHERE sincronizado = 1")
-                sincronizadas = cursor.fetchone()[0]
-
-                lbl_status_geral.value = f"Pendentes: {pendentes} | Sincronizadas: {sincronizadas}"
-                lbl_status_geral.color = "green" if pendentes == 0 else "orange"
-
+            pendentes, sincronizadas = await asyncio.to_thread(_consultar_contagens)
+            lbl_status_geral.value = f"Pendentes: {pendentes} | Sincronizadas: {sincronizadas}"
+            lbl_status_geral.color = "green" if pendentes == 0 else "orange"
             lbl_ultimasinc.value = "Status atualizado em tempo real"
-
         except Exception as ex:
             lbl_status_geral.value = f"Erro: {str(ex)}"
             lbl_status_geral.color = "red"
@@ -165,7 +162,7 @@ class SincronizadorUI:
                 self.btn_sync.icon_color = "#90A4AE"
 
             # 4. FEEDBACK AO USUÁRIO
-            self.page.show_dialog(ft.SnackBar(
+            self.page.open(ft.SnackBar(
                 content=ft.Text(feedback_msg),
                 bgcolor="green700" if qtd_sincronizada > 0 else "bluegrey800",
             ))
@@ -179,7 +176,7 @@ class SincronizadorUI:
             self.btn_sync.disabled = False
             self.txt_status.value = "Erro na sincronia"
 
-            self.page.show_dialog(ft.SnackBar(
+            self.page.open(ft.SnackBar(
                 content=ft.Text(f"Erro: Verifique sua conexão. {str(ex)}"),
                 bgcolor="red700",
             ))

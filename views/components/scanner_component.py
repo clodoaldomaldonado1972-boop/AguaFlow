@@ -24,7 +24,7 @@ class ScannerComponent:
                 # Retorna o valor limpo (limitado a 7 dígitos por segurança)
                 await self.ao_detectar_valor(str(valor)[:7])
             else:
-                self.page.show_dialog(ft.SnackBar(
+                self.page.open(ft.SnackBar(
                     ft.Text("❌ Não foi possível ler os números. Tente novamente."),
                     bgcolor="orange"
                 ))

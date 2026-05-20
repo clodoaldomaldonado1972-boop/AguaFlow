@@ -36,9 +36,9 @@ def montar_menu(page: ft.Page):
 
         def confirmar_logout(e):
             def realizar_logout(e):
-                page.pop_dialog()
+                page.close(page.dialog)
                 page.user_data = {}
-                page.show_dialog(ft.SnackBar(
+                page.open(ft.SnackBar(
                     content=ft.Text("Logout realizado com sucesso!"),
                     bgcolor=st.SUCCESS_GREEN
                 ))
@@ -46,9 +46,9 @@ def montar_menu(page: ft.Page):
                 page.update()
 
             def fechar_dialogo(e):
-                page.pop_dialog()
+                page.close(page.dialog)
 
-            page.show_dialog(ft.AlertDialog(
+            page.open(ft.AlertDialog(
                 title=ft.Text("Confirmar Saída"),
                 content=ft.Text("Deseja realmente sair do sistema?"),
                 actions=[

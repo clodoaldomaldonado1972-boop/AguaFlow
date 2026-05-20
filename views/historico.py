@@ -54,26 +54,26 @@ async def montar_tela_historico(page: ft.Page):
 
         def on_excluir(ev, lid=d["id"], unid=d["unidade_id"]):
             def fazer(ev2):
-                page.pop_dialog()
+                page.close(page.dialog)
                 ok = Database.deletar_leitura(lid)
                 if ok:
-                    page.show_dialog(ft.SnackBar(
+                    page.open(ft.SnackBar(
                         ft.Text(f"Leitura da unidade {unid} excluída."),
                         bgcolor=st.SUCCESS_GREEN,
                     ))
                     carregar_leituras()
                 else:
-                    page.show_dialog(ft.SnackBar(
+                    page.open(ft.SnackBar(
                         ft.Text("Erro ao excluir leitura."), bgcolor=st.RED_ERROR
                     ))
 
-            page.show_dialog(ft.AlertDialog(
+            page.open(ft.AlertDialog(
                 modal=True,
                 title=ft.Text("Confirmar Exclusão"),
                 content=ft.Text(f"Excluir leitura da unidade {unid} de {data_txt}?"),
                 actions=[
                     ft.TextButton("Excluir", on_click=fazer),
-                    ft.TextButton("Cancelar", on_click=lambda _: page.pop_dialog()),
+                    ft.TextButton("Cancelar", on_click=lambda _: page.close(page.dialog)),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
             ))
@@ -105,8 +105,8 @@ async def montar_tela_historico(page: ft.Page):
                     return
 
                 if Database.editar_leitura(lid, nova_agua, novo_gas):
-                    page.pop_dialog()
-                    page.show_dialog(ft.SnackBar(
+                    page.close(page.dialog)
+                    page.open(ft.SnackBar(
                         ft.Text("Leitura atualizada com sucesso."), bgcolor=st.SUCCESS_GREEN
                     ))
                     carregar_leituras()
@@ -114,7 +114,7 @@ async def montar_tela_historico(page: ft.Page):
                     lbl_err.value = "Erro ao salvar alterações."
                     page.update()
 
-            page.show_dialog(ft.AlertDialog(
+            page.open(ft.AlertDialog(
                 modal=True,
                 title=ft.Text(f"Editar — Unidade {unid}"),
                 content=ft.Column([
@@ -123,7 +123,7 @@ async def montar_tela_historico(page: ft.Page):
                 ], tight=True, spacing=8),
                 actions=[
                     ft.TextButton("Salvar", on_click=salvar),
-                    ft.TextButton("Cancelar", on_click=lambda _: page.pop_dialog()),
+                    ft.TextButton("Cancelar", on_click=lambda _: page.close(page.dialog)),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
             ))

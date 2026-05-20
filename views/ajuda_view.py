@@ -39,10 +39,10 @@ def montar_tela_ajuda(page: ft.Page, on_back):
                 unidade="DEBUG-HALL",
                 leiturista=nome_leiturista
             )
-            page.show_dialog(ft.SnackBar(ft.Text(
+            page.open(ft.SnackBar(ft.Text(
                 "✅ E-mail de teste enviado! Verifique o destinatário."), bgcolor=st.SUCCESS_GREEN))
         except Exception as ex:
-            page.show_dialog(ft.SnackBar(
+            page.open(ft.SnackBar(
                 ft.Text(f"❌ Erro no envio do teste: {ex}"), bgcolor="red"))
 
         e.control.disabled = False
