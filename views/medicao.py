@@ -188,7 +188,7 @@ def montar_tela_medicao(page: ft.Page):
                     RelatorioEngine.enviar_relatorios_por_email, arquivos)
                 msg_relatorio = f" | {msg_email}"
 
-            page.open(ft.SnackBar(
+            page.show_dialog(ft.SnackBar(
                 ft.Text(f"✅ {qtd} leituras sincronizadas e relatórios gerados!{msg_relatorio}")))
             btn_finalizar_sinc.visible = False
             btn_reiniciar_ciclo.visible = True
@@ -256,7 +256,7 @@ def montar_tela_medicao(page: ft.Page):
 
         def abrir_dialogo_gas():
             def fechar(escolha_gas):
-                page.close(page.dialog)
+                page.pop_dialog()
                 if escolha_gas:
                     state["modo"] = "GAS"
                     txt_agua.value = ""
@@ -276,7 +276,7 @@ def montar_tela_medicao(page: ft.Page):
                 if not escolha_gas:
                     avancar()
 
-            page.open(ft.AlertDialog(
+            page.show_dialog(ft.AlertDialog(
                 modal=True,
                 title=ft.Text("Hall Concluído"),
                 content=ft.Text(
@@ -295,12 +295,12 @@ def montar_tela_medicao(page: ft.Page):
 
             # Validação: campo obrigatório depende do modo ativo
             if state["modo"] == "AGUA" and not valor_agua:
-                page.open(ft.SnackBar(
+                page.show_dialog(ft.SnackBar(
                     ft.Text("A leitura de Água é obrigatória!"), bgcolor=st.RED_ERROR))
                 page.update()
                 return
             if state["modo"] == "GAS" and not valor_gas:
-                page.open(ft.SnackBar(
+                page.show_dialog(ft.SnackBar(
                     ft.Text("A leitura de Gás é obrigatória!"), bgcolor=st.RED_ERROR))
                 page.update()
                 return
@@ -315,7 +315,7 @@ def montar_tela_medicao(page: ft.Page):
             if current_unit_index > 0:
                 previous_unit = db_lista[current_unit_index - 1]
                 if not _unidade_lida(previous_unit, lidos):
-                    page.open(ft.SnackBar(
+                    page.show_dialog(ft.SnackBar(
                         ft.Text(
                             f"Atenção: A unidade anterior ({previous_unit}) não foi lida. Por favor, siga a sequência."),
                         bgcolor=st.ACCENT_ORANGE,
@@ -330,7 +330,7 @@ def montar_tela_medicao(page: ft.Page):
                 data_coleta = datetime.now(fuso_sp).isoformat(
                     sep=' ', timespec='seconds')
             except ValueError:
-                page.open(ft.SnackBar(ft.Text("Valor inválido."), show_close_icon=True))
+                page.show_dialog(ft.SnackBar(ft.Text("Valor inválido."), show_close_icon=True))
                 page.update()
                 return
 

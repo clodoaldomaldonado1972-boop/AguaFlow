@@ -29,7 +29,7 @@ def montar_tela_relatorio(page: ft.Page):
 
     async def acao_gerar_qrs(tipo):
         if not EXPORT_AVAILABLE:
-            page.open(ft.SnackBar(
+            page.show_dialog(ft.SnackBar(
                 ft.Text("reportlab não instalado. Execute: pip install reportlab"),
                 bgcolor="orange900",
             ))

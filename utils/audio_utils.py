@@ -36,7 +36,7 @@ def tocar_alerta(page: ft.Page, tipo="sucesso"):
     caminho_audio = get_audio_path(nome_arquivo)
 
     # Feedback visual
-    page.open(ft.SnackBar(content=ft.Text(mensagem, color="white"), bgcolor=cor))
+    page.show_dialog(ft.SnackBar(content=ft.Text(mensagem, color="white"), bgcolor=cor))
 
     # Feedback sonoro (ft.Audio removido no Flet 0.84+; falha silenciosa)
     page.update()

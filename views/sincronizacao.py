@@ -162,7 +162,7 @@ class SincronizadorUI:
                 self.btn_sync.icon_color = "#90A4AE"
 
             # 4. FEEDBACK AO USUÁRIO
-            self.page.open(ft.SnackBar(
+            self.page.show_dialog(ft.SnackBar(
                 content=ft.Text(feedback_msg),
                 bgcolor="green700" if qtd_sincronizada > 0 else "bluegrey800",
             ))
@@ -176,7 +176,7 @@ class SincronizadorUI:
             self.btn_sync.disabled = False
             self.txt_status.value = "Erro na sincronia"
 
-            self.page.open(ft.SnackBar(
+            self.page.show_dialog(ft.SnackBar(
                 content=ft.Text(f"Erro: Verifique sua conexão. {str(ex)}"),
                 bgcolor="red700",
             ))
