@@ -8,7 +8,7 @@ from database.database import Database
 import views.styles as st
 from utils.updater import AppUpdater
 from utils.vision import processar_foto_hidrometro
-from utils.platform_utils import is_android, get_temp_dir
+from utils.platform_utils import get_temp_dir
 
 logger = logging.getLogger(__name__)
 
@@ -82,14 +82,14 @@ def montar_tela_scanner(page: ft.Page):
 
         state = {"foto_path": None, "unidade": None}
 
-        # FilePicker só funciona no cliente mobile (APK Android)
-        # No desktop, usa tkinter.filedialog via thread para não bloquear o event loop
-        file_picker = ft.FilePicker() if is_android() else None
-        if file_picker and is_android():
-            page.overlay.append(file_picker)
+        # FilePicker funciona em Android e Desktop no Flet 0.82.2 (retorna arquivos via await)
+        file_picker = next((s for s in page.services if isinstance(s, ft.FilePicker)), None)
+        if file_picker is None:
+            file_picker = ft.FilePicker()
+            page.services = list(page.services) + [file_picker]
             page.update()
 
-        # Beep de captura — funciona em desktop e Android (Flet Audio nativo)
+        # Beep de captura
         audio_beep = None
         try:
             if hasattr(ft, 'Audio'):
@@ -163,24 +163,9 @@ def montar_tela_scanner(page: ft.Page):
             pr_captura.visible = False
             page.update()
 
-        def _on_file_picked(e):
-            """Callback executado quando o Android devolve o controle para o app."""
-            if e.files and len(e.files) > 0 and e.files[0].path:
-                path = e.files[0].path
-                page.run_task(_processar_foto, path)
-            else:
-                lbl_status.value = "Captura ou seleção cancelada."
-                pr_captura.visible = False
-                page.update()
-
-        if file_picker:
-            file_picker.on_result = _on_file_picked
 
         async def _iniciar_captura(e=None):
-            # Solicita permissão de câmera em runtime no Android (4.A)
-            if is_android():
-                page.request_permission("android.permission.CAMERA")
-            lbl_status.value = "A abrir recursos do dispositivo..."
+            lbl_status.value = "A abrir câmera/galeria..."
             lbl_status.color = "white"
             pr_captura.visible = True
             img_preview.visible = False
@@ -192,38 +177,24 @@ def montar_tela_scanner(page: ft.Page):
             lbl_ocr_status.value = ""
             page.update()
 
-            if is_android() and file_picker:
-                # Android: FilePicker nativo (pick_files é async no Flet 0.82)
-                await file_picker.pick_files(
-                    dialog_title="Selecione a câmera para registrar o medidor",
-                    allow_multiple=False
+            try:
+                # Flet 0.82.2: pick_files é async e retorna a lista de arquivos diretamente
+                files = await file_picker.pick_files(
+                    dialog_title="Fotografe o medidor",
+                    file_type=ft.FilePickerFileType.IMAGE,
+                    allow_multiple=False,
                 )
-            else:
-                # Desktop: tkinter.filedialog em thread separada (não bloqueia event loop)
-                def _abrir_dialogo():
-                    try:
-                        import tkinter as tk
-                        from tkinter import filedialog
-                        root = tk.Tk()
-                        root.withdraw()
-                        root.attributes("-topmost", True)
-                        path = filedialog.askopenfilename(
-                            title="Selecione a foto do medidor",
-                            filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.webp")]
-                        )
-                        root.destroy()
-                        return path or None
-                    except Exception as ex:
-                        logger.error(f"Erro no diálogo desktop: {ex}")
-                        return None
-
-                path = await asyncio.to_thread(_abrir_dialogo)
-                if path:
-                    await _processar_foto(path)
+                if files and files[0].path:
+                    await _processar_foto(files[0].path)
                 else:
-                    lbl_status.value = "Seleção cancelada."
+                    lbl_status.value = "Captura cancelada."
                     pr_captura.visible = False
                     page.update()
+            except Exception as ex:
+                logger.error(f"Erro ao abrir FilePicker: {ex}")
+                lbl_status.value = "Erro ao abrir câmera. Tente novamente."
+                pr_captura.visible = False
+                page.update()
 
         async def _upload_background(path: str, unidade: str, modo: str):
             try:
