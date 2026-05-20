@@ -7,14 +7,10 @@ from datetime import datetime
 from database.database import Database
 import views.styles as st
 from utils.updater import AppUpdater
-from utils.vision import processar_foto_hidrometro, CV2_AVAILABLE
+from utils.vision import processar_foto_hidrometro
 from utils.platform_utils import is_android, get_temp_dir
 
 logger = logging.getLogger(__name__)
-
-# cv2 só carrega no desktop
-if CV2_AVAILABLE:
-    import cv2
 
 
 def montar_tela_scanner(page: ft.Page):
@@ -34,9 +30,7 @@ def montar_tela_scanner(page: ft.Page):
             fit="contain", border_radius=10
         )
         lbl_instrucao = ft.Text(
-            "Enquadre o QR Code + hidrômetro e toque para capturar"
-            if not is_android() else
-            "Toque para selecionar ou fotografar o hidrômetro",
+            "Toque para abrir a câmera ou galeria do dispositivo",
             size=13, color="grey", text_align=ft.TextAlign.CENTER
         )
         lbl_status = ft.Text(
@@ -78,7 +72,7 @@ def montar_tela_scanner(page: ft.Page):
             "Capturar novamente",
             icon="replay",
             visible=False,
-            on_click=lambda e: page.run_task(_iniciar_captura)
+            on_click=lambda e: _iniciar_captura(None)
         )
         btn_manual = ft.TextButton(
             "Pular scanner e inserir manual",
@@ -88,43 +82,31 @@ def montar_tela_scanner(page: ft.Page):
 
         state = {"foto_path": None, "unidade": None}
 
-        # ── FilePicker (Service no Flet 0.82 — vai em View.services) ──────────
+        # ── FilePicker — deve estar em page.overlay no Flet 0.82 ────────
         file_picker = ft.FilePicker()
+        page.overlay.append(file_picker)
+        page.update()
 
         async def _processar_foto(path: str):
-            """Processa foto capturada (desktop via cv2 ou Android via FilePicker)."""
+            """Processa de forma leve a imagem retornada pela câmera nativa do Android."""
             state["foto_path"] = path
 
-            # Preview
+            # Atualização do Preview local em base64
             try:
                 with open(path, "rb") as f:
                     img_preview.src_base64 = base64.b64encode(f.read()).decode()
                 img_preview.visible = True
-            except Exception:
+            except Exception as ex:
+                logger.error(f"Erro ao gerar preview base64: {ex}")
                 img_preview.visible = False
 
-            # Detecta QR (só desktop com cv2)
-            unidade = None
-            if CV2_AVAILABLE:
-                try:
-                    frame = cv2.imread(path)
-                    if frame is not None:
-                        unidade = _detectar_qr(frame)
-                except Exception:
-                    pass
-
-            state["unidade"] = unidade
-            if unidade:
-                txt_unid.value = unidade
-                lbl_status.value = f"✅ Unidade: {unidade} — lendo hidrômetro..."
-                lbl_status.color = "green"
-            else:
-                txt_unid.value = ""
-                lbl_status.value = "⚠️ QR não detectado — lendo hidrômetro..."
-                lbl_status.color = "orange"
+            state["unidade"] = None
+            txt_unid.value = ""
+            lbl_status.value = "Imagem obtida! Processando análise inteligente..."
+            lbl_status.color = "orange"
             page.update()
 
-            # OCR (Claude Vision → Tesseract desktop)
+            # Processamento de imagem e OCR na nuvem via Claude Vision (Pillow)
             tipo_str = "gás" if modo == "GAS" else "água"
             _, valor_ocr, ocr_status = await asyncio.to_thread(
                 processar_foto_hidrometro, path, tipo_str
@@ -133,45 +115,39 @@ def montar_tela_scanner(page: ft.Page):
             txt_valor_ocr.visible = True
             if valor_ocr:
                 txt_valor_ocr.value = valor_ocr
-                if ocr_status == "offline":
-                    lbl_ocr_status.value = "📶 Sem internet — leitura pelo Tesseract (verifique o valor)"
-                    lbl_ocr_status.color = "orange"
-                else:
-                    lbl_ocr_status.value = f"OCR detectou: {valor_ocr} — corrija se necessário"
-                    lbl_ocr_status.color = "green600"
+                lbl_ocr_status.value = f"OCR Inteligente detectou: {valor_ocr}"
+                lbl_ocr_status.color = "green600"
             else:
                 txt_valor_ocr.value = ""
-                lbl_ocr_status.value = (
-                    "📶 Sem internet — insira a leitura manualmente." if ocr_status == "offline"
-                    else "⚠️ OCR não reconheceu os dígitos — insira manualmente"
-                )
-                lbl_ocr_status.color = "red" if ocr_status == "offline" else "orange"
+                lbl_ocr_status.value = "⚠️ Não foi possível ler automaticamente — digite o valor atual."
+                lbl_ocr_status.color = "orange"
 
-            lbl_status.value = (
-                f"✅ Unidade: {unidade}" if unidade
-                else "⚠️ QR não detectado — confirme a unidade no próximo passo."
-            )
+            lbl_status.value = "Análise concluída. Por favor, valide os campos."
+            lbl_status.color = "white"
 
-            asyncio.create_task(_upload_background(path, unidade or "DESCONHECIDA", modo))
+            # Envia o upload assíncrono para o Supabase
+            asyncio.create_task(_upload_background(path, "DESCONHECIDA", modo))
+            
             btn_confirmar.visible = True
             btn_recapturar.visible = True
             pr_captura.visible = False
             page.update()
 
-        def _on_file_picked(e: ft.FilePickerResultEvent):
-            if e.files:
+        def _on_file_picked(e):
+            """Callback executado quando o Android devolve o controle para o app."""
+            if e.files and len(e.files) > 0 and e.files[0].path:
                 path = e.files[0].path
                 page.run_task(_processar_foto, path)
             else:
-                lbl_status.value = "Nenhuma foto selecionada."
+                lbl_status.value = "Captura ou seleção cancelada."
                 pr_captura.visible = False
                 page.update()
 
         file_picker.on_result = _on_file_picked
 
-        async def _iniciar_captura(e=None):
-            """Captura por câmera (desktop) ou FilePicker (Android)."""
-            lbl_status.value = "Capturando..."
+        def _iniciar_captura(e=None):
+            """Abre de forma síncrona a intent de captura nativa do ecossistema Android."""
+            lbl_status.value = "A abrir recursos do dispositivo..."
             lbl_status.color = "white"
             pr_captura.visible = True
             img_preview.visible = False
@@ -183,45 +159,11 @@ def montar_tela_scanner(page: ft.Page):
             lbl_ocr_status.value = ""
             page.update()
 
-            if is_android() or not CV2_AVAILABLE:
-                # Android/sem câmera: FilePicker com câmera intent
-                file_picker.pick_files(
-                    dialog_title="Fotografe ou selecione o hidrômetro",
-                    allow_multiple=False,
-                    file_type=ft.FilePickerFileType.IMAGE,
-                )
-                return
-
-            # Desktop: captura via cv2
-            try:
-                frame = await asyncio.to_thread(_capturar_frame_desktop)
-                if frame is None:
-                    lbl_status.value = "❌ Câmera não disponível. Use o botão manual."
-                    lbl_status.color = "red"
-                    pr_captura.visible = False
-                    page.update()
-                    return
-
-                h, w = frame.shape[:2]
-                if max(h, w) > 1024:
-                    scale = 1024 / max(h, w)
-                    frame = cv2.resize(frame, (int(w * scale), int(h * scale)),
-                                      interpolation=cv2.INTER_AREA)
-
-                ts = datetime.now().strftime('%H%M%S')
-                path = os.path.join(pasta_temp, f"scan_{ts}.jpg")
-                _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
-                with open(path, 'wb') as f:
-                    f.write(buf.tobytes())
-
-                await _processar_foto(path)
-
-            except Exception as ex:
-                logger.error(f"Erro na captura desktop: {ex}", exc_info=True)
-                lbl_status.value = f"❌ Erro: {ex}"
-                lbl_status.color = "red"
-                pr_captura.visible = False
-                page.update()
+            # Chamada otimizada para acionar o seletor nativo do sistema operacional
+            file_picker.pick_files(
+                dialog_title="Selecione a câmera para registrar o medidor",
+                allow_multiple=False
+            )
 
         async def _upload_background(path: str, unidade: str, modo: str):
             try:
@@ -229,10 +171,8 @@ def montar_tela_scanner(page: ft.Page):
                     Database.upload_foto_hidrometro_sync, path, unidade, modo
                 )
                 if url:
-                    logger.info(f"📸 Upload concluído: {url}")
+                    logger.info(f"📸 Sincronização concluída: {url}")
                     page.user_data["foto_url_scanner"] = url
-                else:
-                    logger.warning("⚠️ Upload da foto não retornou URL.")
             except Exception as ex:
                 logger.error(f"Erro no upload em background: {ex}")
             finally:
@@ -247,22 +187,18 @@ def montar_tela_scanner(page: ft.Page):
             page.user_data["valor_scanner"] = txt_valor_ocr.value or ""
             await page.push_route("/medicao")
 
-        # ── Container da mira (toque para capturar) ───────────────────────────
         container_mira = ft.Container(
             content=ft.Stack([
                 mira_visual,
                 ft.Container(
-                    content=ft.Icon(
-                        ft.Icons.CAMERA_ALT if not is_android() else ft.Icons.PHOTO_CAMERA,
-                        color="white54", size=36
-                    ),
+                    content=ft.Icon(ft.Icons.PHOTO_CAMERA, color="white54", size=36),
                     alignment=ft.alignment.Alignment(0, 0),
                     width=300, height=300
                 )
             ]),
             alignment=ft.alignment.Alignment(0, 0),
             width=300, height=300,
-            on_click=lambda e: page.run_task(_iniciar_captura),
+            on_click=lambda e: _iniciar_captura(None),
             ink=True
         )
 
@@ -271,7 +207,6 @@ def montar_tela_scanner(page: ft.Page):
         return ft.View(
             route="/scanner",
             bgcolor="#121417",
-            services=[file_picker],
             appbar=ft.AppBar(
                 title=ft.Text(f"Scanner — {'ÁGUA' if modo == 'AGUA' else 'GÁS'}"),
                 center_title=True,
@@ -312,35 +247,3 @@ def montar_tela_scanner(page: ft.Page):
             route="/scanner",
             controls=[ft.Text(f"Erro Crítico no Scanner: {e}", color="red")]
         )
-
-
-def _capturar_frame_desktop():
-    """Captura um frame da câmera via cv2 (somente desktop)."""
-    if not CV2_AVAILABLE:
-        return None
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        return None
-    for _ in range(5):
-        cap.read()
-    ret, frame = cap.read()
-    cap.release()
-    return frame if ret else None
-
-
-def _detectar_qr(frame) -> str | None:
-    """Detecta QR Code via cv2 e retorna o ID da unidade."""
-    if not CV2_AVAILABLE:
-        return None
-    try:
-        detector = cv2.QRCodeDetector()
-        valor, _, _ = detector.detectAndDecode(frame)
-        if not valor:
-            return None
-        if "|" in valor:
-            partes = valor.split("|", 1)
-            unidade_part = partes[1].split("-")[0].strip()
-            return unidade_part if unidade_part else valor
-        return valor
-    except Exception:
-        return None

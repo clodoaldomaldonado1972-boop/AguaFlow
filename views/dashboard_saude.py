@@ -69,8 +69,7 @@ def montar_tela_saude(page: ft.Page, ao_voltar):
         ft.Icons.SD_CARD, "Armazenamento", checar_armazenamento)
 
     # --- LOG VIEWER ---
-    # Define o caminho do arquivo de log de forma robusta
-    log_file_path = Path(__file__).parent.parent / "logs" / "aguaflow.log"
+    log_file_path = Path(__file__).parent.parent / "aguaflow_debug.log"
     txt_log_content = ft.TextField(
         label="Conteúdo do Log",
         multiline=True,
