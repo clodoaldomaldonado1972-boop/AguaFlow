@@ -30,7 +30,7 @@ def montar_tela_scanner(page: ft.Page):
             fit="contain", border_radius=10
         )
         lbl_instrucao = ft.Text(
-            "Toque para abrir a câmera ou galeria do dispositivo",
+            "Use 'Câmera' para fotografar ou 'Galeria' para escolher uma foto existente",
             size=13, color="grey", text_align=ft.TextAlign.CENTER
         )
         lbl_status = ft.Text(
@@ -164,8 +164,8 @@ def montar_tela_scanner(page: ft.Page):
             page.update()
 
 
-        async def _iniciar_captura(e=None):
-            lbl_status.value = "A abrir câmera/galeria..."
+        async def _iniciar_captura(source: str = "camera", e=None):
+            lbl_status.value = "A abrir câmera..." if source == "camera" else "A abrir galeria..."
             lbl_status.color = "white"
             pr_captura.visible = True
             img_preview.visible = False
@@ -178,12 +178,22 @@ def montar_tela_scanner(page: ft.Page):
             page.update()
 
             try:
-                # Flet 0.82.2: pick_files é async e retorna a lista de arquivos diretamente
-                files = await file_picker.pick_files(
-                    dialog_title="Fotografe o medidor",
-                    file_type=ft.FilePickerFileType.IMAGE,
-                    allow_multiple=False,
-                )
+                # camera: FilePickerFileType.ANY + extensões força o Android a mostrar
+                # o seletor de app (incluindo câmera) ao invés de abrir a galeria direto.
+                # galeria: FilePickerFileType.IMAGE abre o photo picker do Android.
+                if source == "camera":
+                    files = await file_picker.pick_files(
+                        dialog_title="Câmera — fotografe o medidor",
+                        file_type=ft.FilePickerFileType.ANY,
+                        allowed_extensions=["jpg", "jpeg", "png"],
+                        allow_multiple=False,
+                    )
+                else:
+                    files = await file_picker.pick_files(
+                        dialog_title="Escolha foto do medidor",
+                        file_type=ft.FilePickerFileType.IMAGE,
+                        allow_multiple=False,
+                    )
                 if files and files[0].path:
                     await _processar_foto(files[0].path)
                 else:
@@ -229,8 +239,29 @@ def montar_tela_scanner(page: ft.Page):
             ]),
             alignment=ft.alignment.Alignment(0, 0),
             width=300, height=300,
-            on_click=lambda e: page.run_task(_iniciar_captura),
-            ink=True
+        )
+
+        btn_camera = ft.ElevatedButton(
+            "Câmera",
+            icon=ft.Icons.PHOTO_CAMERA,
+            width=145,
+            height=50,
+            style=ft.ButtonStyle(
+                bgcolor=st.PRIMARY_BLUE if modo == "AGUA" else "orange",
+                color="white",
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
+            on_click=lambda e: page.run_task(_iniciar_captura, "camera"),
+        )
+        btn_galeria = ft.OutlinedButton(
+            "Galeria",
+            icon=ft.Icons.PHOTO_LIBRARY_OUTLINED,
+            width=145,
+            height=50,
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
+            on_click=lambda e: page.run_task(_iniciar_captura, "galeria"),
         )
 
         cor_appbar = st.PRIMARY_BLUE if modo == "AGUA" else "orange"
@@ -250,6 +281,11 @@ def montar_tela_scanner(page: ft.Page):
             controls=[
                 ft.Column([
                     container_mira,
+                    ft.Row(
+                        [btn_camera, btn_galeria],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=10,
+                    ),
                     pr_captura,
                     lbl_instrucao,
                     lbl_status,
