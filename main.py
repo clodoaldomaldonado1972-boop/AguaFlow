@@ -23,7 +23,9 @@ async def main(page: ft.Page):
     global db_ready
     is_mobile = page.platform in [ft.PagePlatform.ANDROID, ft.PagePlatform.IOS]
     _prefs = ft.SharedPreferences()
-    page.services = [_prefs]
+    _file_picker = ft.FilePicker()
+    page.services = [_prefs, _file_picker]
+    page.file_picker = _file_picker
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG_DARK
     page.title = AppUpdater.get_footer()

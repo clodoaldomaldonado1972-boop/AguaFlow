@@ -82,8 +82,8 @@ def montar_tela_scanner(page: ft.Page):
 
         state = {"foto_path": None, "unidade": None}
 
-        # FilePicker funciona em Android e Desktop no Flet 0.82.2 (retorna arquivos via await)
-        file_picker = next((s for s in page.services if isinstance(s, ft.FilePicker)), None)
+        # FilePicker inicializado no startup (main.py) — já montado no Flutter
+        file_picker = getattr(page, 'file_picker', None)
         if file_picker is None:
             file_picker = ft.FilePicker()
             page.services = list(page.services) + [file_picker]
