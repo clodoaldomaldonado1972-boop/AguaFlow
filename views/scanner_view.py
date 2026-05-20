@@ -30,7 +30,7 @@ def montar_tela_scanner(page: ft.Page):
             fit="contain", border_radius=10
         )
         lbl_instrucao = ft.Text(
-            "Use 'Câmera' para fotografar ou 'Galeria' para escolher uma foto existente",
+            "Câmera: no seletor, toque no ícone 📷 ou 'Tirar nova foto'. Galeria: foto existente.",
             size=13, color="grey", text_align=ft.TextAlign.CENTER
         )
         lbl_status = ft.Text(
@@ -164,9 +164,16 @@ def montar_tela_scanner(page: ft.Page):
             page.update()
 
 
-        async def _iniciar_captura(source: str = "camera", e=None):
-            lbl_status.value = "A abrir câmera..." if source == "camera" else "A abrir galeria..."
-            lbl_status.color = "white"
+        async def _iniciar_captura(source: str = "galeria", e=None):
+            # Ambos abrem o Android Photo Picker (FilePickerFileType.IMAGE).
+            # O Photo Picker no Android 13+ tem botão de câmera embutido — o hint
+            # abaixo orienta o usuário a encontrá-lo antes de o picker abrir.
+            if source == "camera":
+                lbl_status.value = "No seletor: toque em 'Câmera' ou no ícone 📷 para fotografar"
+                lbl_status.color = "orange"
+            else:
+                lbl_status.value = "A abrir galeria..."
+                lbl_status.color = "white"
             pr_captura.visible = True
             img_preview.visible = False
             btn_confirmar.visible = False
@@ -178,22 +185,11 @@ def montar_tela_scanner(page: ft.Page):
             page.update()
 
             try:
-                # camera: FilePickerFileType.ANY + extensões força o Android a mostrar
-                # o seletor de app (incluindo câmera) ao invés de abrir a galeria direto.
-                # galeria: FilePickerFileType.IMAGE abre o photo picker do Android.
-                if source == "camera":
-                    files = await file_picker.pick_files(
-                        dialog_title="Câmera — fotografe o medidor",
-                        file_type=ft.FilePickerFileType.ANY,
-                        allowed_extensions=["jpg", "jpeg", "png"],
-                        allow_multiple=False,
-                    )
-                else:
-                    files = await file_picker.pick_files(
-                        dialog_title="Escolha foto do medidor",
-                        file_type=ft.FilePickerFileType.IMAGE,
-                        allow_multiple=False,
-                    )
+                files = await file_picker.pick_files(
+                    dialog_title="Fotografe ou escolha foto do medidor",
+                    file_type=ft.FilePickerFileType.IMAGE,
+                    allow_multiple=False,
+                )
                 if files and files[0].path:
                     await _processar_foto(files[0].path)
                 else:
