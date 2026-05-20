@@ -30,24 +30,11 @@ def montar_tela_scanner(page: ft.Page):
             fit="contain", border_radius=10
         )
 
-        # Instrução de dois passos — câmera direta não é suportada pelo FilePicker do Flet
-        instrucao_box = ft.Container(
-            content=ft.Column([
-                ft.Text("Como escanear o medidor:", size=13, weight="bold", color="white70"),
-                ft.Row([
-                    ft.Icon(ft.Icons.LOOKS_ONE_OUTLINED, color="orange", size=18),
-                    ft.Text("Fotografe com o app Câmera do celular", size=12, color="grey"),
-                ], spacing=8),
-                ft.Row([
-                    ft.Icon(ft.Icons.LOOKS_TWO_OUTLINED, color=st.PRIMARY_BLUE, size=18),
-                    ft.Text("Volte aqui e toque 'Selecionar Foto'", size=12, color="grey"),
-                ], spacing=8),
-            ], spacing=6),
-            bgcolor="#1E2126", border_radius=10, padding=12, width=300,
-        )
+        instrucao_box = None  # Câmera nativa via CameraService
 
         lbl_instrucao = ft.Text(
-            "", size=13, color="grey", text_align=ft.TextAlign.CENTER
+            "Aponte para o medidor e fotografe diretamente.",
+            size=13, color="grey", text_align=ft.TextAlign.CENTER
         )
         lbl_status = ft.Text(
             "", color="white", weight="bold", size=15,
@@ -98,12 +85,15 @@ def montar_tela_scanner(page: ft.Page):
 
         state = {"foto_path": None, "unidade": None}
 
-        # FilePicker inicializado no startup (main.py) — já montado no Flutter
+        # Serviços inicializados no startup (main.py)
         file_picker = getattr(page, 'file_picker', None)
         if file_picker is None:
             file_picker = ft.FilePicker()
             page.services = list(page.services) + [file_picker]
             page.update()
+
+        # CameraService (image_picker nativo) — disponível após build com Flutter extension
+        camera_service = getattr(page, 'camera', None)
 
         # Beep de captura
         audio_beep = None
@@ -180,8 +170,24 @@ def montar_tela_scanner(page: ft.Page):
             page.update()
 
 
-        async def _iniciar_captura(e=None):
-            lbl_status.value = "A abrir galeria..."
+        async def _capturar_com_camera():
+            """Abre a câmera nativa via CameraService (Flutter extension)."""
+            path = await camera_service.pick_image_from_camera()
+            return path
+
+        async def _capturar_da_galeria():
+            """Abre a galeria via CameraService ou FilePicker como fallback."""
+            if camera_service:
+                return await camera_service.pick_image_from_gallery()
+            files = await file_picker.pick_files(
+                dialog_title="Selecione a foto do medidor",
+                file_type=ft.FilePickerFileType.IMAGE,
+                allow_multiple=False,
+            )
+            return files[0].path if files and files[0].path else None
+
+        async def _iniciar_captura(source: str = "camera", e=None):
+            lbl_status.value = "A abrir câmera..." if source == "camera" else "A abrir galeria..."
             lbl_status.color = "white"
             pr_captura.visible = True
             img_preview.visible = False
@@ -194,20 +200,20 @@ def montar_tela_scanner(page: ft.Page):
             page.update()
 
             try:
-                files = await file_picker.pick_files(
-                    dialog_title="Selecione a foto do medidor",
-                    file_type=ft.FilePickerFileType.IMAGE,
-                    allow_multiple=False,
-                )
-                if files and files[0].path:
-                    await _processar_foto(files[0].path)
+                if source == "camera" and camera_service:
+                    path = await _capturar_com_camera()
                 else:
-                    lbl_status.value = "Nenhuma foto selecionada."
+                    path = await _capturar_da_galeria()
+
+                if path:
+                    await _processar_foto(path)
+                else:
+                    lbl_status.value = "Captura cancelada."
                     pr_captura.visible = False
                     page.update()
             except Exception as ex:
-                logger.error(f"Erro ao abrir seletor: {ex}")
-                lbl_status.value = "Erro ao abrir seletor. Tente novamente."
+                logger.error(f"Erro ao capturar imagem: {ex}")
+                lbl_status.value = "Erro ao abrir câmera. Tente novamente."
                 pr_captura.visible = False
                 page.update()
 
@@ -246,9 +252,9 @@ def montar_tela_scanner(page: ft.Page):
             width=300, height=300,
         )
 
-        btn_selecionar = ft.ElevatedButton(
-            "Selecionar Foto do Medidor",
-            icon=ft.Icons.ADD_PHOTO_ALTERNATE,
+        btn_camera = ft.ElevatedButton(
+            "Fotografar Medidor",
+            icon=ft.Icons.PHOTO_CAMERA,
             width=300,
             height=55,
             style=ft.ButtonStyle(
@@ -256,7 +262,12 @@ def montar_tela_scanner(page: ft.Page):
                 color="white",
                 shape=ft.RoundedRectangleBorder(radius=10),
             ),
-            on_click=lambda e: page.run_task(_iniciar_captura),
+            on_click=lambda e: page.run_task(_iniciar_captura, "camera"),
+        )
+        btn_galeria = ft.TextButton(
+            "Escolher da galeria",
+            icon=ft.Icons.PHOTO_LIBRARY_OUTLINED,
+            on_click=lambda e: page.run_task(_iniciar_captura, "galeria"),
         )
 
         cor_appbar = st.PRIMARY_BLUE if modo == "AGUA" else "orange"
@@ -275,9 +286,9 @@ def montar_tela_scanner(page: ft.Page):
             ),
             controls=[
                 ft.Column([
-                    instrucao_box,
-                    ft.Container(height=4),
-                    btn_selecionar,
+                    container_mira,
+                    btn_camera,
+                    btn_galeria,
                     pr_captura,
                     lbl_instrucao,
                     lbl_status,

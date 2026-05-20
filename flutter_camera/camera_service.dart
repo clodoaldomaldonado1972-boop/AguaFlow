@@ -1,0 +1,47 @@
+import 'package:flet/flet.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+
+class CameraServiceFlet extends FletService {
+  CameraServiceFlet({required super.control});
+
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void init() {
+    super.init();
+    debugPrint("CameraServiceFlet(${control.id}).init");
+    control.addInvokeMethodListener(_invokeMethod);
+  }
+
+  @override
+  void dispose() {
+    debugPrint("CameraServiceFlet(${control.id}).dispose");
+    control.removeInvokeMethodListener(_invokeMethod);
+    super.dispose();
+  }
+
+  Future<dynamic> _invokeMethod(String name, dynamic args) async {
+    debugPrint("CameraService.$name($args)");
+    switch (name) {
+      case "pick_image_from_camera":
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 88,
+          maxWidth: 1920,
+          maxHeight: 1920,
+        );
+        return image?.path;
+      case "pick_image_from_gallery":
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 88,
+          maxWidth: 1920,
+          maxHeight: 1920,
+        );
+        return image?.path;
+      default:
+        throw Exception("Unknown CameraService method: $name");
+    }
+  }
+}

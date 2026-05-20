@@ -22,10 +22,13 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 async def main(page: ft.Page):
     global db_ready
     is_mobile = page.platform in [ft.PagePlatform.ANDROID, ft.PagePlatform.IOS]
+    from utils.camera_service import CameraService
     _prefs = ft.SharedPreferences()
     _file_picker = ft.FilePicker()
-    page.services = [_prefs, _file_picker]
+    _camera = CameraService()
+    page.services = [_prefs, _file_picker, _camera]
     page.file_picker = _file_picker
+    page.camera = _camera
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG_DARK
     page.title = AppUpdater.get_footer()

@@ -568,13 +568,11 @@ class Database:
     async def configurar_db_path(cls, page) -> None:
         """Define DB_PATH com sandbox seguro no mobile ou BASE_DIR no desktop.
 
-        Deve ser chamado em inicializar_background() antes de inicializar_tabelas().
-        No Android/iOS usa page.client_storage.get_app_directory() para garantir
-        acesso correto ao storage privado do app; no desktop mantém BASE_DIR.
+        No Android/iOS usa FLET_APP_STORAGE_DATA (definida pelo runtime Flet em main.dart).
+        No desktop mantém BASE_DIR.
         """
-        is_mobile = str(page.platform).lower() in ("android", "ios")
-        if is_mobile:
-            app_dir = await page.client_storage.get_app_directory()
+        app_dir = os.environ.get("FLET_APP_STORAGE_DATA", "")
+        if app_dir:
             cls.DB_PATH = os.path.join(app_dir, "aguaflow.db")
             logger.info(f"📱 Mobile detectado — DB_PATH: {cls.DB_PATH}")
         else:

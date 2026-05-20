@@ -7,34 +7,117 @@ set -e
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export HOME=/home/clodo
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export PATH=$JAVA_HOME/bin:$HOME/.aguaflow_venv/bin:$PATH
+export PATH=$JAVA_HOME/bin:$HOME/.aguaflow_venv/bin:$HOME/flutter/bin:$PATH
 export FLET_CLI_NO_RICH_OUTPUT=1
 export ANDROID_HOME=$HOME/Android/sdk
 
+SRC=/mnt/c/AguaFlow
 BUILD_DIR=$HOME/aguaflow_build
+FLUTTER_DIR=$BUILD_DIR/build/flutter
 
 echo "=== AguaFlow v1.2.0 — Build APK ==="
 echo "Java:   $(java -version 2>&1 | head -1)"
 echo "Python: $(python3 --version)"
 echo "Flet:   $(flet --version)"
+echo "Flutter:$(flutter --version 2>&1 | head -1)"
 echo "Mem:    $(free -h | grep Mem | awk '{print $2}')"
 echo "Dir:    $BUILD_DIR"
 echo "===================================="
 
+# Sincroniza apenas os arquivos necessários do Windows para o WSL
+echo "Sincronizando fontes..."
+rsync -a --delete \
+    --exclude='*.apk' \
+    --exclude='*.log' \
+    --exclude='*.pdf' \
+    --exclude='*.csv' \
+    --exclude='*.spec' \
+    --exclude='*.sh' \
+    --exclude='*.txt.bak' \
+    --exclude='Dockerfile' \
+    --exclude='docker-compose.yml' \
+    --exclude='build/' \
+    --exclude='build_output.log' \
+    --exclude='docs/' \
+    --exclude='agents-e-skills/' \
+    --exclude='logs/' \
+    --exclude='storage/' \
+    --exclude='testes/' \
+    --exclude='tests/' \
+    --exclude='export/' \
+    --exclude='supabase/' \
+    --exclude='estrutura.txt' \
+    --exclude='checklist_mvp.md' \
+    --exclude='*.md' \
+    --exclude='.git/' \
+    --exclude='__pycache__/' \
+    --exclude='*.pyc' \
+    --exclude='.venv/' \
+    --exclude='C:*' \
+    "$SRC/" "$BUILD_DIR/"
+
+echo "Sincronizacao OK"
+
 cd "$BUILD_DIR"
 ls main.py requirements.txt >/dev/null && echo "main.py + requirements.txt: OK"
+echo "Tamanho do BUILD_DIR: $(du -sh . --exclude=build | cut -f1)"
 
+# ── PASSO 1: flet build gera o projeto Flutter + empacota Python + compila APK base ──
 flet build apk \
     --org br.com.vivereprudente \
     --project AguaFlow \
     --product "AguaFlow" \
     --build-version 1.2.0 \
-    --build-number 120 \
+    --build-number 122 \
     --permissions camera photo_library \
     --yes
 
-APK=$(find "$BUILD_DIR/build" -name "*.apk" 2>/dev/null | head -1)
-if [ -n "$APK" ]; then
+echo "===================================="
+echo "Flet build OK. Injetando extensao de camera..."
+echo "===================================="
+
+# ── PASSO 2: Injeta image_picker no pubspec.yaml (idempotente) ──
+PUBSPEC="$FLUTTER_DIR/pubspec.yaml"
+if ! grep -q "image_picker" "$PUBSPEC"; then
+    # Adiciona image_picker logo após 'flet: 0.82.2'
+    sed -i 's/  flet: 0.82.2/  flet: 0.82.2\n  image_picker: ^1.1.2/' "$PUBSPEC"
+    echo "✅ image_picker adicionado ao pubspec.yaml"
+else
+    echo "⏭️  image_picker ja presente no pubspec.yaml"
+fi
+
+# ── PASSO 3: Copia arquivos Dart da extensão de câmera ──
+FLUTTER_LIB="$FLUTTER_DIR/lib"
+cp "$BUILD_DIR/flutter_camera/camera_service.dart" "$FLUTTER_LIB/"
+cp "$BUILD_DIR/flutter_camera/camera_extension.dart" "$FLUTTER_LIB/"
+echo "✅ Arquivos Dart da camera copiados"
+
+# ── PASSO 4: Registra CameraExtension em main.dart (idempotente) ──
+MAIN_DART="$FLUTTER_LIB/main.dart"
+if ! grep -q "CameraExtension" "$MAIN_DART"; then
+    # Adiciona import no topo
+    sed -i "1s/^/import 'camera_extension.dart';\n/" "$MAIN_DART"
+    # Registra na lista de extensions
+    sed -i "s/List<FletExtension> extensions = \[/List<FletExtension> extensions = [\n  CameraExtension(),/" "$MAIN_DART"
+    echo "✅ CameraExtension registrada em main.dart"
+else
+    echo "⏭️  CameraExtension ja registrada em main.dart"
+fi
+
+# ── PASSO 5: Atualiza dependências e recompila com câmera ──
+echo "⏳ flutter pub get..."
+cd "$FLUTTER_DIR"
+flutter pub get
+
+echo "⏳ flutter build apk com camera..."
+flutter build apk --release
+
+# ── PASSO 6: Copia o APK final ──
+APK=$(find "$FLUTTER_DIR/build/app/outputs/flutter-apk" -name "app-release.apk" 2>/dev/null | head -1)
+[ -z "$APK" ] && APK=$(find "$FLUTTER_DIR/build" -name "*.apk" 2>/dev/null | head -1)
+[ -z "$APK" ] && APK="$BUILD_DIR/build/apk/AguaFlow.apk"
+
+if [ -f "$APK" ]; then
     cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0.apk
     cp /tmp/aguaflow_build.log /mnt/c/AguaFlow/build_output.log
     echo "===================================="
