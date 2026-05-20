@@ -7,7 +7,7 @@ set -e
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export HOME=/home/clodo
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export PATH=$JAVA_HOME/bin:$HOME/.aguaflow_venv/bin:$HOME/flutter/bin:$PATH
+export PATH=$JAVA_HOME/bin:$HOME/.aguaflow_venv/bin:$HOME/flutter/3.41.4/bin:$PATH
 export FLET_CLI_NO_RICH_OUTPUT=1
 export ANDROID_HOME=$HOME/Android/sdk
 
@@ -105,6 +105,10 @@ else
 fi
 
 # ── PASSO 5: Atualiza dependências e recompila com câmera ──
+# SERIOUS_PYTHON_SITE_PACKAGES deve apontar para o diretório gerado pelo flet build
+export SERIOUS_PYTHON_SITE_PACKAGES="$BUILD_DIR/build/site-packages"
+echo "SERIOUS_PYTHON_SITE_PACKAGES=$SERIOUS_PYTHON_SITE_PACKAGES"
+
 echo "⏳ flutter pub get..."
 cd "$FLUTTER_DIR"
 flutter pub get

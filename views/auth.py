@@ -126,9 +126,6 @@ def criar_tela_login(page: ft.Page):
         height=50,
     )
 
-    # --- SEÇÃO 4 REMOVIDA PARA EVITAR ERRO DE ATRIBUTO ---
-    # Removidas as chamadas para page.session e page.client_storage
-
     try:
         return ft.View(
             route="/",

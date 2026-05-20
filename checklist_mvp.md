@@ -1,6 +1,6 @@
 # Checklist MVP — AguaFlow v1.2.0
 
-Análise completa do sistema realizada em 16/05/2026. Atualizado em 16/05/2026 após sessão de correções.
+Análise completa do sistema realizada em 16/05/2026. Atualizado em 20/05/2026 após sessão de correções.
 Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
@@ -57,6 +57,11 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Exibição do resultado para confirmação manual
 - [x] `FilePicker` em `View(services=[])` — correção Flet 0.82 (não `page.overlay`)
 - [x] Upload de foto em background via `asyncio.create_task`
+- [x] Câmera nativa Android via Flutter extension (`image_picker`) — CameraService + CameraExtension
+- [x] Mira animada corrigida — offsets ±55 (±110px) varrem os 220px do box; `page.run_task()` para animação; dimensões explícitas 300×260
+- [x] Compressão antes do upload Supabase — thumbnail 1024×1024 + JPEG q72 (redução ~91% vs original)
+- [x] Log de tentativas OCR em `ocr_log` (Supabase) — resposta bruta, valor aceito, status, modo, modelo
+- [x] Feedback de captura — `ft.HapticFeedback.heavy_impact()` (vibração tátil) + flash branco 300ms (`animate_opacity`); `ft.Audio` não existe em Flet 0.82
 - [ ] Calibração de região de interesse (ROI) por modelo de medidor
 - [ ] Histórico de leituras com imagem anexada
 
@@ -228,8 +233,10 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] `source.exclude_dirs` excluindo `.venv`, `tests`, `bin`, `__pycache__`
 - [x] Permissões Android: `CAMERA`, `INTERNET`, `READ/WRITE_EXTERNAL_STORAGE`, `ACCESS_NETWORK_STATE`
 - [x] Arquivos de OCR desktop (`camera_utils.py`, `processamento.py`, `ocr_engine.py`) não importados pelo app
-- [ ] Compilação efetiva do APK no ambiente WSL2/Linux com Android NDK 25b
-- [ ] Teste do APK em dispositivo físico Android
+- [x] Compilação efetiva do APK no ambiente WSL2/Linux — `flet build apk` + injeção `image_picker` + `flutter build apk --release` (build dois-fases via `build_wsl.sh`)
+- [x] APK gerado: `AguaFlow-1.2.0.apk` (171 MB) — câmera nativa funcionando
+- [x] Teste em dispositivo físico Android — câmera abre, captura foto, envia ao Supabase
+- [ ] Teste de OCR em campo (taxa de acerto por modelo de medidor)
 
 ---
 
@@ -254,7 +261,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 
 ---
 
-## Prioridades antes de compilar o APK
+## Prioridades
 
 | # | Item | Prioridade | Status |
 |---|------|-----------|--------|
@@ -263,17 +270,38 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 | 3 | `reportlab` import condicional (crash Android) | 🔴 Crítico | ✅ Feito |
 | 4 | `asyncio.to_thread` no SyncService (UI freeze) | 🔴 Crítico | ✅ Feito |
 | 5 | `asyncio.to_thread` em autenticacao.py e recuperar_senha | 🔴 Crítico | ✅ Feito |
-| 6 | Compilar APK em WSL2 + Android NDK 25b | 🔴 Crítico | ⬜ Pendente |
-| 7 | Teste em dispositivo físico Android | 🔴 Crítico | ⬜ Pendente |
-| 8 | Relatório por unidade individual | 🟡 Importante | ✅ Feito |
-| 9 | Restauração de backup pela UI | 🟡 Importante | ✅ Feito |
-| 10 | Edição de leitura registrada | 🟡 Importante | ✅ Feito |
-| 11 | Migrations de banco versionadas | 🟡 Importante | ✅ Feito |
-| 12 | Exportação CSV/Excel | 🟢 Desejável | ✅ Feito (CSV via historico/relatorio) |
-| 13 | Testes automatizados (pytest) | 🟢 Desejável | ✅ Feito (26 testes, 100% pass) |
-| 14 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
-| 15 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
+| 6 | Compilar APK em WSL2 — build dois-fases com `image_picker` | 🔴 Crítico | ✅ Feito |
+| 7 | Câmera nativa Android (CameraService Flutter extension) | 🔴 Crítico | ✅ Feito |
+| 8 | Teste em dispositivo físico Android — câmera funcional | 🔴 Crítico | ✅ Feito |
+| 9 | Mira animada do scanner (offsets e dimensões corrigidos) | 🟡 Importante | ✅ Feito |
+| 10 | Compressão de foto antes do upload Supabase (~91% menor) | 🟡 Importante | ✅ Feito |
+| 11 | Log de tentativas OCR em `ocr_log` para calibragem | 🟡 Importante | ✅ Feito |
+| 12 | Relatório por unidade individual | 🟡 Importante | ✅ Feito |
+| 13 | Restauração de backup pela UI | 🟡 Importante | ✅ Feito |
+| 14 | Edição de leitura registrada | 🟡 Importante | ✅ Feito |
+| 15 | Migrations de banco versionadas | 🟡 Importante | ✅ Feito |
+| 16 | Exportação CSV/Excel | 🟢 Desejável | ✅ Feito (CSV via historico/relatorio) |
+| 17 | Testes automatizados (pytest) | 🟢 Desejável | ✅ Feito (26 testes, 100% pass) |
+| 18 | Teste de OCR em campo (taxa de acerto por modelo) | 🟡 Importante | ⬜ Pendente |
+| 19 | Calibração ROI por modelo de medidor | 🟢 Desejável | ⬜ Pendente |
+| 20 | Criar tabela `ocr_log` no Supabase (SQL fornecido) | 🟡 Importante | ⬜ Aguardando usuário |
+| 21 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
+| 22 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
 
 ---
 
-*Atualizado em 17/05/2026 — implementação dos itens essenciais 🟡 Importante + testes automatizados (26 pytest, 100% pass).*
+---
+
+## 19. Conformidade Skill — Mobile Architecture (20/05/2026)
+
+- [x] `page.client_storage` removido de todo o projeto — zero ocorrências em código ativo
+- [x] `preferencias_leitura.py` migrada para `ft.SharedPreferences` (async `get/set` via `page.services`)
+- [x] `gestao_periodos.finalizar_mes_e_enviar` refatorada para `async def` + `asyncio.to_thread` em todas operações bloqueantes (8x)
+- [x] Ciclo mensal: `leitura_atual → leitura_anterior` via `Database.salvar_referencias_ciclo` antes do reset
+- [x] Ordem de fechamento garantida: backup → dados → relatórios → referências_ciclo → e-mail → reset
+- [x] `smtplib` (`relatorio_engine`, `email_service`) chamado exclusivamente via `asyncio.to_thread` em contextos async
+- [x] Comentário obsoleto de `page.session`/`client_storage` removido de `auth.py`
+
+---
+
+*Atualizado em 20/05/2026 — câmera nativa Android funcional, mira corrigida, compressão upload, log OCR, conformidade skill mobile.*

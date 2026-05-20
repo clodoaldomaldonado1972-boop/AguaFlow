@@ -1,67 +1,83 @@
+import asyncio
+import logging
 import os
 from database.database import Database
 from utils.backup import executar_backup_seguranca
 from relatorio_engine import RelatorioEngine
 from utils.email_service import enviar_relatorios_por_email
 
+logger = logging.getLogger(__name__)
 
-def finalizar_mes_e_enviar(email_destino=None):
+
+async def finalizar_mes_e_enviar(email_destino: str = None) -> bool:
     """
-    Executa o backup, gera o relatório do mês, envia por e-mail e
-    reseta o banco de dados para o próximo ciclo de leituras.
+    Executa o ciclo de fechamento mensal de forma assíncrona:
+      1. Backup de segurança
+      2. Busca leituras do mês corrente
+      3. Gera relatórios (PDF/CSV)
+      4. Salva leituras atuais como referência do próximo ciclo (leitura_atual → leitura_anterior)
+      5. Envia relatórios por e-mail
+      6. Reseta banco para o novo mês
+    Todas as operações bloqueantes são executadas via asyncio.to_thread.
     """
     try:
-        # 1. Segurança: Garante a cópia antes de modificar o banco[cite: 13]
-        if not executar_backup_seguranca():
-            print("ERRO: Falha no backup. Operação cancelada por segurança.")
+        # 1. Backup antes de qualquer modificação
+        sucesso_backup = await asyncio.to_thread(executar_backup_seguranca)
+        if not sucesso_backup:
+            logger.error("Falha no backup de segurança — operação de fechamento cancelada.")
             return False
 
-        # 2. Busca leituras do mês corrente
-        dados = Database.get_leituras_mes_atual()
+        # 2. Leituras do mês corrente
+        dados = await asyncio.to_thread(Database.get_leituras_mes_atual)
         if not dados:
+            logger.warning("Nenhuma leitura encontrada para o mês atual.")
             return False
 
-        # 3. Gera os 4 arquivos (PDF agua, PDF gas, CSV agua, CSV gas)
-        arquivos = RelatorioEngine.gerar_todos(dados)
+        # 3. Gera arquivos de relatório (bloqueante — PDF/CSV em disco)
+        arquivos = await asyncio.to_thread(RelatorioEngine.gerar_todos, dados, "Sistema")
         if not arquivos:
+            logger.error("Falha ao gerar relatórios para o fechamento mensal.")
             return False
 
-        # 4. Salva as leituras atuais como referência (leitura anterior) do próximo ciclo
-        Database.salvar_referencias_ciclo(dados)
+        # 4. Transfere leitura_atual → leitura_anterior (referência do próximo ciclo)
+        await asyncio.to_thread(Database.salvar_referencias_ciclo, dados)
+        logger.info("Referências de ciclo salvas — leitura_atual transferida para leitura_anterior.")
 
-        # 5. Envia todos os arquivos por e-mail
+        # 5. Envia relatórios por e-mail (SMTP — bloqueante)
         lista_caminhos = list(arquivos.values())
-        enviou = enviar_relatorios_por_email(lista_caminhos)
+        enviou = await asyncio.to_thread(enviar_relatorios_por_email, lista_caminhos)
+        if not enviou:
+            logger.error("Falha no envio de e-mail. Ciclo não resetado.")
+            return False
 
-        if enviou:
-            # 6. Sucesso: prepara ciclo seguinte
-            return resetar_banco_para_novo_mes()
+        # 6. Reseta banco para o novo ciclo mensal
+        resetado = await asyncio.to_thread(_resetar_banco_para_novo_mes)
+        return resetado
 
-        return False
     except Exception as e:
-        print(f"Erro ao finalizar o mês: {e}")
+        logger.error(f"Erro ao finalizar mês: {e}", exc_info=True)
         return False
 
 
-def resetar_banco_para_novo_mes():
+def _resetar_banco_para_novo_mes() -> bool:
     """
-    Transfere a leitura atual para o campo anterior e limpa os campos para o novo ciclo[cite: 13].
+    Limpa leituras do período mantendo referências (leitura_anterior já salva).
+    Chamado exclusivamente via asyncio.to_thread.
     """
     try:
         with Database.get_db() as conn:
             cursor = conn.cursor()
-            # Limpa leituras do período mantendo a estrutura
             cursor.execute("""
                 UPDATE leituras SET
-                leitura_agua = NULL,
-                leitura_gas = NULL,
-                sincronizado = 0,
-                data_leitura_atual = NULL,
-                tipo = COALESCE(tipo, 'manual')
+                    leitura_agua       = NULL,
+                    leitura_gas        = NULL,
+                    sincronizado       = 0,
+                    data_leitura_atual = NULL,
+                    tipo               = COALESCE(tipo, 'manual')
             """)
             conn.commit()
-        print("SUCESSO: Banco de dados preparado para o novo mês!")
+        logger.info("Banco preparado para o novo ciclo mensal.")
         return True
     except Exception as e:
-        print(f"Erro no reset do banco: {e}")
+        logger.error(f"Erro no reset do banco: {e}", exc_info=True)
         return False
