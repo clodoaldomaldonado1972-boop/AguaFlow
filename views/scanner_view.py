@@ -106,21 +106,33 @@ def montar_tela_scanner(page: ft.Page):
             lbl_status.color = "orange"
             page.update()
 
-            # Processamento de imagem e OCR na nuvem via Claude Vision (Pillow)
+            # OCR com timeout estrito — evita travamento em zonas de sombra (4.C)
             tipo_str = "gás" if modo == "GAS" else "água"
-            _, valor_ocr, ocr_status = await asyncio.to_thread(
-                processar_foto_hidrometro, path, tipo_str
-            )
+            valor_ocr = None
+            ocr_status = "offline"
+            try:
+                _, valor_ocr, ocr_status = await asyncio.wait_for(
+                    asyncio.to_thread(processar_foto_hidrometro, path, tipo_str),
+                    timeout=25.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning("⏱️ OCR timeout (25s) — zona de sombra ou API lenta.")
+            except Exception as ex:
+                logger.error(f"Erro no OCR: {ex}")
 
             txt_valor_ocr.visible = True
             if valor_ocr:
                 txt_valor_ocr.value = valor_ocr
+                txt_valor_ocr.helper_text = None
                 lbl_ocr_status.value = f"OCR Inteligente detectou: {valor_ocr}"
                 lbl_ocr_status.color = "green600"
             else:
+                # Fallback manual obrigatório (5.2) — abre teclado e orienta o operador
                 txt_valor_ocr.value = ""
-                lbl_ocr_status.value = "⚠️ Não foi possível ler automaticamente — digite o valor atual."
+                txt_valor_ocr.helper_text = "Sem sinal ou falha no OCR. Insira o valor manualmente."
+                lbl_ocr_status.value = "⚠️ Insira o valor do medidor no campo acima."
                 lbl_ocr_status.color = "orange"
+                txt_valor_ocr.focus()
 
             lbl_status.value = "Análise concluída. Por favor, valide os campos."
             lbl_status.color = "white"
@@ -146,7 +158,9 @@ def montar_tela_scanner(page: ft.Page):
         file_picker.on_result = _on_file_picked
 
         def _iniciar_captura(e=None):
-            """Abre de forma síncrona a intent de captura nativa do ecossistema Android."""
+            # Solicita permissão de câmera em runtime no Android (4.A)
+            if is_android():
+                page.request_permission("android.permission.CAMERA")
             lbl_status.value = "A abrir recursos do dispositivo..."
             lbl_status.color = "white"
             pr_captura.visible = True
