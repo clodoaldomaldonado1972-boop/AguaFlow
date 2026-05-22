@@ -470,10 +470,23 @@ def montar_tela_medicao(page: ft.Page):
             user_data["last_read_gas_value"] = valor_gas
 
             if res["sucesso"]:
+                # Persiste imediatamente — antes de qualquer await — para sobreviver
+                # a kills do Android durante a animação
+                _persistir_estado()
+
+                # Animação não-bloqueante: não suspende o handler (evita janela onde
+                # o back button do Android pode disparar on_view_pop → /menu)
+                async def _restaurar_icone():
+                    await asyncio.sleep(0.3)
+                    try:
+                        img_icon.visible, icon_save.visible = True, False
+                        page.update()
+                    except Exception:
+                        pass
+
                 img_icon.visible, icon_save.visible = False, True
                 page.update()
-                await asyncio.sleep(0.5)
-                img_icon.visible, icon_save.visible = True, False
+                asyncio.create_task(_restaurar_icone())
 
                 # Lógica de transição de andar (Hall)
                 idx_atual = db_lista.index(current_unit)

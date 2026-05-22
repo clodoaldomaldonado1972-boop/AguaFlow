@@ -143,6 +143,7 @@ async def main(page: ft.Page):
     def _on_view_pop(view):
         # Usa view.route (a rota da view sendo fechada), não page.route (já atualizado)
         popped = getattr(view, "route", None) or page.route
+        logger.info(f"🔙 on_view_pop: popped={popped} | page.route={page.route}")
         if popped == "/scanner":
             page.go("/medicao")
         else:
