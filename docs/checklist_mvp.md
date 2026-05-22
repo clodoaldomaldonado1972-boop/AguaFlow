@@ -1,6 +1,6 @@
 # Checklist de Prontidão para APK - AguaFlow v1.2.0
 
-> Atualizado em: 2026-05-22 — teste integrado 7 fases: ciclo, cobertura, refs, relatórios, backup, e-mail, RAM — tudo ✅.
+> Atualizado em: 2026-05-22 — teste integrado 9 fases: ciclo, cobertura, refs, relatórios, backup, e-mail, RAM, offline e sync mockado — tudo ✅.
 
 ---
 
@@ -27,6 +27,7 @@
 - [x] **Auto-Cleanup**: `os.remove` de fotos após confirmação de upload.
 - [x] **Timezone**: Auditoria via `pytz` (America/Sao_Paulo).
 - [x] **Fila de Sync**: `SyncService.processar_fila()` sincroniza pendentes em background.
+- [x] **Sync Manual Offline→Online**: `executar_sincronismo_manual()` envia 190 leituras locais ao Supabase; falha de rede mantém rows em `sincronizado=0` sem perda de dados.
 - [x] **DB Path Mobile**: `Database.configurar_db_path(page)` define caminho seguro no sandbox Android (`FLET_APP_STORAGE_DATA`) antes de `inicializar_tabelas()`.
 
 ## Ciclo Completo de Leituras (revalidado em 2026-05-22)
@@ -87,8 +88,8 @@
 - [x] **APK gerado**: `AguaFlow-1.2.0.apk` compilado com sucesso (excluído do repositório via `.gitignore`).
 - [x] **Requirements APK**: `reportlab` excluído do `buildozer.spec`; dependências APK declaradas em linha única.
 
-## Teste Integrado (7 fases — validado em 2026-05-22)
-- [x] **Script `testes/test_ciclo_completo.py`**: 7 fases headless, DB SQLite isolado em temp — ✅ CICLO COMPLETO.
+## Teste Integrado (9 fases — validado em 2026-05-22)
+- [x] **Script `testes/test_ciclo_completo.py`**: 9 fases headless, DB SQLite isolado em temp — ✅ CICLO COMPLETO.
 - [x] **Fase 1 — Ciclo de leituras**: 191 passos, ÁGUA→GÁS→ÁGUA por andar (andares 1-16), passo manual LAZER GÁS.
 - [x] **Fase 2 — Cobertura**: 95/95 ÁGUA (LAZER GÁS excluído), 95/95 GÁS (TERREO GERAL ÁGUA excluído), 0 faltando.
 - [x] **Fase 3 — Fim de ciclo**: 96 referências de ciclo gravadas no SQLite — base correta para próximo mês.
@@ -96,6 +97,8 @@
 - [x] **Fase 5 — Backup ZIP**: banco + relatórios compactados (20 KB) via `BackupManager.executar_backup_seguranca()`.
 - [x] **Fase 6 — Envio de e-mail**: 4 anexos entregues via SMTP/Gmail para clodoaldomaldonado112@gmail.com.
 - [x] **Fase 7 — RAM**: pico tracemalloc = **1,38 MB** (limite 100 MB); gc coletou 208 objetos; delta +8.783 objetos estáveis.
+- [x] **Fase 8 — Offline**: 190 rows (95 ÁGUA + 95 GÁS) em `sincronizado=0` com `supabase=None` — modo sem internet confirmado.
+- [x] **Fase 9 — Sync mockado**: Sub-A: 190/190 rows marcados `sincronizado=1`, 190 entradas SUCESSO no `sync_log`; Sub-B: falha de rede simulada — 10 rows de 5 unidades mantidos em `sincronizado=0`, retorno `0` confirmado.
 
 ## Rastreabilidade e Documentacao
 - [x] **STATUS_INTEGRIDADE.md**: Documento de status completo reescrito com a arquitetura atual (v1.2.0).
