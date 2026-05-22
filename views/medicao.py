@@ -13,6 +13,28 @@ from utils.logger_config import enviar_report_erro
 logger = logging.getLogger(__name__)
 
 
+def _extrair_andar(unit: str) -> str:
+    """Extrai o número do andar de qualquer formato de unidade do Vivere.
+
+    Exemplos:
+      '166'     → '16'   (andar 16, 3 chars)
+      '96'      → '9'    (andar 9, 2 chars — fix para andares 1-9)
+      '163/164' → '16'   (duplex andar 16)
+      '23/24'   → '2'    (duplex andar 2)
+      '11'      → '1'    (andar 1, 2 chars)
+      'LAZER GÁS' → ''   (área comum, sem andar)
+    """
+    if not unit or not unit[0].isdigit():
+        return ""
+    digits = ""
+    for c in unit:
+        if c.isdigit():
+            digits += c
+        else:
+            break
+    return digits[:-1] if len(digits) >= 2 else ""
+
+
 def _normalizar_unidade_scanner(codigo: str, db_lista: list) -> str:
     """Extrai ID da unidade de códigos de barras como 'AGUAFLOW|166-AGUA' → '166'.
     Tenta match exato primeiro, depois remove prefixo (antes de '|') e sufixo de tipo."""
@@ -283,12 +305,10 @@ def montar_tela_medicao(page: ft.Page):
                     txt_agua.value = ""
                     txt_gas.value = ""
                     unid_val = txt_unidade.value
-                    # Extrai o andar (ex: "16" de "166" ou "163/164") para voltar ao início do hall
-                    prefixo = unid_val[:2] if unid_val and unid_val[0].isdigit() and len(
-                        unid_val) >= 3 else ""
-                    if prefixo:
+                    andar = _extrair_andar(unid_val)
+                    if andar:
                         idx_volta = next((i for i, u in enumerate(
-                            db_lista) if u.startswith(prefixo)), None)
+                            db_lista) if _extrair_andar(u) == andar), None)
                         if idx_volta is not None:
                             txt_unidade.value = db_lista[idx_volta]
                 else:
@@ -386,12 +406,10 @@ def montar_tela_medicao(page: ft.Page):
                                         1] if idx_atual + 1 < len(db_lista) else None
 
                 # Detecta se o próximo item é de outro andar ou área comum
-                prefixo_atual = current_unit[:2] if current_unit[0].isdigit() and len(
-                    current_unit) >= 3 else "FIM"
-                prefixo_prox = proxima_unid[:2] if proxima_unid and proxima_unid[0].isdigit(
-                ) and len(proxima_unid) >= 3 else "FIM"
+                andar_atual = _extrair_andar(current_unit)
+                andar_prox = _extrair_andar(proxima_unid) if proxima_unid else ""
 
-                if prefixo_atual != prefixo_prox:
+                if andar_atual != andar_prox:
                     if state["modo"] == "AGUA":
                         abrir_dialogo_gas()  # Oferece Gás antes de mudar de andar
                     else:  # GAS completo no hall → volta para AGUA no próximo hall

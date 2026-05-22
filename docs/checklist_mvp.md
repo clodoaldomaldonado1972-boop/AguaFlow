@@ -1,6 +1,6 @@
 # Checklist de Prontidão para APK - AguaFlow v1.2.0
 
-> Atualizado em: 2026-05-19 — todas as pendências Android resolvidas; APK v1.2.0 gerado; integridade do log validada.
+> Atualizado em: 2026-05-22 — ciclo completo revalidado; bugs de GÁS andares 1-9 e navegação scanner corrigidos.
 
 ---
 
@@ -29,13 +29,18 @@
 - [x] **Fila de Sync**: `SyncService.processar_fila()` sincroniza pendentes em background.
 - [x] **DB Path Mobile**: `Database.configurar_db_path(page)` define caminho seguro no sandbox Android (`FLET_APP_STORAGE_DATA`) antes de `inicializar_tabelas()`.
 
-## Ciclo Completo de Leituras (validado em 2026-05-16)
-- [x] **Registro de Leituras**: Múltiplas unidades registradas (151–166) sem erros.
+## Ciclo Completo de Leituras (revalidado em 2026-05-22)
+- [x] **Registro de Leituras**: 95 ÁGUA + 95 GÁS registradas (todos os andares 1–16, LAZER GÁS, TERREO GERAL ÁGUA).
 - [x] **Iniciar Novo Ciclo**: 96 referências de leitura salvas para o próximo ciclo.
 - [x] **Geração de PDF**: Relatório PDF gerado via ReportLab sem erros de `NoneType` (corrigido `d.get() or 0`).
 - [x] **Backup ZIP**: 6 relatórios incluídos no arquivo ZIP de backup.
 - [x] **Envio por E-mail**: `E-mail enviado com sucesso!` — SMTP autenticado e funcional.
 - [x] **Sincronização Supabase**: Todas as unidades sincronizadas via HTTP 201 Created em tempo real.
+- [x] **Fluxo GÁS andares 1-9**: `_extrair_andar()` corrigido — andares de 2 chars (ex: `"96"`, `"16"`) agora recebem leitura GÁS corretamente.
+- [x] **Navegação scanner → medicao**: `on_view_pop` contextualizado — botão voltar Android no scanner retorna para `/medicao` preservando modo GÁS/ÁGUA.
+- [x] **Restauração de modo**: condição `if modo_retorno in ("AGUA", "GAS")` independente — modo GÁS nunca mais perdido ao voltar do scanner.
+- [x] **LAZER GÁS**: unidade sem hidrômetro ÁGUA; leitura GÁS feita manualmente pelo leiturista (sem diálogo automático — por design).
+- [x] **TERREO GERAL ÁGUA**: unidade sem medidor de GÁS; apenas ÁGUA registrada (ignorado no ciclo GÁS).
 
 ## Cloud Sync
 - [x] **Conexão Segura**: Cliente Supabase validado com SSL/HTTPS (HTTP/2).
@@ -82,18 +87,23 @@
 - [x] **APK gerado**: `AguaFlow-1.2.0.apk` compilado com sucesso (excluído do repositório via `.gitignore`).
 - [x] **Requirements APK**: `reportlab` excluído do `buildozer.spec`; dependências APK declaradas em linha única.
 
-## Teste Automatizado (validado em 2026-05-16)
+## Teste Automatizado (atualizado em 2026-05-22)
 - [x] **Script `test_ciclo_completo.py`**: executa ciclo headless completo — 6/6 passos OK.
 - [x] **96 unidades inseridas**: todos os andares (16x6), duplex 163/164 e 23/24, LAZER GAS, TERREO GERAL AGUA.
 - [x] **Backup ZIP gerado**: banco + 6 relatorios, 41 KB, sem erros.
 - [x] **4 arquivos de relatorio**: PDF agua, PDF gas, CSV agua, CSV gas — todos criados e validos.
 - [x] **E-mail enviado**: 4 anexos entregues com sucesso via SMTP/Gmail.
 - [x] **114 referencias salvas**: base do proximo ciclo gravada corretamente.
+- [x] **Script `testes/test_ciclo_logica.py`**: replica lógica completa de `medicao.py` sem UI — 191 passos, ✅ CICLO COMPLETO.
+  - 95/95 leituras ÁGUA esperadas (LAZER GÁS excluído por design)
+  - 95/95 leituras GÁS esperadas (TERREO GERAL ÁGUA excluído por design)
+  - 96 referências de ciclo gravadas no SQLite isolado
+  - Valida: `_extrair_andar()`, diálogo GÁS auto-aceito, transição ÁGUA→GÁS→ÁGUA por andar (andares 1-16), passo manual LAZER GÁS
 
 ## Rastreabilidade e Documentacao
-- [x] **Historico de investigacoes**: 18 arquivos `docs/investigacao_*.md` rastreados no git via regra `!docs/investigacao_*.md` no `.gitignore`.
 - [x] **STATUS_INTEGRIDADE.md**: Documento de status completo reescrito com a arquitetura atual (v1.2.0).
-- [x] **Investigacao do log validada**: `docs/investigacao_aguaflow_debug_20260519.md` — sistema saudavel, nenhum ERROR, OCR e uploads funcionais.
+- [x] **Investigacao do log validada**: sistema saudavel, nenhum ERROR, OCR e uploads funcionais.
+- [x] **`.gitignore` limpo**: `docs/*` com exceções apenas para `README.md` e `checklist_mvp.md`; scripts de teste e `testes/` excluídos do repositório.
 
 
 
