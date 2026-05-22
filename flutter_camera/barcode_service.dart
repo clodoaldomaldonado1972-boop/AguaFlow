@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayers/audioplayers.dart' as ap;
 
 class BarcodeScannerServiceFlet extends FletService {
   BarcodeScannerServiceFlet({required super.control});
@@ -74,7 +74,7 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage>
     with SingleTickerProviderStateMixin {
   late final MobileScannerController _controller;
   late final AnimationController _scanAnim;
-  late final AudioPlayer _audioPlayer;
+  late final ap.AudioPlayer _audioPlayer;
   bool _detected = false;
   bool _flashGreen = false;
 
@@ -95,7 +95,7 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage>
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
-    _audioPlayer = AudioPlayer();
+    _audioPlayer = ap.AudioPlayer();
   }
 
   @override
@@ -117,7 +117,7 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage>
     // Beep sonoro (beep.mp3 em assets/) + vibração tátil
     try {
       HapticFeedback.mediumImpact();
-      await _audioPlayer.play(AssetSource('beep.mp3'));
+      await _audioPlayer.play(ap.AssetSource('beep.mp3'));
     } catch (_) {}
 
     // Flash verde na mira por 350 ms antes de fechar
