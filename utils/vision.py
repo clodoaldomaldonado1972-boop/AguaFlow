@@ -81,8 +81,9 @@ def _preparar_imagem_bytes(caminho_foto: str, tipo: str = "água") -> bytes:
                     # Medidores de gás: mostrador no terço central — janela mais ampla
                     img = img.crop((0, int(h * 0.25), w, int(h * 0.80)))
                 else:
-                    # Hidrômetros de água: mostrador na metade inferior
-                    img = img.crop((0, int(h * 0.45), w, int(h * 0.90)))
+                    # Hidrômetros de água: janela ampla — Renova tem mostrador ao centro,
+                    # LAO Geral tem faixa de roletes no topo da face circular
+                    img = img.crop((0, int(h * 0.10), w, int(h * 0.90)))
 
             img.thumbnail((1024, 1024))
             buf = io.BytesIO()
