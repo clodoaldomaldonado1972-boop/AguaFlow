@@ -134,18 +134,15 @@ def montar_tela_scanner(page: ft.Page):
             if valor_ocr:
                 lbl_status.value = f"✅ OCR detectou: {valor_ocr} — voltando..."
                 lbl_status.color = "green"
-                page.update()
-                await asyncio.sleep(1.5)
             else:
                 lbl_status.value = "⚠️ OCR sem resultado — insira o valor manualmente."
                 lbl_status.color = "orange"
-                page.update()
-                await asyncio.sleep(2.0)
 
-            # Passa valores para medição e navega automaticamente
+            # Passa valores para medição e navega imediatamente (sem sleep bloqueante)
             page.user_data["valor_scanner"] = valor_ocr or ""
             page.user_data["unidade_scanner"] = state.get("unidade") or ""
             logger.info(f"📋 Scanner → medição: unidade={state.get('unidade')} valor={valor_ocr}")
+            page.update()
             page.go("/medicao")
 
 

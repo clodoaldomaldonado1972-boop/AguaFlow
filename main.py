@@ -140,9 +140,10 @@ async def main(page: ft.Page):
     # --- 2. ATRIBUIÇÃO DE EVENTOS ---
     page.on_route_change = route_change
 
-    def _on_view_pop(view):
-        # Usa view.route (a rota da view sendo fechada), não page.route (já atualizado)
-        popped = getattr(view, "route", None) or page.route
+    def _on_view_pop(e):
+        # Flet 0.82.2 pode entregar ViewPopEvent (com .view) ou ft.View diretamente
+        actual_view = getattr(e, "view", e)
+        popped = getattr(actual_view, "route", None) or page.route
         logger.info(f"🔙 on_view_pop: popped={popped} | page.route={page.route}")
         if popped == "/scanner":
             page.go("/medicao")

@@ -68,7 +68,7 @@ flet build apk \
     --project AguaFlow \
     --product "AguaFlow" \
     --build-version 1.2.0 \
-    --build-number 123 \
+    --build-number 124 \
     --permissions camera photo_library \
     --yes
 
@@ -107,6 +107,20 @@ cp "$BUILD_DIR/flutter_camera/camera_extension.dart" "$FLUTTER_LIB/"
 cp "$BUILD_DIR/flutter_camera/barcode_service.dart" "$FLUTTER_LIB/"
 cp "$BUILD_DIR/flutter_camera/barcode_extension.dart" "$FLUTTER_LIB/"
 echo "✅ Arquivos Dart da camera e barcode copiados"
+
+# Copia BeepPlugin.kt ao diretório Kotlin e registra em MainActivity.kt (idempotente)
+KOTLIN_DIR="$FLUTTER_DIR/android/app/src/main/kotlin/br/com/vivereprudente/aguaflow"
+cp "$BUILD_DIR/flutter_camera/BeepPlugin.kt" "$KOTLIN_DIR/"
+echo "✅ BeepPlugin.kt copiado"
+
+MAIN_ACTIVITY="$KOTLIN_DIR/MainActivity.kt"
+if ! grep -q "BeepPlugin" "$MAIN_ACTIVITY"; then
+    sed -i 's/import io.flutter.embedding.android.FlutterActivity/import io.flutter.embedding.android.FlutterActivity\nimport io.flutter.embedding.engine.FlutterEngine/' "$MAIN_ACTIVITY"
+    sed -i 's/class MainActivity: FlutterActivity() {/class MainActivity: FlutterActivity() {\n    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {\n        super.configureFlutterEngine(flutterEngine)\n        flutterEngine.plugins.add(BeepPlugin())\n    }/' "$MAIN_ACTIVITY"
+    echo "✅ BeepPlugin registrado em MainActivity.kt"
+else
+    echo "⏭️  BeepPlugin já registrado em MainActivity.kt"
+fi
 
 # ── PASSO 4: Registra extensões em main.dart (idempotente) ──
 MAIN_DART="$FLUTTER_LIB/main.dart"

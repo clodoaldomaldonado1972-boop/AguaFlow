@@ -110,12 +110,12 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage>
     if (rawValue == null || rawValue.isEmpty) return;
     _detected = true;
 
-    // Vibração tátil dupla (mais perceptível) + som de sistema
+    // Vibração tátil dupla + beep via ToneGenerator (independe de configurações do Android)
     try {
       await HapticFeedback.heavyImpact();
       await Future.delayed(const Duration(milliseconds: 90));
       await HapticFeedback.mediumImpact();
-      await SystemSound.play(SystemSoundType.click);
+      const MethodChannel('aguaflow/beep').invokeMethod<void>('beep');
     } catch (_) {}
 
     // Flash verde na mira por 350 ms antes de fechar
