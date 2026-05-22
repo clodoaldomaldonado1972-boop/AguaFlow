@@ -29,7 +29,7 @@ presplash.color = #121417
 orientation = portrait
 
 # Permissões Android necessárias
-android.permissions = CAMERA,INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,ACCESS_NETWORK_STATE
+android.permissions = CAMERA,INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,ACCESS_NETWORK_STATE,VIBRATE
 
 # API Android
 android.minapi = 21

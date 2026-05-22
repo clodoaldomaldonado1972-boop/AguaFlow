@@ -110,9 +110,11 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage>
     if (rawValue == null || rawValue.isEmpty) return;
     _detected = true;
 
-    // Beep sonoro do sistema + vibração tátil
+    // Vibração tátil dupla (mais perceptível) + som de sistema
     try {
       await HapticFeedback.heavyImpact();
+      await Future.delayed(const Duration(milliseconds: 90));
+      await HapticFeedback.mediumImpact();
       await SystemSound.play(SystemSoundType.click);
     } catch (_) {}
 

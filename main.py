@@ -215,6 +215,16 @@ async def main(page: ft.Page):
                     "offline": offline_str == "True",
                 }
                 logger.info(f"🔑 Sessão restaurada: {email}")
+                # Se o Android matou o processo no meio de uma leitura, retorna para
+                # /medicao em vez do menu — o client_storage sobrevive ao kill do processo.
+                try:
+                    medicao_modo = page.client_storage.get("medicao_modo")
+                    if medicao_modo in ("AGUA", "GAS"):
+                        logger.info(f"🔄 Retomando medição interrompida — modo {medicao_modo}")
+                        page.go("/medicao")
+                        return
+                except Exception:
+                    pass
                 page.go("/menu")
         except Exception as ex:
             logger.warning(f"⚠️ Não foi possível restaurar sessão: {ex}")

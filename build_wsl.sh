@@ -68,7 +68,7 @@ flet build apk \
     --project AguaFlow \
     --product "AguaFlow" \
     --build-version 1.2.0 \
-    --build-number 122 \
+    --build-number 123 \
     --permissions camera photo_library \
     --yes
 
@@ -77,6 +77,15 @@ echo "Flet build OK. Injetando extensao de camera..."
 echo "===================================="
 
 # ── PASSO 2: Injeta dependências Flutter no pubspec.yaml (idempotente) ──
+# Adiciona permissão VIBRATE ao AndroidManifest.xml para HapticFeedback funcionar
+MANIFEST="$FLUTTER_DIR/android/app/src/main/AndroidManifest.xml"
+if [ -f "$MANIFEST" ] && ! grep -q "VIBRATE" "$MANIFEST"; then
+    sed -i '/<uses-permission android:name="android.permission.CAMERA"/i\    <uses-permission android:name="android.permission.VIBRATE"/>' "$MANIFEST"
+    echo "✅ Permissão VIBRATE adicionada ao AndroidManifest.xml"
+else
+    echo "⏭️  Permissão VIBRATE já presente ou manifest não encontrado"
+fi
+
 PUBSPEC="$FLUTTER_DIR/pubspec.yaml"
 if ! grep -q "image_picker" "$PUBSPEC"; then
     sed -i 's/  flet: 0.82.2/  flet: 0.82.2\n  image_picker: ^1.1.2/' "$PUBSPEC"
