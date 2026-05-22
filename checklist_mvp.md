@@ -339,4 +339,32 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 
 ---
 
-*Atualizado em 22/05/2026 (3ª rodada) — fix lidos por modo, fix beep scanner (SystemSoundType.click), fix _resetar_banco_para_novo_mes (coluna inexistente), bateria de testes de leituras (88 novos, 114 total).*
+## 21. Limpeza de Código — 22/05/2026
+
+- [x] **19 arquivos órfãos removidos** — `utils/` (scanner.py, camera_utils.py, processamento.py, ocr_engine.py, destravar.py, forcar_reset.py, limpeza.py, ligar_celular.py, setup_projeto.py, alertas_engine.py, seed_supabase.py, observabilidade.py, suporte_helper.py, diagnostico.py, config_assets.py, preferencias_leitura.py) + `views/components/scanner_component.py` + `estrutura.txt` + `analyze_apk.py`; nenhum era referenciado por código ativo
+- [x] **`views/components/`** removida — ficou vazia após exclusão do único arquivo (`scanner_component.py` importava `leitor_ocr` inexistente)
+- [x] **`criar_mira_scanner` confirmada** em `views/styles.py:61` — única implementação, sem duplicatas
+- [x] **`buildozer.spec` atualizado** — `testes/` e `docs/` adicionados a `source.exclude_dirs`; estavam sendo incluídos no APK sem necessidade
+- [x] **114 testes, 100% pass** após limpeza — confirmado que nenhuma remoção quebrou importações ativas
+
+### Estrutura ativa de `utils/` após limpeza
+
+| Arquivo | Uso |
+|---|---|
+| `vision.py` | OCR principal (Claude Vision + Tesseract fallback) |
+| `camera_service.py` | Flutter extension — câmera nativa Android |
+| `barcode_service.py` | Flutter extension — scanner QR/barcode |
+| `auth_utils.py` | Validação de sessão em todas as views |
+| `backup.py` | Backup ZIP pós-sincronização |
+| `email_service.py` | SMTP para envio de relatórios |
+| `export_manager.py` | Exportação CSV/PDF (relatorio_view) |
+| `report_generator.py` | Geração de relatório por unidade |
+| `graficos_factory.py` | Gráfico de barras no dashboard |
+| `audio_utils.py` | Feedback sonoro em configuracoes |
+| `platform_utils.py` | Paths Android vs Desktop |
+| `logger_config.py` | Sistema de logs + envio de erros |
+| `updater.py` | Versão centralizada do app |
+
+---
+
+*Atualizado em 22/05/2026 (3ª rodada + limpeza) — fix lidos por modo, fix beep scanner, fix reset ciclo, 88 novos testes (114 total 100% pass), remoção de 19 arquivos órfãos, buildozer.spec corrigido.*
