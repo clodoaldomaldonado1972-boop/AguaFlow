@@ -69,11 +69,10 @@ def _resetar_banco_para_novo_mes() -> bool:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE leituras SET
-                    leitura_agua       = NULL,
-                    leitura_gas        = NULL,
-                    sincronizado       = 0,
-                    data_leitura_atual = NULL,
-                    tipo               = COALESCE(tipo, 'manual')
+                    leitura_agua = NULL,
+                    leitura_gas  = NULL,
+                    sincronizado = 0,
+                    tipo         = COALESCE(tipo, 'manual')
             """)
             conn.commit()
         logger.info("Banco preparado para o novo ciclo mensal.")

@@ -420,9 +420,11 @@ def montar_tela_medicao(page: ft.Page):
                 return
 
             current_unit = txt_unidade.value
-            lidos = await asyncio.to_thread(
-                lambda: {l.get('unidade_id') for l in Database.get_leituras_mes_atual()}
-            )
+            _all_leituras = await asyncio.to_thread(Database.get_leituras_mes_atual)
+            if state["modo"] == "AGUA":
+                lidos = {l.get('unidade_id') for l in _all_leituras if l.get('leitura_agua') is not None}
+            else:
+                lidos = {l.get('unidade_id') for l in _all_leituras if l.get('leitura_gas') is not None}
 
             # --- Validação da Unidade Anterior (Offline-First) ---
             if current_unit not in db_lista:

@@ -113,7 +113,7 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage>
     // Beep sonoro do sistema + vibração tátil
     try {
       await HapticFeedback.heavyImpact();
-      await SystemSound.play(SystemSoundType.alert);
+      await SystemSound.play(SystemSoundType.click);
     } catch (_) {}
 
     // Flash verde na mira por 350 ms antes de fechar
