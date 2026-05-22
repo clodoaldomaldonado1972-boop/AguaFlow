@@ -1,6 +1,6 @@
 # Checklist de Prontidão para APK - AguaFlow v1.2.0
 
-> Atualizado em: 2026-05-22 — ciclo completo revalidado; bugs de GÁS andares 1-9 e navegação scanner corrigidos.
+> Atualizado em: 2026-05-22 — teste integrado 7 fases: ciclo, cobertura, refs, relatórios, backup, e-mail, RAM — tudo ✅.
 
 ---
 
@@ -87,18 +87,15 @@
 - [x] **APK gerado**: `AguaFlow-1.2.0.apk` compilado com sucesso (excluído do repositório via `.gitignore`).
 - [x] **Requirements APK**: `reportlab` excluído do `buildozer.spec`; dependências APK declaradas em linha única.
 
-## Teste Automatizado (atualizado em 2026-05-22)
-- [x] **Script `test_ciclo_completo.py`**: executa ciclo headless completo — 6/6 passos OK.
-- [x] **96 unidades inseridas**: todos os andares (16x6), duplex 163/164 e 23/24, LAZER GAS, TERREO GERAL AGUA.
-- [x] **Backup ZIP gerado**: banco + 6 relatorios, 41 KB, sem erros.
-- [x] **4 arquivos de relatorio**: PDF agua, PDF gas, CSV agua, CSV gas — todos criados e validos.
-- [x] **E-mail enviado**: 4 anexos entregues com sucesso via SMTP/Gmail.
-- [x] **114 referencias salvas**: base do proximo ciclo gravada corretamente.
-- [x] **Script `testes/test_ciclo_logica.py`**: replica lógica completa de `medicao.py` sem UI — 191 passos, ✅ CICLO COMPLETO.
-  - 95/95 leituras ÁGUA esperadas (LAZER GÁS excluído por design)
-  - 95/95 leituras GÁS esperadas (TERREO GERAL ÁGUA excluído por design)
-  - 96 referências de ciclo gravadas no SQLite isolado
-  - Valida: `_extrair_andar()`, diálogo GÁS auto-aceito, transição ÁGUA→GÁS→ÁGUA por andar (andares 1-16), passo manual LAZER GÁS
+## Teste Integrado (7 fases — validado em 2026-05-22)
+- [x] **Script `testes/test_ciclo_completo.py`**: 7 fases headless, DB SQLite isolado em temp — ✅ CICLO COMPLETO.
+- [x] **Fase 1 — Ciclo de leituras**: 191 passos, ÁGUA→GÁS→ÁGUA por andar (andares 1-16), passo manual LAZER GÁS.
+- [x] **Fase 2 — Cobertura**: 95/95 ÁGUA (LAZER GÁS excluído), 95/95 GÁS (TERREO GERAL ÁGUA excluído), 0 faltando.
+- [x] **Fase 3 — Fim de ciclo**: 96 referências de ciclo gravadas no SQLite — base correta para próximo mês.
+- [x] **Fase 4 — Relatórios**: 4/4 arquivos gerados via `RelatorioEngine.gerar_todos()`: PDF água (7 KB), PDF gás (7 KB), CSV água (5 KB), CSV gás (5 KB).
+- [x] **Fase 5 — Backup ZIP**: banco + relatórios compactados (20 KB) via `BackupManager.executar_backup_seguranca()`.
+- [x] **Fase 6 — Envio de e-mail**: 4 anexos entregues via SMTP/Gmail para clodoaldomaldonado112@gmail.com.
+- [x] **Fase 7 — RAM**: pico tracemalloc = **1,38 MB** (limite 100 MB); gc coletou 208 objetos; delta +8.783 objetos estáveis.
 
 ## Rastreabilidade e Documentacao
 - [x] **STATUS_INTEGRIDADE.md**: Documento de status completo reescrito com a arquitetura atual (v1.2.0).
