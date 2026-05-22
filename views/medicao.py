@@ -122,11 +122,50 @@ def montar_tela_medicao(page: ft.Page):
         if modo_retorno in ("AGUA", "GAS"):
             state["modo"] = modo_retorno
 
+        # Fallback: restaura de client_storage quando o Android matou o processo
+        # e page.user_data foi perdido (client_storage sobrevive a kills do processo).
+        _cs_unidade = None
+        if modo_retorno not in ("AGUA", "GAS"):
+            try:
+                # Caso especial: app morreu enquanto o diálogo de GÁS estava aberto
+                _andar_gas_pendente = page.client_storage.get("medicao_gas_pendente_andar")
+                if _andar_gas_pendente:
+                    state["modo"] = "GAS"
+                    idx_gas = next(
+                        (i for i, u in enumerate(db_lista)
+                         if _extrair_andar(u) == _andar_gas_pendente),
+                        None
+                    )
+                    if idx_gas is not None:
+                        _cs_unidade = db_lista[idx_gas]
+                    page.client_storage.remove("medicao_gas_pendente_andar")
+                else:
+                    _cs_modo = page.client_storage.get("medicao_modo")
+                    _cs_unidade = page.client_storage.get("medicao_unidade")
+                    if _cs_modo in ("AGUA", "GAS"):
+                        state["modo"] = _cs_modo
+            except Exception:
+                pass
+
         proxima_pendente = buscar_primeira_pendente()
         initial_unit_value = proxima_pendente if proxima_pendente else (
             db_lista[0] if db_lista else None)
         if unidade_retorno_scanner and unidade_retorno_scanner in db_lista:
             initial_unit_value = unidade_retorno_scanner
+        elif _cs_unidade and _cs_unidade in db_lista:
+            # Só usa a unidade salva se ainda estiver pendente no modo atual
+            try:
+                _leituras_cs = Database.get_leituras_mes_atual()
+                if state["modo"] == "AGUA":
+                    _cs_lidos = {l['unidade_id'] for l in _leituras_cs
+                                 if l.get('leitura_agua') is not None}
+                else:
+                    _cs_lidos = {l['unidade_id'] for l in _leituras_cs
+                                 if l.get('leitura_gas') is not None}
+                if not _unidade_lida(_cs_unidade, _cs_lidos):
+                    initial_unit_value = _cs_unidade
+            except Exception:
+                pass
 
         # Widgets iniciais refletem o modo atual (AGUA ou GAS após restauração)
         _agua = state["modo"] == "AGUA"
@@ -278,7 +317,25 @@ def montar_tela_medicao(page: ft.Page):
 
 
         # --- FUNÇÕES DE LÓGICA ---
+        def _persistir_estado():
+            """Grava modo e unidade atual no client_storage (SharedPreferences).
+            Sobrevive a kills do processo Android — restaurado no próximo mount."""
+            try:
+                page.client_storage.set("medicao_modo", state["modo"])
+                page.client_storage.set("medicao_unidade", txt_unidade.value or "")
+            except Exception:
+                pass
+
+        def _limpar_estado_persistido():
+            try:
+                page.client_storage.remove("medicao_modo")
+                page.client_storage.remove("medicao_unidade")
+                page.client_storage.remove("medicao_gas_pendente_andar")
+            except Exception:
+                pass
+
         def exibir_concluido():
+            _limpar_estado_persistido()
             lbl_modo.value = "TODAS AS UNIDADES LIDAS"
             lbl_modo.color = st.SUCCESS_GREEN
             img_icon.icon = ft.Icons.CHECK_CIRCLE
@@ -293,12 +350,26 @@ def montar_tela_medicao(page: ft.Page):
                 txt_unidade.value = proxima
                 txt_agua.value = ""
                 txt_gas.value = ""
+                _persistir_estado()
                 page.update()
             else:
                 exibir_concluido()
 
         def abrir_dialogo_gas():
+            # Marca o andar com GÁS pendente — se o Android matar o processo
+            # enquanto o diálogo está aberto, o mount seguinte recupera o estado.
+            try:
+                page.client_storage.set(
+                    "medicao_gas_pendente_andar", _extrair_andar(txt_unidade.value)
+                )
+            except Exception:
+                pass
+
             def fechar(escolha_gas):
+                try:
+                    page.client_storage.remove("medicao_gas_pendente_andar")
+                except Exception:
+                    pass
                 page.pop_dialog()
                 if escolha_gas:
                     state["modo"] = "GAS"
@@ -311,6 +382,7 @@ def montar_tela_medicao(page: ft.Page):
                             db_lista) if _extrair_andar(u) == andar), None)
                         if idx_volta is not None:
                             txt_unidade.value = db_lista[idx_volta]
+                    _persistir_estado()
                 else:
                     state["modo"] = "AGUA"
 
