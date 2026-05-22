@@ -141,8 +141,9 @@ async def main(page: ft.Page):
     page.on_route_change = route_change
 
     def _on_view_pop(view):
-        # Scanner sempre volta para medicao (preserva modo GÁS/ÁGUA e contexto)
-        if page.route == "/scanner":
+        # Usa view.route (a rota da view sendo fechada), não page.route (já atualizado)
+        popped = getattr(view, "route", None) or page.route
+        if popped == "/scanner":
             page.go("/medicao")
         else:
             page.go("/menu")

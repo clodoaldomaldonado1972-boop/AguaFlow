@@ -417,6 +417,7 @@ def montar_tela_medicao(page: ft.Page):
                 page.show_dialog(ft.SnackBar(
                     ft.Text("A leitura de Gás é obrigatória!"), bgcolor=st.RED_ERROR))
                 page.update()
+
                 return
 
             current_unit = txt_unidade.value
@@ -500,6 +501,15 @@ def montar_tela_medicao(page: ft.Page):
 
         # Estado visual inicial já definido diretamente nos controles acima (modo AGUA)
 
+        def _abrir_scanner():
+            page.user_data.update({
+                "modo_leitura": state["modo"],
+                "unidade_atual_medicao": txt_unidade.value,
+            })
+            # Persiste no client_storage para sobreviver a kills do Android
+            _persistir_estado()
+            page.go("/scanner")
+
         async def limpar_ultima_leitura(e):
             """Remove as chaves de última leitura do page.user_data e reseta os campos."""
             user_data.pop("last_read_unit_id", None)
@@ -551,13 +561,7 @@ def montar_tela_medicao(page: ft.Page):
                     ft.TextButton(
                         "ABRIR SCANNER",
                         icon="qr_code_scanner",
-                        on_click=lambda _: (
-                            page.user_data.update({
-                                "modo_leitura": state["modo"],
-                                "unidade_atual_medicao": txt_unidade.value,
-                            }),
-                            page.go("/scanner")
-                        )
+                        on_click=lambda _: _abrir_scanner()
                     )
                 ], horizontal_alignment="center", spacing=10,
                    scroll=ft.ScrollMode.AUTO,
