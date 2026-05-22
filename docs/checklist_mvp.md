@@ -95,6 +95,8 @@
 - [x] **STATUS_INTEGRIDADE.md**: Documento de status completo reescrito com a arquitetura atual (v1.2.0).
 - [x] **Investigacao do log validada**: `docs/investigacao_aguaflow_debug_20260519.md` — sistema saudavel, nenhum ERROR, OCR e uploads funcionais.
 
+
+
 ## Pendencias Conhecidas (nao-bloqueantes)
 - [x] **DeprecationWarning resolvido**: `page.go()` substituído por `page.push_route()` em todos os 14 arquivos do projeto.
 - [ ] **Encoding UI**: Caracteres especiais (ex: "Condominio", "servico") aparecem com encoding errado no log interno do Flet — nao afeta o usuario final, apenas o log de debug.

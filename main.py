@@ -139,7 +139,15 @@ async def main(page: ft.Page):
 
     # --- 2. ATRIBUIÇÃO DE EVENTOS ---
     page.on_route_change = route_change
-    page.on_view_pop = lambda view: page.go("/menu")
+
+    def _on_view_pop(view):
+        # Scanner sempre volta para medicao (preserva modo GÁS/ÁGUA e contexto)
+        if page.route == "/scanner":
+            page.go("/medicao")
+        else:
+            page.go("/menu")
+
+    page.on_view_pop = _on_view_pop
 
     # --- 1.1 EVENTO DE FECHAMENTO EXPLÍCITO ---
     async def handle_close(e):

@@ -84,7 +84,7 @@ def montar_tela_medicao(page: ft.Page):
                 for i in range(idx_atual + 1, len(db_lista)):
                     if not _unidade_lida(db_lista[i], lidos):
                         return db_lista[i]
-            except (ValueError, AttributeError, NameError):
+            except Exception:
                 pass
             return None
 
@@ -97,7 +97,7 @@ def montar_tela_medicao(page: ft.Page):
         # (buscar_primeira_pendente usa state["modo"], precisa estar correto)
         unidade_retorno_scanner = user_data.pop("unidade_atual_medicao", None)
         modo_retorno = user_data.pop("modo_leitura", None)
-        if unidade_retorno_scanner and modo_retorno in ("AGUA", "GAS"):
+        if modo_retorno in ("AGUA", "GAS"):
             state["modo"] = modo_retorno
 
         proxima_pendente = buscar_primeira_pendente()
@@ -287,9 +287,10 @@ def montar_tela_medicao(page: ft.Page):
                     prefixo = unid_val[:2] if unid_val and unid_val[0].isdigit() and len(
                         unid_val) >= 3 else ""
                     if prefixo:
-                        idx_volta = next(i for i, u in enumerate(
-                            db_lista) if u.startswith(prefixo))
-                        txt_unidade.value = db_lista[idx_volta]
+                        idx_volta = next((i for i, u in enumerate(
+                            db_lista) if u.startswith(prefixo)), None)
+                        if idx_volta is not None:
+                            txt_unidade.value = db_lista[idx_volta]
                 else:
                     state["modo"] = "AGUA"
 

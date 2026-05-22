@@ -222,7 +222,13 @@ def montar_tela_scanner(page: ft.Page):
                 codigo = await barcode_service.scan_barcode()
                 if codigo:
                     state["unidade"] = codigo
-                    lbl_unidade.value = f"Unidade: {codigo}"
+                    # Normaliza o display: "AGUAFLOW|161-AGUA" → "161"
+                    display = codigo
+                    if '|' in display:
+                        display = display.split('|', 1)[1]
+                    if '-' in display:
+                        display = display.rsplit('-', 1)[0]
+                    lbl_unidade.value = f"Unidade: {display}"
                     lbl_unidade.color = "green"
                     lbl_status.value = "Código detectado! Agora fotografe o medidor."
                     lbl_status.color = "white70"
