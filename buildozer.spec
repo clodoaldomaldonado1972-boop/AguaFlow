@@ -14,8 +14,8 @@ source.dir = .
 source.include_exts = py,png,jpg,jpeg,gif,svg,kv,atlas,json,ttf,otf,env
 # Adicionado .env explicitamente para garantir que as chaves de API subam no APK
 source.include_patterns = assets/*,assets/**/*,.env
-source.exclude_dirs = tests,bin,__pycache__,.venv,venv,.git,database/Backups,relatorios,exports,temp
-source.exclude_patterns = *.pyc,*.pyo,*.spec,test_*.py,docs/*,*.md,*.log
+source.exclude_dirs = tests,testes,docs,bin,__pycache__,.venv,venv,.git,database/Backups,relatorios,exports,temp
+source.exclude_patterns = *.pyc,*.pyo,*.spec,test_*.py,*.md,*.log,*.txt
 
 # Ponto de entrada
 entry_point = main.py

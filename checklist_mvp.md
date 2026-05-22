@@ -257,13 +257,25 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] `supabase_client.py` — abstrações de CRUD e deleção de usuário
 - [x] `AppUpdater` — versão centralizada em `version.py`
 - [x] Migrations versionadas — tabela `schema_version` criada em `inicializar_tabelas`; versão registrada no boot
-- [x] Testes automatizados — 26 testes pytest (100% pass) em `tests/test_database.py` e `tests/test_backup.py`
+- [x] Testes automatizados — 114 testes pytest (100% pass) em `tests/test_database.py`, `tests/test_backup.py` e `tests/test_leituras_ciclo.py`
   - `TestSchemaVersion` (2): tabela criada + versão registrada
   - `TestEditarLeitura` (4): edição de valores, flag sincronizado, edição para None, id inexistente
   - `TestDeletarLeitura` (3): deleção, id inexistente, deleção seletiva
   - `TestBuscarLeiturasFiltradas` (7): sem filtro, por unidade, por mês, texto, combinado, campos, ordenação
   - `TestListarBackups` (4): pasta vazia, um backup, múltiplos ordenados, ignora não-ZIP
   - `TestRestaurarBackup` (5): restauração correta, arquivo inexistente, ZIP inválido, preservação em falha, mensagem
+  - `TestListaUnidades` (10): 96 unidades, primeira=166, última=TERREO GERAL ÁGUA, duplex, sem duplicatas, ordem
+  - `TestExtrairAndar` (13): todos os padrões (andares 1–16, duplex, áreas comuns, string vazia)
+  - `TestNormalizarUnidadeScanner` (7): código exato, AGUAFLOW|XXX-AGUA, somente sufixo, duplex, LAZER GÁS, fallback
+  - `TestUnidadeLida` (8): exato, ausente, duplex por id completo, por parte esquerda, por parte direita, área comum
+  - `TestLidosFiltradosPorModo` (8): fix do bug — ÁGUA não conta em GÁS, GÁS não conta em ÁGUA, sequência bloqueada/liberada corretamente
+  - `TestBugAntigoLidosSemModo` (2): documenta comportamento errado da lógica antiga vs comportamento correto do fix
+  - `TestFluxoCompletoAgua` (4): salvar ÁGUA para todas as 96 unidades, verificar lidos, sem pendentes, valores preservados
+  - `TestFluxoCompletoGas` (4): salvar GÁS para todas as unidades com hidrômetro, verificar lidos, TERREO sem GÁS
+  - `TestAreasComuns` (6): LAZER GÁS e TERREO GERAL ÁGUA — salvar, recuperar, isolamento entre modos, posição na lista
+  - `TestValidacaoSequencia` (9): primeira sempre válida, 165 bloqueada/liberada em ÁGUA e GÁS, duplex, andar 16 completo
+  - `TestFimDeCiclo` (9): salvar_referencias_ciclo, 96 referências, leitura_anterior no JOIN, reset zera leituras, referências preservadas
+  - `TestRelatorioCSV` (8): gerar_todos retorna 4 chaves, CSV/PDF existem em disco, cabeçalho + dados, coluna unidade
 - [ ] CI/CD pipeline
 
 ---
@@ -288,7 +300,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 | 14 | Edição de leitura registrada | 🟡 Importante | ✅ Feito |
 | 15 | Migrations de banco versionadas | 🟡 Importante | ✅ Feito |
 | 16 | Exportação CSV/Excel | 🟢 Desejável | ✅ Feito (CSV via historico/relatorio) |
-| 17 | Testes automatizados (pytest) | 🟢 Desejável | ✅ Feito (26 testes, 100% pass) |
+| 17 | Testes automatizados (pytest) | 🟢 Desejável | ✅ Feito (114 testes, 100% pass) |
 | 18 | Scanner QR/barcode — `mobile_scanner 6.0.0` + fix Navigator context | 🔴 Crítico | ✅ Feito |
 | 19 | Navegação automática após OCR (sem botão confirmar) | 🟡 Importante | ✅ Feito |
 | 20 | Fix HapticFeedback (bloco vermelho cobrindo tela do scanner) | 🔴 Crítico | ✅ Feito |
@@ -316,4 +328,15 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 
 ---
 
-*Atualizado em 20/05/2026 (2ª rodada) — barcode scanner QR/código de barras, fix HapticFeedback (bloco vermelho), fix NameErrors scanner, navegação automática pós-OCR, storage threshold 500 MB, mira Column+spacer.*
+---
+
+## 20. Correções — 22/05/2026 (3ª rodada)
+
+- [x] **Fix lidos filtrado por modo** (`views/medicao.py`) — `salvar_clique` agora filtra o conjunto `lidos` por `leitura_agua` (modo ÁGUA) ou `leitura_gas` (modo GÁS); antes, qualquer leitura no mês liberava a validação de sequência, permitindo salvar GÁS fora de ordem para unidades que só tinham ÁGUA registrada
+- [x] **Fix beep do scanner** (`flutter_camera/barcode_service.dart`) — `SystemSoundType.alert` substituído por `SystemSoundType.click`; `alert` é exclusivo do iOS e silenciosamente ignorado no Android (APK precisa ser recompilado)
+- [x] **Fix `_resetar_banco_para_novo_mes`** (`database/gestao_periodos.py`) — removida coluna inexistente `data_leitura_atual` do UPDATE; a instrução falhava silenciosamente com `OperationalError` fazendo o fim de ciclo sempre retornar `False`
+- [x] **Bateria de testes de leituras** (`tests/test_leituras_ciclo.py`) — 88 novos testes cobrindo lista de unidades, extração de andar, normalização do scanner, lidos por modo, fluxo ÁGUA e GÁS completo (96 unidades), áreas comuns, validação de sequência, fim de ciclo e relatório CSV/PDF; total do projeto: **114 testes, 100% pass**
+
+---
+
+*Atualizado em 22/05/2026 (3ª rodada) — fix lidos por modo, fix beep scanner (SystemSoundType.click), fix _resetar_banco_para_novo_mes (coluna inexistente), bateria de testes de leituras (88 novos, 114 total).*
