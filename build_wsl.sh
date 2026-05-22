@@ -90,12 +90,6 @@ if ! grep -q "mobile_scanner" "$PUBSPEC"; then
 else
     echo "⏭️  mobile_scanner ja presente no pubspec.yaml"
 fi
-if ! grep -q "audioplayers" "$PUBSPEC"; then
-    sed -i 's/  mobile_scanner: \^6.0.0/  mobile_scanner: ^6.0.0\n  audioplayers: ^6.0.0/' "$PUBSPEC"
-    echo "✅ audioplayers adicionado ao pubspec.yaml"
-else
-    echo "⏭️  audioplayers ja presente no pubspec.yaml"
-fi
 
 # ── PASSO 3: Copia arquivos Dart das extensões ──
 FLUTTER_LIB="$FLUTTER_DIR/lib"
