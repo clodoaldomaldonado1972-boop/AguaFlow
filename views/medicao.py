@@ -301,6 +301,7 @@ def montar_tela_medicao(page: ft.Page):
         # 2. Recuperação de dados do Scanner (após definição dos campos para evitar NameError)
         unidade_ocr = user_data.get("unidade_scanner")
         valor_ocr = user_data.get("valor_scanner")
+        ocr_status_scanner = user_data.pop("ocr_status_scanner", None)
 
         if unidade_ocr:
             # Normaliza formato do barcode ex: "AGUAFLOW|166-AGUA" → "166"
@@ -314,6 +315,28 @@ def montar_tela_medicao(page: ft.Page):
             else:
                 txt_gas.value = valor_ocr
             user_data.pop("valor_scanner", None)
+
+        # Aviso de offline: exibe SnackBar após a view ser montada
+        if ocr_status_scanner in ("offline",) and not valor_ocr:
+            async def _aviso_sem_conexao():
+                await asyncio.sleep(0.4)
+                try:
+                    page.show_snack_bar(ft.SnackBar(
+                        ft.Row([
+                            ft.Icon(ft.Icons.WIFI_OFF, color="white", size=20),
+                            ft.Text(
+                                "  Sem conexão — insira o valor manualmente",
+                                color="white", size=14,
+                            ),
+                        ]),
+                        bgcolor="#b71c1c",
+                        duration=5000,
+                        show_close_icon=True,
+                    ))
+                    page.update()
+                except Exception:
+                    pass
+            asyncio.create_task(_aviso_sem_conexao())
 
 
         # --- FUNÇÕES DE LÓGICA ---

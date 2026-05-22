@@ -68,7 +68,7 @@ flet build apk \
     --project AguaFlow \
     --product "AguaFlow" \
     --build-version 1.2.0 \
-    --build-number 124 \
+    --build-number 125 \
     --permissions camera photo_library \
     --yes
 

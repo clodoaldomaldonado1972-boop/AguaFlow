@@ -17,7 +17,7 @@ class BeepPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         if (call.method == "beep") {
             try {
-                val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90)
+                val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 90)
                 toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
                 toneGen.release()
                 result.success(null)

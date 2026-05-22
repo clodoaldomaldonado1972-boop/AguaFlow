@@ -87,17 +87,23 @@ def montar_tela_scanner(page: ft.Page):
 
         async def _processar_foto(path: str):
             """Processa de forma leve a imagem retornada pela câmera nativa do Android."""
+            import socket
             state["foto_path"] = path
             existe = os.path.exists(path) if path else False
             tamanho = os.path.getsize(path) if existe else 0
             logger.info(f"📷 Foto recebida: path={path} | existe={existe} | tamanho={tamanho}B")
 
-            # Flash visual de captura
+            # Flash visual não-bloqueante (não suspende o handler)
+            async def _restaurar_flash():
+                await asyncio.sleep(0.3)
+                try:
+                    flash_overlay.opacity = 0
+                    page.update()
+                except Exception:
+                    pass
             flash_overlay.opacity = 0.85
             page.update()
-            await asyncio.sleep(0.3)
-            flash_overlay.opacity = 0
-            page.update()
+            asyncio.create_task(_restaurar_flash())
 
             # Atualização do Preview local em base64
             try:
@@ -108,40 +114,67 @@ def montar_tela_scanner(page: ft.Page):
                 logger.error(f"Erro ao gerar preview base64: {ex}")
                 img_preview.visible = False
 
-            lbl_status.value = "Imagem obtida! Processando análise inteligente..."
+            lbl_status.value = "Verificando conexão..."
             lbl_status.color = "orange"
             page.update()
 
-            # OCR com timeout estrito — evita travamento em zonas de sombra (4.C)
-            tipo_str = "gás" if modo == "GAS" else "água"
+            # Verificação rápida de conectividade (2 s) — evita aguardar 25 s de timeout
+            def _tem_internet() -> bool:
+                try:
+                    socket.create_connection(("8.8.8.8", 53), timeout=2).close()
+                    return True
+                except Exception:
+                    return False
+
+            tem_internet = await asyncio.to_thread(_tem_internet)
+
             valor_ocr = None
             ocr_status = "offline"
-            try:
-                _, valor_ocr, ocr_status = await asyncio.wait_for(
-                    asyncio.to_thread(processar_foto_hidrometro, path, tipo_str),
-                    timeout=25.0
-                )
-            except asyncio.TimeoutError:
-                logger.warning("⏱️ OCR timeout (25s) — zona de sombra ou API lenta.")
-            except Exception as ex:
-                logger.error(f"Erro no OCR: {ex}")
 
-            # Upload em background (não bloqueia a navegação)
-            asyncio.create_task(_upload_background(path, "DESCONHECIDA", modo))
+            if not tem_internet:
+                logger.info("📶 Sem internet — OCR ignorado.")
+                lbl_status.value = "📶 Sem conexão — insira o valor manualmente."
+                lbl_status.color = "red"
+                page.update()
+            else:
+                lbl_status.value = "Imagem obtida! Processando análise inteligente..."
+                lbl_status.color = "orange"
+                page.update()
+
+                tipo_str = "gás" if modo == "GAS" else "água"
+                try:
+                    _, valor_ocr, ocr_status = await asyncio.wait_for(
+                        asyncio.to_thread(processar_foto_hidrometro, path, tipo_str),
+                        timeout=25.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("⏱️ OCR timeout (25s) — zona de sombra ou API lenta.")
+                    ocr_status = "offline"
+                except Exception as ex:
+                    logger.error(f"Erro no OCR: {ex}")
+                    ocr_status = "erro"
+
+            # Upload em background com nome correto da unidade
+            unidade_upload = state.get("unidade") or "DESCONHECIDA"
+            asyncio.create_task(_upload_background(path, unidade_upload, modo))
 
             pr_captura.visible = False
 
             if valor_ocr:
                 lbl_status.value = f"✅ OCR detectou: {valor_ocr} — voltando..."
                 lbl_status.color = "green"
+            elif ocr_status == "offline":
+                lbl_status.value = "📶 Sem conexão — insira o valor manualmente."
+                lbl_status.color = "red"
             else:
                 lbl_status.value = "⚠️ OCR sem resultado — insira o valor manualmente."
                 lbl_status.color = "orange"
 
-            # Passa valores para medição e navega imediatamente (sem sleep bloqueante)
+            # Passa valores e status para medicao, navega imediatamente
             page.user_data["valor_scanner"] = valor_ocr or ""
             page.user_data["unidade_scanner"] = state.get("unidade") or ""
-            logger.info(f"📋 Scanner → medição: unidade={state.get('unidade')} valor={valor_ocr}")
+            page.user_data["ocr_status_scanner"] = ocr_status
+            logger.info(f"📋 Scanner → medição: unidade={state.get('unidade')} valor={valor_ocr} status={ocr_status}")
             page.update()
             page.go("/medicao")
 
@@ -243,22 +276,40 @@ def montar_tela_scanner(page: ft.Page):
             page.update()
 
         async def _upload_background(path: str, unidade: str, modo: str):
+            upload_ok = False
             try:
                 url = await asyncio.to_thread(
                     Database.upload_foto_hidrometro_sync, path, unidade, modo
                 )
                 if url:
-                    logger.info(f"📸 Sincronização concluída: {url}")
+                    logger.info(f"📸 Upload concluído: {url}")
                     page.user_data["foto_url_scanner"] = url
+                    upload_ok = True
+                    # Notifica o usuário — a task corre em background enquanto ele está em /medicao
+                    try:
+                        page.show_snack_bar(ft.SnackBar(
+                            ft.Row([
+                                ft.Icon(ft.Icons.CHECK_CIRCLE, color="white", size=18),
+                                ft.Text("  Foto gravada com sucesso!", color="white", size=14),
+                            ]),
+                            bgcolor="#2e7d32",
+                            duration=3000,
+                        ))
+                        page.update()
+                    except Exception:
+                        pass
             except Exception as ex:
                 logger.error(f"Erro no upload em background: {ex}", exc_info=True)
                 enviar_report_erro(traceback.format_exc(), unidade=f"UPLOAD-FOTO-{modo}")
             finally:
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except Exception:
-                    pass
+                # Só deleta o arquivo local se o upload foi bem-sucedido.
+                # Se falhou, mantém o arquivo para retentativa futura.
+                if upload_ok:
+                    try:
+                        if os.path.exists(path):
+                            os.remove(path)
+                    except Exception:
+                        pass
 
         container_mira = ft.Container(
             content=ft.Stack([

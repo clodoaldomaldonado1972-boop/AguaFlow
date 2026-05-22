@@ -587,10 +587,11 @@ class Database:
             client = cls.supabase_admin or cls.supabase
             if not client or not os.path.exists(caminho_foto):
                 return None
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             import re
+            # Path fixo por unidade/mês/modo — upsert sobrescreve sem duplicar
+            mes_ciclo = datetime.now().strftime('%Y%m')
             unidade_safe = re.sub(r'[^a-zA-Z0-9_\-/]', '_', unidade)
-            storage_path = f"{unidade_safe}/{timestamp}_{modo}.jpg"
+            storage_path = f"{unidade_safe}/{mes_ciclo}_{modo}.jpg"
 
             # Comprime antes do upload: máx 1024x1024, qualidade 72 (~150-300 KB)
             dados = None

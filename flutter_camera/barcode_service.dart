@@ -115,7 +115,7 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage>
       await HapticFeedback.heavyImpact();
       await Future.delayed(const Duration(milliseconds: 90));
       await HapticFeedback.mediumImpact();
-      const MethodChannel('aguaflow/beep').invokeMethod<void>('beep');
+      await const MethodChannel('aguaflow/beep').invokeMethod<void>('beep');
     } catch (_) {}
 
     // Flash verde na mira por 350 ms antes de fechar
