@@ -61,30 +61,36 @@ def processar_foto_hidrometro(caminho_foto: str, tipo: str = "água"):
 
 # ── Pré-processamento de Imagem Leve (Pillow) ─────────────────────────────────
 
-def _preparar_imagem_bytes(caminho_foto: str) -> bytes:
+def _preparar_imagem_bytes(caminho_foto: str, tipo: str = "água") -> bytes:
     """
     Recorta e redimensiona a imagem antes de enviar ao Claude utilizando apenas o Pillow.
     Evita estouro de memória no Android e otimiza o upload.
+
+    Crop adaptativo por tipo:
+      GÁS  — mostrador centralizado no medidor → corta 30-75% da altura em retrato
+      ÁGUA — mostrador na metade inferior       → corta 45-90% da altura em retrato
     """
     if PIL_AVAILABLE:
         try:
             img = _PILImage.open(caminho_foto)
             w, h = img.size
-            
-            # Se a foto estiver em modo retrato (comum em celulares), foca na metade inferior (área do medidor)
-            if h > w:
-                img = img.crop((0, int(h * 0.45), w, int(h * 0.90)))
-            
-            # Limita as dimensões máximas mantendo a proporção (recalculado de forma leve)
+
+            if h > w:  # retrato (foto de celular na vertical)
+                is_gas = "gás" in tipo.lower() or "gas" in tipo.lower()
+                if is_gas:
+                    # Medidores de gás: mostrador no terço central — janela mais ampla
+                    img = img.crop((0, int(h * 0.25), w, int(h * 0.80)))
+                else:
+                    # Hidrômetros de água: mostrador na metade inferior
+                    img = img.crop((0, int(h * 0.45), w, int(h * 0.90)))
+
             img.thumbnail((1024, 1024))
-            
             buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=88)  # 88 preserva legibilidade dos dígitos reduzindo peso
+            img.save(buf, format="JPEG", quality=88)
             return buf.getvalue()
         except Exception as ex:
             logger.warning(f"Falha ao processar imagem com Pillow: {ex}")
 
-    # Fallback de segurança: lê os bytes brutos se o Pillow falhar
     with open(caminho_foto, "rb") as f:
         return f.read()
 
@@ -105,26 +111,41 @@ def _portrait_detect(caminho_foto: str) -> bool:
 
 def _prompt_ocr(tipo: str, is_portrait: bool = False) -> str:
     is_gas = "gás" in tipo.lower() or "gas" in tipo.lower()
-    localizacao = (
-        "A foto é uma captura de aplicativo móvel: ignore elementos de interface do smartphone nas extremidades, "
-        "e foque estritamente no medidor circular/retangular centralizado na imagem. " if is_portrait else ""
-    )
+
     if is_gas:
         return (
-            f"Esta é uma foto de um medidor de GÁS. {localizacao}"
-            "Localize o visor retangular com dígitos numéricos no medidor. "
-            "O visor tem 8 posições: os 5 primeiros dígitos (fundo branco ou preto) são a parte inteira, "
-            "os 3 últimos (fundo VERMELHO) são as casas decimais. "
-            "Leia cada dógrafo com extrema atenção. Use ponto como separador decimal. "
-            "Exemplos de saída esperada: '00327.833', '01584.480'. Retorne APENAS a string numérica limpa. Se não conseguir ler com clareza, retorne: null"
+            "Esta é uma foto de um medidor de GÁS residencial (contador mecânico de roletes).\n\n"
+            "PASSO 1 — Identifique o mostrador principal:\n"
+            "Procure uma caixa retangular no centro do medidor com 8 janelas enfileiradas. "
+            "Cada janela exibe UM dígito (0-9) em rolete mecânico. "
+            "As 5 janelas da esquerda têm fundo BRANCO ou PRETO (parte inteira, m³). "
+            "As 3 janelas da direita têm fundo VERMELHO (decimais, hm³).\n\n"
+            "PASSO 2 — IGNORE completamente qualquer outro número na imagem:\n"
+            "NÃO leia o número de série (plaqueta colada no corpo), "
+            "NÃO leia a pressão nominal (ex: 'G4', 'PN10'), "
+            "NÃO leia o modelo, código de barras, data de fabricação "
+            "nem nenhum algarismo fora do mostrador retangular de 8 janelas.\n\n"
+            "PASSO 3 — Leia os 8 dígitos da esquerda para a direita SOMENTE do mostrador.\n"
+            "Use ponto como separador após o 5º dígito.\n"
+            "Formato obrigatório: 5 dígitos + ponto + 3 dígitos (ex: '00327.833', '01584.480', '00138.300').\n"
+            "Retorne APENAS a string numérica limpa. "
+            "Se o mostrador estiver obstruído ou ilegível, retorne: null"
         )
     return (
-        f"Esta é uma foto de um medidor de ÁGUA (Hidrômetro). {localizacao}"
-        "Localize o visor retangular com dígitos numéricos no medidor. "
-        "O visor tem 7 posições: os 5 primeiros dígitos (fundo branco ou preto) são a parte inteira, "
-        "os 2 últimos (fundo VERMELHO) são as casas decimais. "
-        "Leia cada dígito com atenção. Use ponto como separador decimal. "
-        "Exemplos de saída esperada: '00227.86', '02673.00'. Retorne APENAS a string numérica limpa. Se não conseguir ler com clareza, retorne: null"
+        "Esta é uma foto de um hidrômetro de ÁGUA (contador mecânico de roletes).\n\n"
+        "PASSO 1 — Identifique o mostrador principal:\n"
+        "Procure uma caixa retangular no medidor com 7 janelas enfileiradas. "
+        "Cada janela exibe UM dígito (0-9) em rolete mecânico. "
+        "As 5 janelas da esquerda têm fundo BRANCO ou PRETO (parte inteira, m³). "
+        "As 2 janelas da direita têm fundo VERMELHO (decimais).\n\n"
+        "PASSO 2 — IGNORE completamente qualquer outro número na imagem:\n"
+        "NÃO leia o número de série, modelo, código na tampa, "
+        "nem nenhum algarismo fora do mostrador retangular de 7 janelas.\n\n"
+        "PASSO 3 — Leia os 7 dígitos da esquerda para a direita SOMENTE do mostrador.\n"
+        "Use ponto como separador após o 5º dígito.\n"
+        "Formato obrigatório: 5 dígitos + ponto + 2 dígitos (ex: '00227.86', '02673.00').\n"
+        "Retorne APENAS a string numérica limpa. "
+        "Se o mostrador estiver obstruído ou ilegível, retorne: null"
     )
 
 
@@ -168,13 +189,20 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple:
             return None, True
 
         is_portrait = _portrait_detect(caminho_foto)
-        raw_bytes = _preparar_imagem_bytes(caminho_foto)
+        raw_bytes = _preparar_imagem_bytes(caminho_foto, tipo)
         img_b64 = base64.b64encode(raw_bytes).decode("utf-8")
 
+        is_gas = "gás" in tipo.lower() or "gas" in tipo.lower()
         client = Anthropic(api_key=api_key)
         msg = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=50,
+            system=(
+                "Você é um especialista em leitura de medidores de gás e água. "
+                "Sua única função é extrair o valor exibido no mostrador retangular principal do medidor. "
+                "Responda SOMENTE com a string numérica no formato solicitado ou 'null'. "
+                "Nunca explique, nunca adicione texto extra."
+            ),
             messages=[{
                 "role": "user",
                 "content": [
