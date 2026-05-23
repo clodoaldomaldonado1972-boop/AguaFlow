@@ -62,19 +62,26 @@ cd "$BUILD_DIR"
 ls main.py requirements.txt >/dev/null && echo "main.py + requirements.txt: OK"
 echo "Tamanho do BUILD_DIR: $(du -sh . --exclude=build | cut -f1)"
 
-# ── PRÉ-PASSO: Garante que FLUTTER_DIR existe e corrige MainActivity.kt stale ──
-# flet build usa $FLUTTER_DIR como cwd — precisa existir; corrige .kt corrompido se presente
-mkdir -p "$FLUTTER_DIR"
-STALE_MAIN="$FLUTTER_DIR/android/app/src/main/kotlin/br/com/vivereprudente/aguaflow/MainActivity.kt"
-if [ -f "$STALE_MAIN" ]; then
-    cat > "$STALE_MAIN" << 'STALE_EOF'
+# ── PRÉ-PASSO: Determina modo de build (incremental vs clean) ──
+# flet build testa pubspec.yaml em FLUTTER_DIR: se ausente, faz build incremental quebrado
+if [ -f "$FLUTTER_DIR/pubspec.yaml" ]; then
+    # Flutter project válido: corrige apenas o .kt corrompido (build incremental seguro)
+    STALE_MAIN="$FLUTTER_DIR/android/app/src/main/kotlin/br/com/vivereprudente/aguaflow/MainActivity.kt"
+    if [ -f "$STALE_MAIN" ]; then
+        cat > "$STALE_MAIN" << 'STALE_EOF'
 package br.com.vivereprudente.aguaflow
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
 STALE_EOF
-    echo "✅ MainActivity.kt stale corrigido antes do flet build"
+        echo "✅ MainActivity.kt stale corrigido (build incremental)"
+    fi
+else
+    # Flutter dir ausente ou inválido: apaga build/ inteiro para forçar build limpo
+    echo "⚠️  FLUTTER_DIR sem pubspec.yaml — limpando build/ para rebuild limpo..."
+    rm -rf "$BUILD_DIR/build"
+    echo "✅ build/ limpo — flet criará tudo do zero"
 fi
 
 # ── PASSO 1: flet build gera o projeto Flutter + empacota Python + compila APK base ──
