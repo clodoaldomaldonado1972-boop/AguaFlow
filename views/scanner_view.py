@@ -154,8 +154,14 @@ def montar_tela_scanner(page: ft.Page):
                     logger.error(f"Erro no OCR: {ex}")
                     ocr_status = "erro"
 
-            # Upload em background com nome correto da unidade
-            unidade_upload = state.get("unidade") or "DESCONHECIDA"
+            # Normaliza nome da unidade para pasta no Storage
+            # "AGUAFLOW|163/164-GAS" → "163-164" | "AGUAFLOW|161-AGUA" → "161"
+            unidade_raw = state.get("unidade") or "DESCONHECIDA"
+            if '|' in unidade_raw:
+                unidade_raw = unidade_raw.split('|', 1)[1]
+            if '-' in unidade_raw and unidade_raw.rsplit('-', 1)[1].upper() in ('AGUA', 'GAS'):
+                unidade_raw = unidade_raw.rsplit('-', 1)[0]
+            unidade_upload = unidade_raw.replace('/', '-')
             asyncio.create_task(_upload_background(path, unidade_upload, modo))
 
             pr_captura.visible = False
@@ -285,16 +291,29 @@ def montar_tela_scanner(page: ft.Page):
                     logger.info(f"📸 Upload concluído: {url}")
                     page.user_data["foto_url_scanner"] = url
                     upload_ok = True
-                    # Notifica o usuário — a task corre em background enquanto ele está em /medicao
+                    # Notifica o usuário — task em background, usuário já em /medicao
                     try:
-                        page.show_snack_bar(ft.SnackBar(
-                            ft.Row([
+                        page.snack_bar = ft.SnackBar(
+                            content=ft.Row([
                                 ft.Icon(ft.Icons.CHECK_CIRCLE, color="white", size=18),
                                 ft.Text("  Foto gravada com sucesso!", color="white", size=14),
                             ]),
                             bgcolor="#2e7d32",
                             duration=3000,
-                        ))
+                        )
+                        page.snack_bar.open = True
+                        page.update()
+                    except Exception:
+                        pass
+                else:
+                    logger.warning("📸 Upload retornou URL vazia — foto não gravada no Storage.")
+                    try:
+                        page.snack_bar = ft.SnackBar(
+                            content=ft.Text("Falha ao enviar foto. Tente novamente.", color="white", size=14),
+                            bgcolor="#b71c1c",
+                            duration=4000,
+                        )
+                        page.snack_bar.open = True
                         page.update()
                     except Exception:
                         pass

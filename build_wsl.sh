@@ -15,7 +15,7 @@ SRC=/mnt/c/AguaFlow
 BUILD_DIR=$HOME/aguaflow_build
 FLUTTER_DIR=$BUILD_DIR/build/flutter
 
-echo "=== AguaFlow v1.2.0 — Build APK ==="
+echo "=== AguaFlow v1.2.0 — Build APK 126 ==="
 echo "Java:   $(java -version 2>&1 | head -1)"
 echo "Python: $(python3 --version)"
 echo "Flet:   $(flet --version)"
@@ -68,7 +68,7 @@ flet build apk \
     --project AguaFlow \
     --product "AguaFlow" \
     --build-version 1.2.0 \
-    --build-number 125 \
+    --build-number 126 \
     --permissions camera photo_library \
     --yes
 
@@ -108,19 +108,28 @@ cp "$BUILD_DIR/flutter_camera/barcode_service.dart" "$FLUTTER_LIB/"
 cp "$BUILD_DIR/flutter_camera/barcode_extension.dart" "$FLUTTER_LIB/"
 echo "✅ Arquivos Dart da camera e barcode copiados"
 
-# Copia BeepPlugin.kt ao diretório Kotlin e registra em MainActivity.kt (idempotente)
+# Copia BeepPlugin.kt e escreve MainActivity.kt completo (idempotente por sobrescrita)
+# Motivo: sed falha — Flet gera "class MainActivity : FlutterActivity()" sem "{" e com espaço,
+# impossível de casar com padrão de substituição sem format-matching frágil.
 KOTLIN_DIR="$FLUTTER_DIR/android/app/src/main/kotlin/br/com/vivereprudente/aguaflow"
 cp "$BUILD_DIR/flutter_camera/BeepPlugin.kt" "$KOTLIN_DIR/"
 echo "✅ BeepPlugin.kt copiado"
 
 MAIN_ACTIVITY="$KOTLIN_DIR/MainActivity.kt"
-if ! grep -q "BeepPlugin" "$MAIN_ACTIVITY"; then
-    sed -i 's/import io.flutter.embedding.android.FlutterActivity/import io.flutter.embedding.android.FlutterActivity\nimport io.flutter.embedding.engine.FlutterEngine/' "$MAIN_ACTIVITY"
-    sed -i 's/class MainActivity: FlutterActivity() {/class MainActivity: FlutterActivity() {\n    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {\n        super.configureFlutterEngine(flutterEngine)\n        flutterEngine.plugins.add(BeepPlugin())\n    }/' "$MAIN_ACTIVITY"
-    echo "✅ BeepPlugin registrado em MainActivity.kt"
-else
-    echo "⏭️  BeepPlugin já registrado em MainActivity.kt"
-fi
+cat > "$MAIN_ACTIVITY" << 'KOTLIN_EOF'
+package br.com.vivereprudente.aguaflow
+
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+
+class MainActivity : FlutterActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        flutterEngine.plugins.add(BeepPlugin())
+    }
+}
+KOTLIN_EOF
+echo "✅ MainActivity.kt escrito com BeepPlugin registrado"
 
 # ── PASSO 4: Registra extensões em main.dart (idempotente) ──
 MAIN_DART="$FLUTTER_LIB/main.dart"
@@ -157,7 +166,7 @@ APK=$(find "$FLUTTER_DIR/build/app/outputs/flutter-apk" -name "app-release.apk" 
 [ -z "$APK" ] && APK="$BUILD_DIR/build/apk/AguaFlow.apk"
 
 if [ -f "$APK" ]; then
-    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0.apk
+    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0-b126.apk
     cp /tmp/aguaflow_build.log /mnt/c/AguaFlow/build_output.log
     echo "===================================="
     echo "APK gerado com sucesso!"

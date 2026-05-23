@@ -188,7 +188,10 @@ def _log_ocr_supabase(resposta_bruta: str, valor_aceito, status: str, foi_offlin
         }).execute()
         logger.debug("📊 OCR logado no Supabase")
     except Exception as ex:
-        logger.warning(f"Falha ao logar OCR: {ex}")
+        if 'PGRST205' in str(ex):
+            logger.debug("ocr_log tabela ausente no Supabase — log de calibragem ignorado")
+        else:
+            logger.warning(f"Falha ao logar OCR: {ex}")
 
 
 def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple:

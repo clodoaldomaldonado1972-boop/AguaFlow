@@ -368,3 +368,21 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 ---
 
 *Atualizado em 22/05/2026 (3ª rodada + limpeza) — fix lidos por modo, fix beep scanner, fix reset ciclo, 88 novos testes (114 total 100% pass), remoção de 19 arquivos órfãos, buildozer.spec corrigido.*
+
+---
+
+## 22. Correções — 22/05/2026 (4ª rodada — pós-campo APK 125)
+
+Baseadas nos logs de campo e screenshot do leiturista (APK 125 em produção).
+
+- [x] **Fix beep — causa raiz real** (`build_wsl.sh`) — o `sed` nunca inseriu `configureFlutterEngine` porque o Flet 0.82.2 gera `class MainActivity : FlutterActivity()` sem `{` e com espaço antes de `:`, formato que não casava com o padrão do sed. MainActivity.kt ficava sem o override e sem a importação de `FlutterEngine`. Substituído por `cat > MainAcitivy.kt << 'KOTLIN_EOF'` que escreve o arquivo completo diretamente — idempotente, sem frágil pattern-matching.
+- [x] **Fix SnackBar "Foto gravada com sucesso!"** (`views/scanner_view.py`) — `page.show_snack_bar()` não exibia o SnackBar do background task em Flet 0.82.2 Android. Substituído por `page.snack_bar = ...; page.snack_bar.open = True; page.update()` que é a API direta e confiável. Adicionado SnackBar de erro quando upload retorna URL vazia.
+- [x] **Fix storage path — unidades duplex e raw barcode** (`views/scanner_view.py`) — o raw barcode `"AGUAFLOW|163/164-GAS"` gerava 3 níveis de pasta no Storage (`AGUAFLOW_163/164-GAS/...`). Agora o barcode é normalizado antes do upload: `"AGUAFLOW|161-AGUA"→"161"`, `"AGUAFLOW|163/164-GAS"→"163-164"`.
+- [x] **Fix visibilidade do valor OCR** (`views/medicao.py`) — `txt_agua` e `txt_gas` sem `color` explícito renderizavam o valor preenchido pelo OCR em cinza indistinguível do hint text no tema escuro (#121417). Adicionado `color="white"` em ambos os campos.
+- [x] **Fix ruído WARNING `ocr_log` PGRST205** (`utils/vision.py`) — toda chamada OCR gerava `WARNING Falha ao logar OCR: PGRST205` porque a tabela `ocr_log` não existe no Supabase. Código agora detecta `PGRST205` e loga em `DEBUG` em vez de `WARNING`. A tabela SQL para criação está documentada em `docs/investigacao_logs_erro_20260522.md`.
+- [x] **Testes — 156 testes, 100% pass** (build 126) — `TestScannerOcrUpload` (42) adicionados à suite.
+- [x] **APK build 126** — `build_wsl.sh` atualizado para build-number 126, output `AguaFlow-1.2.0-b126.apk`.
+
+---
+
+*Atualizado em 22/05/2026 (4ª rodada) — fix beep MainAcitivy.kt, SnackBar API, storage path duplex, color OCR field, WARNING PGRST205, 156 testes 100% pass.*

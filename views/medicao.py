@@ -199,6 +199,7 @@ def montar_tela_medicao(page: ft.Page):
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,2})?$"),
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,00",
+            color="white",
             border_color="blue" if _agua else None,
             disabled=not _agua
         )
@@ -212,6 +213,7 @@ def montar_tela_medicao(page: ft.Page):
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,3})?$"),
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,000",
+            color="white",
             border_color="orange" if not _agua else None,
             disabled=_agua
         )
