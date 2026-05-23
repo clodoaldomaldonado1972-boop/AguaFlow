@@ -62,8 +62,9 @@ cd "$BUILD_DIR"
 ls main.py requirements.txt >/dev/null && echo "main.py + requirements.txt: OK"
 echo "Tamanho do BUILD_DIR: $(du -sh . --exclude=build | cut -f1)"
 
-# ── PRÉ-PASSO: Corrige MainActivity.kt stale antes do flet build ──
-# flet build usa $FLUTTER_DIR como cwd — não pode deletar o dir, mas pode corrigir o .kt
+# ── PRÉ-PASSO: Garante que FLUTTER_DIR existe e corrige MainActivity.kt stale ──
+# flet build usa $FLUTTER_DIR como cwd — precisa existir; corrige .kt corrompido se presente
+mkdir -p "$FLUTTER_DIR"
 STALE_MAIN="$FLUTTER_DIR/android/app/src/main/kotlin/br/com/vivereprudente/aguaflow/MainActivity.kt"
 if [ -f "$STALE_MAIN" ]; then
     cat > "$STALE_MAIN" << 'STALE_EOF'
