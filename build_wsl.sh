@@ -62,6 +62,12 @@ cd "$BUILD_DIR"
 ls main.py requirements.txt >/dev/null && echo "main.py + requirements.txt: OK"
 echo "Tamanho do BUILD_DIR: $(du -sh . --exclude=build | cut -f1)"
 
+# ── PASSO 1: Limpa build Flutter anterior para evitar Kotlin stale files ──
+# Sem limpeza, flet build compila o $FLUTTER_DIR do build anterior (com arquivos corrompidos)
+echo "Limpando Flutter dir anterior..."
+rm -rf "$FLUTTER_DIR"
+echo "✅ Flutter dir limpo"
+
 # ── PASSO 1: flet build gera o projeto Flutter + empacota Python + compila APK base ──
 flet build apk \
     --org br.com.vivereprudente \
@@ -120,10 +126,9 @@ cat > "$MAIN_ACTIVITY" << 'KOTLIN_EOF'
 package br.com.vivereprudente.aguaflow
 
 import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+    override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         flutterEngine.plugins.add(BeepPlugin())
     }
