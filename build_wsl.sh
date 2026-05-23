@@ -62,11 +62,19 @@ cd "$BUILD_DIR"
 ls main.py requirements.txt >/dev/null && echo "main.py + requirements.txt: OK"
 echo "Tamanho do BUILD_DIR: $(du -sh . --exclude=build | cut -f1)"
 
-# ── PASSO 1: Limpa build Flutter anterior para evitar Kotlin stale files ──
-# Sem limpeza, flet build compila o $FLUTTER_DIR do build anterior (com arquivos corrompidos)
-echo "Limpando Flutter dir anterior..."
-rm -rf "$FLUTTER_DIR"
-echo "✅ Flutter dir limpo"
+# ── PRÉ-PASSO: Corrige MainActivity.kt stale antes do flet build ──
+# flet build usa $FLUTTER_DIR como cwd — não pode deletar o dir, mas pode corrigir o .kt
+STALE_MAIN="$FLUTTER_DIR/android/app/src/main/kotlin/br/com/vivereprudente/aguaflow/MainActivity.kt"
+if [ -f "$STALE_MAIN" ]; then
+    cat > "$STALE_MAIN" << 'STALE_EOF'
+package br.com.vivereprudente.aguaflow
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
+STALE_EOF
+    echo "✅ MainActivity.kt stale corrigido antes do flet build"
+fi
 
 # ── PASSO 1: flet build gera o projeto Flutter + empacota Python + compila APK base ──
 flet build apk \
