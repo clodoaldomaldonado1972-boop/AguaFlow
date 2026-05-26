@@ -483,3 +483,43 @@ Erros restantes são de **leitura de dígito individual** (rolete entre dois nú
 
 *Atualizado em 25/05/2026 (Skill — refatoração de leitura) — PROMPT_SISTEMA_OCR por fabricante, barreira de andar, barra de progresso, modo ronda, campo único por passo, 198 testes 100% pass.*
 *Atualizado em 25/05/2026 (OCR Photos-3-001 — iteração final) — Renova 4+2 corrigido, TERREO 100%, 16/22 = 73%, 0 erros de formato.*
+
+---
+
+## 25. Bloqueio de Leituras Duplicadas — 26/05/2026
+
+Diagnóstico: unidade 161 exibia 6 leituras de gás idênticas (13.0 m³, 05/26) no Dashboard.
+Causa raiz identificada: em modo MISTO, o scanner pode retornar à mesma unidade múltiplas vezes
+(re-scan de confirmação OCR), e `salvar_clique` não verificava se a unidade já havia sido lida.
+
+### 25.1 Correções aplicadas (commit ed110e2)
+
+- [x] **`salvar_clique` — check de duplicata na UI** (`views/medicao.py`) — antes de salvar, busca `get_leituras_mes_atual()` e verifica se `unidade_nome` já está em `lidos` (por `leitura_agua IS NOT NULL` ou `leitura_gas IS NOT NULL`); ao detectar duplicata exibe snack de erro e avança automaticamente para a próxima unidade pendente
+- [x] **`salvar_leitura` — pré-check no SQLite** (`database/database.py`) — antes do `INSERT`, consulta se já existe linha com `leitura_agua IS NOT NULL` (ou `gas`) para a mesma `unidade_id` / `substr(data_hora_coleta,1,7)`; retorna `{"sucesso": False, "erro": "registro_unico_unidade_coleta"}` sem tocar no banco
+- [x] **Índices UNIQUE parciais** (`database/database.py:inicializar_tabelas`) — `idx_unica_agua_mes` e `idx_unica_gas_mes` criados como `UNIQUE INDEX ... WHERE leitura_X IS NOT NULL`; barreira de último recurso — rejeita mesmo INSERTs diretos que bypassem o pré-check; NULLs excluídos do índice (unidades puladas podem ser re-lidas)
+- [x] **Sync idempotente** (`database/sync_service.py:_upload_individual`) — erros de chave duplicada no Supabase (`23505`, `"duplicate"`, `"unique"`, `"registro_unico"`) agora tratados como sucesso silencioso; quebra o loop onde o registro ficava preso em `sincronizado=0` sendo re-enviado a cada 60 s
+
+### 25.2 Testes automatizados — `tests/test_bloqueio_duplicatas.py` (46 testes, 100% pass)
+
+| Classe de teste | Testes | Cobertura |
+|---|---|---|
+| `TestSalvarLeituraDuplicata` | 10 | AGUA e GAS bloqueados na 2ª tentativa; duplex; nome do erro correto |
+| `TestSalvarLeituraMisto` | 6 | AGUA+GAS mesma unidade → 2 saves OK; re-AGUA e re-GAS bloqueados; andar 16 completo |
+| `TestSalvarLeituraNull` | 5 | NULL nunca bloqueado; NULL não impede leitura real posterior; real bloqueia 2ª real |
+| `TestSalvarLeituraMeses` | 4 | Mês diferente = ciclo independente; `data_hora=None` não trava |
+| `TestIndiceParcialUnico` | 6 | Índices existem no schema; bloqueiam INSERT direto (bypass do pré-check); NULL não participa |
+| `TestFluxoSimuladoAgua` | 4 | 11 unidades (andares 16+15): 1º ciclo 100% OK, re-tentativa 0% OK, valores preservados |
+| `TestFluxoSimuladoGas` | 5 | 12 unidades + LAZER GÁS: idem; TERREO GERAL ÁGUA testado |
+| `TestFluxoSimuladoMisto` | 6 | Andar 16 completo (AGUA→GAS); 10 rows exatos; **cenário do bug**: scanner retorna 6× para unidade 161 → apenas 1ª inserção OK, zero duplicatas |
+
+**Resultado:** 46/46 ✅ | Suite completa: 244/244 ✅ (inclui correção de `test_referencias_aparecem_como_anterior_no_proximo_ciclo` que simulava incorretamente "próximo ciclo" sem limpar a tabela de leituras)
+
+### 25.3 Comportamento esperado pós-fix
+
+| Cenário | Antes | Depois |
+|---|---|---|
+| Scanner retorna à mesma unidade | INSERT duplicado sem aviso | Snack de erro + avança para próxima pendente |
+| Usuário seleciona unidade já lida no dropdown | Salva silenciosamente | Bloqueado com mensagem clara |
+| INSERT direto no SQLite (bypass) | Duplicata inserida | `IntegrityError` pelo índice UNIQUE |
+| Sync re-tenta registro já no Supabase | Cria duplicata no Supabase | Tratado como sucesso idempotente |
+| Unidade pulada (NULL) depois lida | — | Permitido (NULL excluído dos índices) |
