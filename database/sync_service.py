@@ -176,6 +176,12 @@ class SyncService:
             )
             return {'sucesso': True}
         except Exception as e:
+            err_str = str(e).lower()
+            # Trata violação de unicidade como sucesso — registro já existe no Supabase
+            if any(k in err_str for k in ("duplicate", "unique", "registro_unico", "23505")):
+                logger.info(
+                    f"Sync idempotente ({item['unidade_id']}): registro já existe no Supabase.")
+                return {'sucesso': True}
             logger.error(f"Erro no upload individual ({item['unidade_id']}): {e}")
             return {'sucesso': False, 'erro': str(e)}
 

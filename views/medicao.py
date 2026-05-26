@@ -658,20 +658,34 @@ def montar_tela_medicao(page: ft.Page):
             else:
                 return
 
-            # Validação de sequência
+            # Validação: unidade existe na lista
             if unidade_nome not in db_lista:
                 _mostrar_snack(f"Unidade '{unidade_nome}' não encontrada na lista.", is_error=True)
                 return
+
+            # Busca leituras do mês uma única vez para os dois checks abaixo
+            _all_leituras = await asyncio.to_thread(Database.get_leituras_mes_atual)
+            if passo_leitura_atual == "agua":
+                lidos = {l.get('unidade_id') for l in _all_leituras
+                         if l.get('leitura_agua') is not None}
+            else:
+                lidos = {l.get('unidade_id') for l in _all_leituras
+                         if l.get('leitura_gas') is not None}
+
+            # Bloqueia duplicata: unidade atual já foi lida neste ciclo
+            if _unidade_lida(unidade_nome, lidos):
+                tipo_str = "ÁGUA" if passo_leitura_atual == "agua" else "GÁS"
+                _mostrar_snack(
+                    f"{tipo_str} de {unidade_nome} já registrado neste ciclo!",
+                    is_error=True
+                )
+                _carregar_proxima_unidade()
+                return
+
+            # Validação de sequência: unidade anterior deve ter sido lida
             current_unit_index = db_lista.index(unidade_nome)
             if current_unit_index > 0:
                 previous_unit = db_lista[current_unit_index - 1]
-                _all_leituras = await asyncio.to_thread(Database.get_leituras_mes_atual)
-                if passo_leitura_atual == "agua":
-                    lidos = {l.get('unidade_id') for l in _all_leituras
-                             if l.get('leitura_agua') is not None}
-                else:
-                    lidos = {l.get('unidade_id') for l in _all_leituras
-                             if l.get('leitura_gas') is not None}
                 if not _unidade_lida(previous_unit, lidos):
                     page.snack_bar = ft.SnackBar(
                         ft.Text(

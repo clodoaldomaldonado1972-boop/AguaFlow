@@ -145,6 +145,22 @@ class Database:
                 if v_atual == 0:
                     cursor.execute("INSERT INTO schema_version (version) VALUES (1)")
 
+                # Índices parciais únicos: impedem leituras duplicadas por unidade/mês
+                # (só cobrem valores não-nulos; saves com NULL continuam livres para re-leitura)
+                for ddl in [
+                    """CREATE UNIQUE INDEX IF NOT EXISTS idx_unica_agua_mes
+                       ON leituras(unidade_id, substr(data_hora_coleta, 1, 7))
+                       WHERE leitura_agua IS NOT NULL""",
+                    """CREATE UNIQUE INDEX IF NOT EXISTS idx_unica_gas_mes
+                       ON leituras(unidade_id, substr(data_hora_coleta, 1, 7))
+                       WHERE leitura_gas IS NOT NULL""",
+                ]:
+                    try:
+                        cursor.execute(ddl)
+                    except Exception as idx_err:
+                        logger.warning(
+                            f"Índice único não criado (duplicatas pré-existentes?): {idx_err}")
+
                 conn.commit()
                 logger.info(
                     "🚀 Estrutura do banco de dados (SQLite) sincronizada.")
@@ -322,8 +338,26 @@ class Database:
             tipo_final = f"{modo} (Duplex)" if unidade and "/" in unidade else modo
             valor_leitura = valor_agua if valor_agua is not None else (valor_gas or 0)
 
+            mes = (data_hora or "")[:7]  # "YYYY-MM"
             with cls.get_db() as conn:
                 cursor = conn.cursor()
+                # Guarda de duplicidade: um registro não-nulo por unidade/mês/tipo
+                if valor_agua is not None and mes:
+                    dup = cursor.execute(
+                        "SELECT 1 FROM leituras WHERE unidade_id=?"
+                        " AND substr(data_hora_coleta,1,7)=? AND leitura_agua IS NOT NULL",
+                        (unidade.strip(), mes)
+                    ).fetchone()
+                    if dup:
+                        return {"sucesso": False, "erro": "registro_unico_unidade_coleta"}
+                if valor_gas is not None and mes:
+                    dup = cursor.execute(
+                        "SELECT 1 FROM leituras WHERE unidade_id=?"
+                        " AND substr(data_hora_coleta,1,7)=? AND leitura_gas IS NOT NULL",
+                        (unidade.strip(), mes)
+                    ).fetchone()
+                    if dup:
+                        return {"sucesso": False, "erro": "registro_unico_unidade_coleta"}
                 cursor.execute("""
                     INSERT INTO leituras
                         (unidade_id, leitura_agua, leitura_gas, tipo,
