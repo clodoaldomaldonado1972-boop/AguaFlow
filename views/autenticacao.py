@@ -1,7 +1,6 @@
 import asyncio
 import flet as ft
 from database.database import Database
-from utils.updater import AppUpdater
 from views import styles as st
 
 
@@ -9,9 +8,9 @@ def montar_tela_autenticacao(page: ft.Page):
     try:
         # Componentes de interface com o estilo do projeto
         nome_input = ft.TextField(label="Nome Completo", width=320,
-                                  border_radius=10, border_color="blue", color="white")
+                                  border_radius=10, border_color="blue", color="white", bgcolor="#25282D")
         email_input = ft.TextField(
-            label="E-mail", width=320, border_radius=10, border_color="blue", color="white")
+            label="E-mail", width=320, border_radius=10, border_color="blue", color="white", bgcolor="#25282D")
         senha_input = ft.TextField(
             label="Senha",
             width=320,
@@ -19,7 +18,8 @@ def montar_tela_autenticacao(page: ft.Page):
             password=True,
             can_reveal_password=True,
             border_color="blue",
-            color="white"
+            color="white",
+            bgcolor="#25282D"
         )
 
         lbl_mensagem = ft.Text("", size=14)
@@ -83,9 +83,7 @@ def montar_tela_autenticacao(page: ft.Page):
                         on_click=executar_cadastro
                     ),
                     ft.TextButton("Já tenho conta? Entrar",
-                                  on_click=lambda _: page.go("/")),
-                    ft.Text(AppUpdater.get_footer(),
-                            size=10, color="grey")
+                                  on_click=lambda _: page.go("/"))
                 ], horizontal_alignment="center")
             ]
         )

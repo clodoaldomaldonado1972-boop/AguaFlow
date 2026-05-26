@@ -4,8 +4,6 @@ import os
 import logging
 import views.styles as st
 from database.database import Database, get_supabase_client
-from utils.updater import AppUpdater
-
 logger = logging.getLogger(__name__)
 
 
@@ -29,9 +27,7 @@ def montar_tela_esqueci_senha(page: ft.Page):
                     width=320,
                     on_click=lambda _: page.go("/recuperar-email"),
                 ),
-                ft.TextButton("Voltar ao Login", on_click=lambda _: page.go("/")),
-                ft.Divider(color="white10"),
-                ft.Text(AppUpdater.get_footer(), size=10, color="grey")
+                ft.TextButton("Voltar ao Login", on_click=lambda _: page.go("/"))
             ]
         )
     except Exception as e:
@@ -158,10 +154,7 @@ def criar_tela_login(page: ft.Page):
                             ft.TextButton(
                                 "Esqueci minha senha", on_click=lambda _: page.go("/esqueci_senha"))
                         ], alignment="center"),
-                        ft.Divider(height=30, color="transparent"),
-                        ft.Divider(color="white10"),
-                        ft.Text(AppUpdater.get_footer(), size=11,
-                                color="grey", italic=True)
+                        ft.Divider(height=30, color="transparent")
                     ], horizontal_alignment="center", spacing=10),
                     padding=20,
                 )

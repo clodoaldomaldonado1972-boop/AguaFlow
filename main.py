@@ -35,6 +35,19 @@ async def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG_DARK
     page.title = AppUpdater.get_footer()
+    page.bottom_appbar = ft.BottomAppBar(
+        content=ft.Container(
+            content=ft.Text(
+                f"AguaFlow v{AppUpdater.VERSION}",
+                size=10,
+                color="grey",
+                text_align=ft.TextAlign.CENTER,
+                italic=True,
+            ),
+            alignment=ft.alignment.center,
+        ),
+        height=26,
+    )
 
     async def toggle_tema():
         if page.theme_mode == ft.ThemeMode.DARK:

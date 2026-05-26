@@ -256,6 +256,7 @@ def montar_tela_medicao(page: ft.Page):
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,00",
             color="white",
+            bgcolor="#25282D",
             border_color="blue",
             visible=_agua_init,
             disabled=not _agua_init
@@ -271,6 +272,7 @@ def montar_tela_medicao(page: ft.Page):
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,000",
             color="white",
+            bgcolor="#25282D",
             border_color="orange",
             visible=not _agua_init,
             disabled=_agua_init

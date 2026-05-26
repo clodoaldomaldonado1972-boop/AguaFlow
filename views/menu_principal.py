@@ -1,7 +1,6 @@
 import flet as ft
 import views.styles as st  # Importar estilos para cores
 from utils.auth_utils import validar_sessao
-from utils.updater import AppUpdater
 
 
 def montar_menu(page: ft.Page):
@@ -133,17 +132,6 @@ def montar_menu(page: ft.Page):
                             ],
                             horizontal_alignment="center", spacing=10,
                             scroll=ft.ScrollMode.AUTO,
-                        ),
-                        ft.Column(
-                            [
-                                ft.Divider(color="white10"),
-                                ft.Text(
-                                    AppUpdater.get_footer(),
-                                    size=11, color="grey", italic=True,
-                                    text_align=ft.TextAlign.CENTER,
-                                ),
-                            ],
-                            horizontal_alignment="center", spacing=4,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
