@@ -175,21 +175,29 @@ def montar_tela_ajuda(page: ft.Page, on_back):
                     _passo(1, "Abra 'Medição'",
                            "No menu, toque em Medição. O sistema já seleciona a primeira unidade pendente do mês.",
                            ft.Icons.TOUCH_APP),
-                    _passo(2, "Escolha Água ou Gás",
-                           "Use os botões ÁGUA / GÁS para alternar o tipo de leitura antes de digitar.",
+                    _passo(2, "Escolha o modo da ronda",
+                           "Três opções aparecem ao entrar: ÁGUA (lê só hidrômetros), GÁS (lê só medidores de gás) ou MISTO (lê os dois). Após escolher, as outras opções somem — toque em 'trocar' para mudar.",
                            ft.Icons.SWAP_HORIZ),
                     _passo(3, "Selecione a unidade",
                            "O campo 'Unidade' mostra a sugestão automática. Você pode alterar tocando no campo.",
                            ft.Icons.APARTMENT),
                     _passo(4, "Digite a leitura",
-                           "Informe o valor do hidrômetro (ex: 123). Apenas números são aceitos.",
+                           "Informe o valor do hidrômetro (ex: 123,45). Apenas números são aceitos.",
                            ft.Icons.EDIT),
                     _passo(5, "Toque em SALVAR",
                            "O sistema confirma e avança para a próxima unidade pendente automaticamente.",
                            ft.Icons.SAVE),
-                    _passo(6, "Fim de hall",
-                           "Ao terminar todas as unidades de um hall, um diálogo pergunta se há medidor de gás. Responda e continue.",
+                    _passo(6, "Fim de andar — barreira de segurança",
+                           "Ao terminar o último apartamento de um andar, o sistema verifica se todos foram lidos. Se faltar algum, um aviso aparece: 'Voltar e medir' ou 'Seguir (salvar como nulo)'.",
                            ft.Icons.MEETING_ROOM),
+                    _aviso(
+                        "Modo MISTO — ordem de leitura por andar:\n"
+                        "1) Lê TODOS os hidrômetros de água do andar (ex: 166→165→163/164→162→161)\n"
+                        "2) Retorna ao primeiro e lê TODOS os medidores de gás do mesmo andar\n"
+                        "3) Avança para o próximo andar e repete\n"
+                        "4) Finaliza no TERREO GERAL ÁGUA (somente água)",
+                        st.PRIMARY_BLUE,
+                    ),
                     _aviso(
                         "Dica: se errar um valor, vá ao Histórico, localize a leitura e corrija antes de sincronizar.",
                     ),
