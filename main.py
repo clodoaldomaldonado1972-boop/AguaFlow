@@ -44,7 +44,7 @@ async def main(page: ft.Page):
                 text_align=ft.TextAlign.CENTER,
                 italic=True,
             ),
-            alignment=ft.alignment.center,
+            alignment=ft.alignment.Alignment(0, 0),
         ),
         height=26,
     )

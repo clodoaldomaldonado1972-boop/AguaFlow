@@ -523,3 +523,126 @@ Causa raiz identificada: em modo MISTO, o scanner pode retornar à mesma unidade
 | INSERT direto no SQLite (bypass) | Duplicata inserida | `IntegrityError` pelo índice UNIQUE |
 | Sync re-tenta registro já no Supabase | Cria duplicata no Supabase | Tratado como sucesso idempotente |
 | Unidade pulada (NULL) depois lida | — | Permitido (NULL excluído dos índices) |
+
+---
+
+## 26. Teste OCR + Inserção Manual com Fotos Reais — assets/Photos (26/05/2026)
+
+Valida o fluxo completo: scanner → OCR Claude Vision → confirmação/manual → bloqueio de duplicata.
+
+### 26.1 Script de OCR real — `testes/testar_ocr_e_insercao_manual.py`
+
+Executado com OCR real (Claude Haiku Vision) em todas as 21 fotos de `assets/Photos`.
+Fluxo por foto: `processar_foto_hidrometro()` → se valor → confirma; se null → inserção manual → `salvar_leitura()` 1ª vez → `salvar_leitura()` 2ª vez (deve ser bloqueada).
+
+| Arquivo | Unidade | Tipo | OCR | Origem | Insert1 | Dup? |
+|---|---|---|---|---|---|---|
+| agua-151.jpg | 151 | AGUA | 0260.12 | OCR_CONFIRMADO | ✅ | ✅ |
+| gas-151.jpg | 151 | GAS | 00128.621 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-152.jpg | 152 | AGUA | 0252.57 | OCR_CONFIRMADO | ✅ | ✅ |
+| gas-152.jpg | 152 | GAS | 00158.485 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-153.jpg | 153 | AGUA | 0455.37 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-154.jpg | 154 | AGUA | 0394.8 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-155.jpg | 155 | AGUA | null | MANUAL (999.99) | ✅ | ✅ |
+| gas-155.jpg | 155 | GAS | 00128.513 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-156.jpg | 156 | AGUA | null | MANUAL (999.99) | ✅ | ✅ |
+| gas-156.jpg | 156 | GAS | 00715.813 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-161.jpg | 161 | AGUA | 0262.61 | OCR_CONFIRMADO | ✅ | ✅ |
+| gas-161.jpg | 161 | GAS | 00214.835 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-162.jpg | 162 | AGUA | 0228.60 | OCR_CONFIRMADO | ✅ | ✅ |
+| 162-gas.jpg | 162 | GAS | 00231.624 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-163-164.jpg | 163/164 | AGUA | 0568.37 | OCR_CONFIRMADO | ✅ | ✅ |
+| gas-163_164.jpg | 163/164 | GAS | null | MANUAL (999.999) | ✅ | ✅ |
+| agua-165.jpg | 165 | AGUA | 0392.52 | OCR_CONFIRMADO | ✅ | ✅ |
+| gas-165.jpg | 165 | GAS | 00326.834 | OCR_CONFIRMADO | ✅ | ✅ |
+| agua-166.jpg | 166 | AGUA | null | MANUAL (999.99) | ✅ | ✅ |
+| gas-166.jpg | 166 | GAS | 00128.615 | OCR_CONFIRMADO | ✅ | ✅ |
+| Terreo_Geral_água.jpeg | TERREO GERAL ÁGUA | AGUA | 13518.6 | OCR_CONFIRMADO | ✅ | ✅ |
+
+**Resumo OCR real:** 17/21 com valor (81%) · 4 null → inserção manual · 21/21 insert OK · 21/21 duplicata bloqueada
+
+**4 fotos com OCR null** (IA retornou texto descritivo em vez de valor numérico — `formato_invalido` → tratado como null):
+- `agua-155.jpg`, `agua-156.jpg`, `agua-166.jpg` — ângulo/iluminação ruim
+- `gas-163_164.jpg` — medidor ilegível
+
+### 26.2 Testes automatizados — `tests/test_ocr_fluxo_insercao.py` (29 testes, 100% pass)
+
+OCR mockado com valores reais capturados na execução de 26/05/2026.
+
+| Classe | Testes | Cobertura |
+|---|---|---|
+| `TestOcrConfirmado` | 6 | OCR retorna valor → confirm → insert → duplicata bloqueada (AGUA, GAS, duplex, Térreo) |
+| `TestOcrNullInsercaoManual` | 6 | OCR null → leiturista digita → insert → bloqueio; valor diferente ainda bloqueia; AGUA não bloqueia GAS |
+| `TestReScanBloqueio` | 3 | Scanner abre 3-6× para mesma unidade; apenas 1ª inserção aceita; valor original preservado; zero rows extras |
+| `TestFluxoCompleto21Fotos` | 5 | Todas as 21 fotos (17 OCR ok + 4 manual); 21/21 insert1 OK; 21/21 insert2 bloqueado; total rows exato |
+| `TestFotosDisponiveis` | 9 | Pasta existe; 21 fotos; tamanho mínimo; parse de todos os padrões de nome |
+
+**Suite completa após adição:** 273/273 ✅
+
+---
+
+## 27. Correções de UI e Bug Modo Misto — 26/05/2026
+
+### 27.1 Visibilidade de campos no modo claro
+
+**Problema:** `txt_agua`, `txt_gas` (medicao.py) e campos de nome/e-mail/senha (autenticacao.py) tinham `color="white"` sem `bgcolor` explícito. No modo claro o Flet renderiza o fill do TextField com a cor clara do tema, tornando o texto branco invisível.
+
+**Correção:** Adicionado `bgcolor="#25282D"` nesses campos, forçando fundo escuro independente do tema — consistente com o comportamento de `campo_estilo()` (auth.py, configuracoes.py) que já possuía essa propriedade.
+
+**Arquivos alterados:** `views/medicao.py`, `views/autenticacao.py`
+
+### 27.2 Dropdown de unidade escuro no modo claro
+
+**Problema:** `txt_unidade` (Dropdown em medicao.py) sem `bgcolor`/`color` explícitos aparecia com fundo escuro inconsistente no modo claro.
+
+**Correção:** Adicionado `bgcolor="#25282D"` e `color="white"` ao Dropdown, mantendo o padrão visual do restante da tela de medição.
+
+**Arquivo alterado:** `views/medicao.py`
+
+### 27.3 Versão AguaFlow v1.2.0 em todas as telas
+
+**Problema:** A versão do app aparecia apenas em 4 telas (login, esqueci senha, cadastro, menu).
+
+**Correção:** Adicionado `page.bottom_appbar` no `main.py` com `"AguaFlow v1.2.0"` — propriedade de nível `page`, persiste automaticamente em todas as rotas sem modificar cada view. Footers inline removidos das 4 telas que já os tinham para evitar duplicação.
+
+**Arquivos alterados:** `main.py`, `views/auth.py`, `views/autenticacao.py`, `views/menu_principal.py`
+
+### 27.4 Nome do usuário no menu sem saudação
+
+**Melhoria:** AppBar do menu exibia `"Olá, {nome}!"`. Simplificado para exibir apenas o nome completo e e-mail abaixo, aplicável a todos os usuários.
+
+**Arquivo alterado:** `views/menu_principal.py`
+
+### 27.5 Bug crítico — Modo MISTO pula gás do andar ao retornar do menu
+
+**Problema reportado:** No modo misto, ao tentar inserir gás da unidade 66 (1ª unidade gás do andar 6), a inserção era bloqueada. Ao voltar ao menu e retornar, o app pulava **todo o gás do andar** e avançava para a água do próximo andar.
+
+**Causa raiz:** Em `_avancar_misto()` (`views/medicao.py`), na transição água→gás, a chamada era:
+```
+passo_leitura_atual = "gas"
+_persistir_estado()          ← salva _modo_legado = "AGUA" (ainda não atualizado!)
+_atualizar_campos_unidade()  ← só aqui _modo_legado virava "GAS"
+```
+`_persistir_estado()` gravava `"AGUA"` no `client_storage`. Na volta do menu, o estado era restaurado como modo=AGUA, fazendo `buscar_primeira_pendente()` encontrar o próximo andar sem água (pulando todo o gás pendente).
+
+**Correção:** `_persistir_estado()` agora deriva o modo de `passo_leitura_atual` diretamente, não de `_modo_legado`:
+```python
+modo_a_salvar = "GAS" if passo_leitura_atual == "gas" else "AGUA"
+```
+
+**Arquivo alterado:** `views/medicao.py` — função `_persistir_estado()`
+
+### 27.6 Testes de regressão — `tests/test_misto_retomada.py` (29 testes)
+
+Novo arquivo cobrindo os 3 modos e o cenário do bug:
+
+| Classe | Testes | Cobertura |
+|---|---|---|
+| `TestModoAgua` | 5 | Ciclo AGUA completo andar 16; bloqueio re-insert; dois andares sem interferência |
+| `TestModoGas` | 5 | Ciclo GAS completo andar 16; bloqueio re-insert; dois andares sem interferência |
+| `TestMistoAndar16` | 5 | Ciclo MISTO água→gás andar 16; 2 rows por unidade; re-insert bloqueado |
+| `TestMistoSequenciaAndar7Para6` | 6 | **Regressão bug**: gás 71 aceito; gás 66 aceito após 71; andar 6 completo após andar 7; ciclo andares 16→6; contagem exata de rows |
+| `TestRetomadaEstado` | 4 | Água persiste após interrupção; gás pendente aceito na retomada; 3 primeiros bloqueados + 3 últimos aceitos; rows corretos após retomada parcial |
+| `TestBarreiraNullNaoBloqueiaProximoAndar` | 4 | NULL via barreira não bloqueia gás real; andar 7 null → andar 6 gás ok; NULL não duplica row real |
+
+**Suite completa após adição:** 302/302 ✅ (273 anteriores + 29 novos)

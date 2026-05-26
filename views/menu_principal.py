@@ -84,7 +84,7 @@ def montar_menu(page: ft.Page):
             bgcolor=st.get_bgcolor(page),
             appbar=ft.AppBar(
                 title=ft.Column([
-                    ft.Text(f"Olá, {user_name}!", size=16, weight="bold"),
+                    ft.Text(user_name, size=16, weight="bold"),
                     ft.Text(user_email, size=12, color="white70")
                 ],
                     horizontal_alignment=ft.CrossAxisAlignment.START,

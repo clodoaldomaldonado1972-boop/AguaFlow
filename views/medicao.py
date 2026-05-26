@@ -243,6 +243,8 @@ def montar_tela_medicao(page: ft.Page):
             width=320,
             value=initial_unit_value,
             border_color=_cor_init,
+            bgcolor="#25282D",
+            color="white",
         )
         txt_unidade.on_change = lambda e: _atualizar_campos_unidade(e.control.value)
 
@@ -309,8 +311,10 @@ def montar_tela_medicao(page: ft.Page):
             page.update()
 
         def _persistir_estado():
+            # _modo_legado pode estar desatualizado na transição água→gás; usa passo diretamente.
             try:
-                page.client_storage.set("medicao_modo", _modo_legado)
+                modo_a_salvar = "GAS" if passo_leitura_atual == "gas" else "AGUA"
+                page.client_storage.set("medicao_modo", modo_a_salvar)
                 page.client_storage.set("medicao_unidade", txt_unidade.value or "")
             except Exception:
                 pass
