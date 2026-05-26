@@ -179,6 +179,11 @@ def montar_tela_medicao(page: ft.Page):
             "MODO: ÁGUA" if _agua_init else "MODO: GÁS",
             color=_cor_init, weight="bold", size=22
         )
+        btn_trocar_modo = ft.TextButton(
+            "trocar", icon=ft.Icons.SWAP_HORIZ,
+            style=ft.ButtonStyle(color="grey60"),
+            visible=False,
+        )
 
         # SKILL Passo A: barra de progresso
         lbl_progresso_status = ft.Text(
@@ -322,7 +327,6 @@ def montar_tela_medicao(page: ft.Page):
                     txt_gas.visible = True
                     txt_gas.disabled = False
                     txt_gas.label = "Leitura do Gás (Lazer - LAO 3 Casas)"
-                    txt_gas.focus()
                 else:
                     _avancar_proxima_unidade_com_seguranca()
                     return
@@ -333,7 +337,6 @@ def montar_tela_medicao(page: ft.Page):
                     txt_agua.visible = True
                     txt_agua.disabled = False
                     txt_agua.label = "Leitura da Água (Térreo Geral - LAO 1 Casa)"
-                    txt_agua.focus()
                 else:
                     _avancar_proxima_unidade_com_seguranca()
                     return
@@ -343,12 +346,10 @@ def montar_tela_medicao(page: ft.Page):
                     txt_agua.visible = True
                     txt_agua.disabled = False
                     txt_agua.label = f"Leitura da Água - {unidade_nome} (Renova 2 Casas)"
-                    txt_agua.focus()
                 elif passo_leitura_atual == "gas":
                     txt_gas.visible = True
                     txt_gas.disabled = False
                     txt_gas.label = f"Leitura do Gás - {unidade_nome} (LAO 3 Casas)"
-                    txt_gas.focus()
 
             # Sync _modo_legado e visual com passo atual
             if passo_leitura_atual == "agua":
@@ -698,6 +699,45 @@ def montar_tela_medicao(page: ft.Page):
             visible=user_data.get("last_read_unit_id") is not None
         )
 
+        # ── Seletor de modo da ronda ──────────────────────────────────────────
+        def _trocar_modo(e):
+            nonlocal modo_selecionado, passo_leitura_atual, _modo_legado
+            novo_modo = e.control.value
+            if novo_modo not in ("agua", "gas", "misto"):
+                return
+            modo_selecionado = novo_modo
+            passo_leitura_atual = "agua" if novo_modo in ("agua", "misto") else "gas"
+            _modo_legado = "AGUA" if novo_modo in ("agua", "misto") else "GAS"
+            user_data["modo_ronda"] = novo_modo
+            txt_agua.value = ""
+            txt_gas.value = ""
+            # Colapsa o seletor após a escolha
+            seletor_modo.visible = False
+            btn_trocar_modo.visible = True
+            if txt_unidade.value:
+                _atualizar_campos_unidade(txt_unidade.value)
+            else:
+                page.update()
+
+        def _reabrir_seletor(e):
+            seletor_modo.visible = True
+            btn_trocar_modo.visible = False
+            page.update()
+
+        seletor_modo = ft.RadioGroup(
+            value=modo_selecionado,
+            content=ft.Row([
+                ft.Radio(value="agua",  label="ÁGUA",
+                         label_style=ft.TextStyle(color="lightblue", weight=ft.FontWeight.BOLD)),
+                ft.Radio(value="gas",   label="GÁS",
+                         label_style=ft.TextStyle(color="orange", weight=ft.FontWeight.BOLD)),
+                ft.Radio(value="misto", label="MISTO",
+                         label_style=ft.TextStyle(color="white", weight=ft.FontWeight.BOLD)),
+            ], alignment=ft.MainAxisAlignment.CENTER),
+        )
+        seletor_modo.on_change = _trocar_modo
+        btn_trocar_modo.on_click = _reabrir_seletor
+
         # SKILL Passo E: layout com barra de progresso acima de txt_unidade
         return ft.View(
             route="/medicao",
@@ -718,7 +758,10 @@ def montar_tela_medicao(page: ft.Page):
                         width=320,
                         height=160
                     ),
-                    lbl_modo,
+                    ft.Row([lbl_modo, btn_trocar_modo],
+                           alignment=ft.MainAxisAlignment.CENTER,
+                           tight=True),
+                    seletor_modo,
                     lbl_progresso_status,   # SKILL Passo E
                     bar_progresso,          # SKILL Passo E
                     txt_unidade,
