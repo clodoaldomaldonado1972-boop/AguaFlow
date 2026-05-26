@@ -116,6 +116,38 @@ def montar_tela_medicao(page: ft.Page):
                 pass
             return None
 
+        def _proxima_pendente_no_andar(andar: str, fase: str):
+            """Próxima unidade NÃO lida no mesmo andar, após a unidade atual."""
+            try:
+                leituras_mes = Database.get_leituras_mes_atual()
+                campo = 'leitura_agua' if fase == 'agua' else 'leitura_gas'
+                lidos = {l['unidade_id'] for l in leituras_mes if l.get(campo) is not None}
+                unidades_andar = [u for u in db_lista if _extrair_andar(u) == andar]
+                unidade_atual = txt_unidade.value or ""
+                try:
+                    i = unidades_andar.index(unidade_atual)
+                except ValueError:
+                    i = -1
+                for u in unidades_andar[i + 1:]:
+                    if not _unidade_lida(u, lidos):
+                        return u
+            except Exception:
+                pass
+            return None
+
+        def _primeira_pendente_no_andar(andar: str, fase: str):
+            """Primeira unidade NÃO lida no andar (varredura completa da lista)."""
+            try:
+                leituras_mes = Database.get_leituras_mes_atual()
+                campo = 'leitura_agua' if fase == 'agua' else 'leitura_gas'
+                lidos = {l['unidade_id'] for l in leituras_mes if l.get(campo) is not None}
+                for u in db_lista:
+                    if _extrair_andar(u) == andar and not _unidade_lida(u, lidos):
+                        return u
+            except Exception:
+                pass
+            return None
+
         # ── Restauração de estado (scanner / client_storage / processo Android) ─
         unidade_retorno_scanner = user_data.pop("unidade_atual_medicao", None)
         modo_retorno = user_data.pop("modo_leitura", None)
@@ -465,6 +497,53 @@ def montar_tela_medicao(page: ft.Page):
                 passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
                 _carregar_proxima_unidade()
 
+        # ── Avanço modo MISTO: todas as águas do andar → todos os gás do andar ──
+        def _avancar_misto():
+            nonlocal passo_leitura_atual
+            unidade_atual_nome = txt_unidade.value or ""
+            andar_atual = _extrair_andar(unidade_atual_nome)
+            txt_agua.value = ""
+            txt_gas.value = ""
+
+            # Áreas comuns sem andar (LAZER GÁS, TERREO GERAL): usa lógica padrão
+            if not andar_atual:
+                _avancar_proxima_unidade_com_seguranca()
+                return
+
+            if passo_leitura_atual == "agua":
+                # Ainda tem água pendente no mesmo andar?
+                prox = _proxima_pendente_no_andar(andar_atual, "agua")
+                if prox:
+                    txt_unidade.value = prox
+                    _persistir_estado()
+                    _atualizar_campos_unidade(prox)
+                    return
+                # Água do andar concluída → inicia fase gás a partir da 1ª unidade do andar
+                primeira_gas = _primeira_pendente_no_andar(andar_atual, "gas")
+                if primeira_gas:
+                    passo_leitura_atual = "gas"
+                    txt_unidade.value = primeira_gas
+                    _persistir_estado()
+                    _atualizar_campos_unidade(primeira_gas)
+                else:
+                    # Andar sem gás (não ocorre no prédio, mas por segurança)
+                    passo_leitura_atual = "agua"
+                    _avancar_proxima_unidade_com_seguranca()
+            else:
+                # Ainda tem gás pendente no mesmo andar?
+                prox = _proxima_pendente_no_andar(andar_atual, "gas")
+                if prox:
+                    txt_unidade.value = prox
+                    _persistir_estado()
+                    _atualizar_campos_unidade(prox)
+                    return
+                # Gás do andar concluído → marca todas as unidades do andar e avança
+                for u in page.lista_unidades:
+                    if _extrair_andar(u.nome) == andar_atual:
+                        unidades_concluidas_no_ciclo.add(u.nome)
+                passo_leitura_atual = "agua"
+                _avancar_proxima_unidade_com_seguranca()
+
         # ── Componentes de conclusão ──────────────────────────────────────────
 
         async def finalizar_e_gerar_relatorio(e):
@@ -654,22 +733,17 @@ def montar_tela_medicao(page: ft.Page):
                 unidades_concluidas_no_ciclo.add(unidade_nome)
 
             # Lógica de avanço conforme modo selecionado (SKILL Passo D)
-            if modo_selecionado in ["agua", "gas"]:
-                _avancar_proxima_unidade_com_seguranca()
-            else:
-                # Modo Misto: agua → gas para a mesma unidade, então avança
+            if modo_selecionado == "misto":
+                # Áreas comuns: LAZER GÁS e TERREO GERAL avançam direto
                 if ("LAZER GÁS" in nome_unidade_upper or "LAZER GAS" in nome_unidade_upper
                         or "TERREO GERAL" in nome_unidade_upper):
                     unidades_concluidas_no_ciclo.add(unidade_nome)
                     _avancar_proxima_unidade_com_seguranca()
                 else:
-                    if passo_leitura_atual == "agua":
-                        passo_leitura_atual = "gas"
-                        txt_agua.value = ""
-                        _atualizar_campos_unidade(unidade_nome)
-                    else:
-                        txt_gas.value = ""
-                        _avancar_proxima_unidade_com_seguranca()
+                    # Modo misto: todas as águas do andar → todos os gás do andar
+                    _avancar_misto()
+            else:
+                _avancar_proxima_unidade_com_seguranca()
 
             btn_limpar_ultima_leitura.visible = True
             page.update()
