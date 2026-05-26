@@ -1,12 +1,12 @@
 import flet as ft
 import asyncio
-import pytz  # Para garantir o horário de Brasília
+import pytz
 import logging
 import traceback
 from datetime import datetime
 from database.database import Database
 from database.sync_service import SyncService
-import views.styles as st  # Importando seus estilos personalizados
+import views.styles as st
 from utils.auth_utils import validar_sessao
 from utils.logger_config import enviar_report_erro
 
@@ -18,7 +18,7 @@ def _extrair_andar(unit: str) -> str:
 
     Exemplos:
       '166'     → '16'   (andar 16, 3 chars)
-      '96'      → '9'    (andar 9, 2 chars — fix para andares 1-9)
+      '96'      → '9'    (andar 9, 2 chars)
       '163/164' → '16'   (duplex andar 16)
       '23/24'   → '2'    (duplex andar 2)
       '11'      → '1'    (andar 1, 2 chars)
@@ -40,12 +40,10 @@ def _normalizar_unidade_scanner(codigo: str, db_lista: list) -> str:
     Tenta match exato primeiro, depois remove prefixo (antes de '|') e sufixo de tipo."""
     if codigo in db_lista:
         return codigo
-    # Remove prefixo tipo "AGUAFLOW|"
     if '|' in codigo:
         codigo = codigo.split('|', 1)[1]
     if codigo in db_lista:
         return codigo
-    # Remove sufixo de tipo "-AGUA" ou "-GAS"
     if '-' in codigo:
         base = codigo.rsplit('-', 1)[0]
         if base in db_lista:
@@ -54,21 +52,34 @@ def _normalizar_unidade_scanner(codigo: str, db_lista: list) -> str:
 
 
 def montar_tela_medicao(page: ft.Page):
-    # Proteção de Rota
     auth_check = validar_sessao(page, "/medicao")
     if auth_check:
         return auth_check
 
     try:
-        # Recupera a lista de unidades (ex: 98 unidades do Vivere)
         db_lista = Database._gerar_lista_unidades()
-        state = {"modo": "AGUA", "lidas_no_hall": 0}
-
-        # Configuração de fuso horário para a coleta
         fuso_sp = pytz.timezone('America/Sao_Paulo')
 
+        class Unidade:
+            def __init__(self, nome):
+                self.nome = nome
+
+        page.lista_unidades = [Unidade(u) for u in db_lista]
+
+        user_data = getattr(page, "user_data", {}) or {}
+
+        # ── SKILL Passo A: modo_ronda e estado inicial ────────────────────────
+        modo_ronda = user_data.get("modo_ronda", "misto")  # 'agua', 'gas', 'misto'
+        modo_selecionado = modo_ronda
+        passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+        unidades_concluidas_no_ciclo = set()
+
+        # _modo_legado fica em sync com passo_leitura_atual para compatibilidade
+        # com scanner (/scanner lê "AGUA"/"GAS" de page.user_data["modo_leitura"])
+        _modo_legado = "AGUA" if modo_selecionado in ("agua", "misto") else "GAS"
+
         def _unidade_lida(unidade, lidos):
-            """Verifica se unidade (ou suas partes, no caso de duplex como '163/164') está em lidos."""
+            """Verifica se unidade (ou partes duplex como '163/164') está em lidos."""
             if unidade in lidos:
                 return True
             return any(p.strip() in lidos for p in unidade.split('/') if p.strip())
@@ -77,7 +88,7 @@ def montar_tela_medicao(page: ft.Page):
             """Retorna a primeira unidade da lista que ainda não foi lida no mês atual."""
             try:
                 leituras_mes = Database.get_leituras_mes_atual()
-                if state["modo"] == "AGUA":
+                if passo_leitura_atual == "agua" or modo_selecionado == "agua":
                     lidos = {l['unidade_id'] for l in leituras_mes if l.get('leitura_agua') is not None}
                 else:
                     lidos = {l['unidade_id'] for l in leituras_mes if l.get('leitura_gas') is not None}
@@ -92,17 +103,12 @@ def montar_tela_medicao(page: ft.Page):
             """Busca a próxima unidade na lista que ainda não foi lida."""
             try:
                 leituras_mes = Database.get_leituras_mes_atual()
-                if state["modo"] == "AGUA":
-                    lidos = {l['unidade_id']
-                             for l in leituras_mes if 'leitura_agua' in l and l['leitura_agua'] is not None}
+                if passo_leitura_atual == "agua" or modo_selecionado == "agua":
+                    lidos = {l['unidade_id'] for l in leituras_mes if l.get('leitura_agua') is not None}
                 else:
-                    lidos = {l['unidade_id']
-                             for l in leituras_mes if 'leitura_gas' in l and l['leitura_gas'] is not None}
-
+                    lidos = {l['unidade_id'] for l in leituras_mes if l.get('leitura_gas') is not None}
                 unidade_atual = txt_unidade.value
-                idx_atual = db_lista.index(
-                    unidade_atual) if unidade_atual in db_lista else -1
-
+                idx_atual = db_lista.index(unidade_atual) if unidade_atual in db_lista else -1
                 for i in range(idx_atual + 1, len(db_lista)):
                     if not _unidade_lida(db_lista[i], lidos):
                         return db_lista[i]
@@ -110,27 +116,20 @@ def montar_tela_medicao(page: ft.Page):
                 pass
             return None
 
-        # Determine initial unit value for the dropdown
-        # 1. Check for last_read_unit_id in page.user_data
-        user_data = getattr(page, "user_data", {}) or {}
-        last_read_unit_id = user_data.get("last_read_unit_id")
-
-        # Retorno do scanner: restaura modo E unidade ANTES de buscar pendentes
-        # (buscar_primeira_pendente usa state["modo"], precisa estar correto)
+        # ── Restauração de estado (scanner / client_storage / processo Android) ─
         unidade_retorno_scanner = user_data.pop("unidade_atual_medicao", None)
         modo_retorno = user_data.pop("modo_leitura", None)
         if modo_retorno in ("AGUA", "GAS"):
-            state["modo"] = modo_retorno
+            _modo_legado = modo_retorno
+            passo_leitura_atual = "agua" if modo_retorno == "AGUA" else "gas"
 
-        # Fallback: restaura de client_storage quando o Android matou o processo
-        # e page.user_data foi perdido (client_storage sobrevive a kills do processo).
         _cs_unidade = None
         if modo_retorno not in ("AGUA", "GAS"):
             try:
-                # Caso especial: app morreu enquanto o diálogo de GÁS estava aberto
                 _andar_gas_pendente = page.client_storage.get("medicao_gas_pendente_andar")
                 if _andar_gas_pendente:
-                    state["modo"] = "GAS"
+                    _modo_legado = "GAS"
+                    passo_leitura_atual = "gas"
                     idx_gas = next(
                         (i for i, u in enumerate(db_lista)
                          if _extrair_andar(u) == _andar_gas_pendente),
@@ -143,7 +142,8 @@ def montar_tela_medicao(page: ft.Page):
                     _cs_modo = page.client_storage.get("medicao_modo")
                     _cs_unidade = page.client_storage.get("medicao_unidade")
                     if _cs_modo in ("AGUA", "GAS"):
-                        state["modo"] = _cs_modo
+                        _modo_legado = _cs_modo
+                        passo_leitura_atual = "agua" if _cs_modo == "AGUA" else "gas"
             except Exception:
                 pass
 
@@ -153,10 +153,9 @@ def montar_tela_medicao(page: ft.Page):
         if unidade_retorno_scanner and unidade_retorno_scanner in db_lista:
             initial_unit_value = unidade_retorno_scanner
         elif _cs_unidade and _cs_unidade in db_lista:
-            # Só usa a unidade salva se ainda estiver pendente no modo atual
             try:
                 _leituras_cs = Database.get_leituras_mes_atual()
-                if state["modo"] == "AGUA":
+                if passo_leitura_atual == "agua":
                     _cs_lidos = {l['unidade_id'] for l in _leituras_cs
                                  if l.get('leitura_agua') is not None}
                 else:
@@ -167,27 +166,47 @@ def montar_tela_medicao(page: ft.Page):
             except Exception:
                 pass
 
-        # Widgets iniciais refletem o modo atual (AGUA ou GAS após restauração)
-        _agua = state["modo"] == "AGUA"
-        _cor = "blue" if _agua else "orange"
+        # ── Widgets visuais ───────────────────────────────────────────────────
+        _agua_init = (passo_leitura_atual == "agua")
+        _cor_init = "blue" if _agua_init else "orange"
 
         img_icon = ft.Icon(
-            ft.Icons.WATER_DROP if _agua else ft.Icons.LOCAL_FIRE_DEPARTMENT,
-            color=_cor, size=140
+            ft.Icons.WATER_DROP if _agua_init else ft.Icons.LOCAL_FIRE_DEPARTMENT,
+            color=_cor_init, size=140
         )
-        icon_save = ft.Icon(ft.Icons.SAVE, color="green",
-                            size=140, visible=False)
+        icon_save = ft.Icon(ft.Icons.SAVE, color="green", size=140, visible=False)
         lbl_modo = ft.Text(
-            "MODO: ÁGUA" if _agua else "MODO: GÁS",
-            color=_cor, weight="bold", size=22
+            "MODO: ÁGUA" if _agua_init else "MODO: GÁS",
+            color=_cor_init, weight="bold", size=22
         )
+
+        # SKILL Passo A: barra de progresso
+        lbl_progresso_status = ft.Text(
+            value="Calculando progresso...",
+            size=14, weight=ft.FontWeight.W_500, color="bluegray"
+        )
+        bar_progresso = ft.ProgressBar(
+            value=0.0, width=300, color="green", bgcolor="lightgreen"
+        )
+
+        # Progresso inicial
+        if initial_unit_value and db_lista:
+            _pi = (db_lista.index(initial_unit_value) + 1) if initial_unit_value in db_lista else 0
+            _pt = len(db_lista)
+            bar_progresso.value = _pi / _pt if _pt > 0 else 0
+            _pr = _pt - _pi
+            lbl_progresso_status.value = (
+                "Última unidade!" if _pr == 0
+                else f"Progresso: {_pi}/{_pt} (Faltam {_pr} unidades)"
+            )
 
         txt_unidade = ft.Dropdown(
             label="Unidade",
             options=[ft.dropdown.Option(u) for u in db_lista],
             width=320,
             value=initial_unit_value,
-            border_color=_cor
+            border_color=_cor_init,
+            on_change=lambda e: _atualizar_campos_unidade(e.control.value)
         )
 
         txt_agua = ft.TextField(
@@ -200,8 +219,9 @@ def montar_tela_medicao(page: ft.Page):
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,00",
             color="white",
-            border_color="blue" if _agua else None,
-            disabled=not _agua
+            border_color="blue",
+            visible=_agua_init,
+            disabled=not _agua_init
         )
 
         txt_gas = ft.TextField(
@@ -214,8 +234,9 @@ def montar_tela_medicao(page: ft.Page):
             text_align=ft.TextAlign.CENTER,
             hint_text="00000,000",
             color="white",
-            border_color="orange" if not _agua else None,
-            disabled=_agua
+            border_color="orange",
+            visible=not _agua_init,
+            disabled=_agua_init
         )
 
         btn_gravar = ft.ElevatedButton(
@@ -225,30 +246,226 @@ def montar_tela_medicao(page: ft.Page):
             height=65
         )
 
-        def atualizar_estilos_modo():
-            """Atualiza cores e ícones dos campos conforme o modo (Água ou Gás)."""
-            is_agua = state["modo"] == "AGUA"
-            cor = "blue" if is_agua else "orange"
-            icone = "water_drop" if is_agua else "local_fire_department"
+        # SKILL Passo A: dialog_barreira
+        # content é mutável: o texto é atualizado dinamicamente antes de abrir
+        _barreira_texto = ft.Text("Detectamos apartamentos não medidos neste andar.")
+        dialog_barreira = ft.AlertDialog(
+            title=ft.Text("Esqueceu de ler algum apartamento?"),
+            content=_barreira_texto,
+            actions=[
+                ft.TextButton("Voltar e Medir",
+                               on_click=lambda e: _fechar_barreira(voltar=True)),
+                ft.TextButton("Seguir (Salvar como Nulo)",
+                               on_click=lambda e: _fechar_barreira(voltar=False)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
 
-            # Atualiza Dropdown de Unidade
-            txt_unidade.border_color = cor
-            # Note: Dropdown não suporta prefix_icon em algumas versões do Flet, mas border_color é garantido
+        # ── Funções auxiliares ────────────────────────────────────────────────
 
-            # Destaca a borda do campo correspondente ao modo ativo
-            txt_agua.border_color = cor if is_agua else None
-            txt_agua.disabled = not is_agua
-            txt_gas.border_color = cor if not is_agua else None
-            txt_gas.disabled = is_agua
-
-            # Atualiza o cabeçalho visual
-            lbl_modo.value = f"MODO: {'ÁGUA' if is_agua else 'GÁS'}"
-            lbl_modo.color = cor
-            img_icon.icon = ft.Icons.WATER_DROP if is_agua else ft.Icons.LOCAL_FIRE_DEPARTMENT
-            img_icon.color = cor
+        def _mostrar_snack(msg, is_error=False):
+            page.snack_bar = ft.SnackBar(
+                ft.Text(msg), bgcolor=st.RED_ERROR if is_error else None)
+            page.snack_bar.open = True
             page.update()
 
-        # --- COMPONENTES DE CONCLUSÃO ---
+        def _persistir_estado():
+            try:
+                page.client_storage.set("medicao_modo", _modo_legado)
+                page.client_storage.set("medicao_unidade", txt_unidade.value or "")
+            except Exception:
+                pass
+
+        def _limpar_estado_persistido():
+            try:
+                page.client_storage.remove("medicao_modo")
+                page.client_storage.remove("medicao_unidade")
+                page.client_storage.remove("medicao_gas_pendente_andar")
+            except Exception:
+                pass
+
+        def exibir_concluido():
+            _limpar_estado_persistido()
+            lbl_modo.value = "TODAS AS UNIDADES LIDAS"
+            lbl_modo.color = st.SUCCESS_GREEN
+            img_icon.icon = ft.Icons.CHECK_CIRCLE
+            img_icon.color = st.SUCCESS_GREEN
+            lbl_progresso_status.value = "Ciclo completo!"
+            bar_progresso.value = 1.0
+            txt_unidade.visible = txt_agua.visible = txt_gas.visible = btn_gravar.visible = False
+            btn_finalizar_sinc.visible = True
+            page.update()
+
+        def _carregar_proxima_unidade():
+            proxima = buscar_proxima_pendente()
+            if proxima:
+                txt_unidade.value = proxima
+                txt_agua.value = ""
+                txt_gas.value = ""
+                _persistir_estado()
+                _atualizar_campos_unidade(proxima)
+            else:
+                exibir_concluido()
+
+        # SKILL Passo B: exibição condicional de campos e progresso
+        def _atualizar_campos_unidade(unidade_nome):
+            nonlocal passo_leitura_atual, _modo_legado
+            if not unidade_nome:
+                return
+            nome_unidade_upper = unidade_nome.upper()
+            txt_agua.visible = False
+            txt_gas.visible = False
+
+            if "LAZER GÁS" in nome_unidade_upper or "LAZER GAS" in nome_unidade_upper:
+                if modo_selecionado in ["gas", "misto"]:
+                    passo_leitura_atual = "gas"
+                    txt_gas.visible = True
+                    txt_gas.disabled = False
+                    txt_gas.label = "Leitura do Gás (Lazer - LAO 3 Casas)"
+                    txt_gas.focus()
+                else:
+                    _avancar_proxima_unidade_com_seguranca()
+                    return
+
+            elif "TERREO GERAL" in nome_unidade_upper:
+                if modo_selecionado in ["agua", "misto"]:
+                    passo_leitura_atual = "agua"
+                    txt_agua.visible = True
+                    txt_agua.disabled = False
+                    txt_agua.label = "Leitura da Água (Térreo Geral - LAO 1 Casa)"
+                    txt_agua.focus()
+                else:
+                    _avancar_proxima_unidade_com_seguranca()
+                    return
+
+            else:
+                if passo_leitura_atual == "agua":
+                    txt_agua.visible = True
+                    txt_agua.disabled = False
+                    txt_agua.label = f"Leitura da Água - {unidade_nome} (Renova 2 Casas)"
+                    txt_agua.focus()
+                elif passo_leitura_atual == "gas":
+                    txt_gas.visible = True
+                    txt_gas.disabled = False
+                    txt_gas.label = f"Leitura do Gás - {unidade_nome} (LAO 3 Casas)"
+                    txt_gas.focus()
+
+            # Sync _modo_legado e visual com passo atual
+            if passo_leitura_atual == "agua":
+                _modo_legado = "AGUA"
+                lbl_modo.value = "MODO: ÁGUA"
+                lbl_modo.color = "blue"
+                img_icon.icon = ft.Icons.WATER_DROP
+                img_icon.color = "blue"
+                txt_unidade.border_color = "blue"
+            else:
+                _modo_legado = "GAS"
+                lbl_modo.value = "MODO: GÁS"
+                lbl_modo.color = "orange"
+                img_icon.icon = ft.Icons.LOCAL_FIRE_DEPARTMENT
+                img_icon.color = "orange"
+                txt_unidade.border_color = "orange"
+
+            # Barra de progresso horizontal
+            try:
+                if hasattr(page, "lista_unidades") and len(page.lista_unidades) > 0:
+                    total = len(page.lista_unidades)
+                    atual_idx = 0
+                    for idx, u in enumerate(page.lista_unidades):
+                        if u.nome == unidade_nome:
+                            atual_idx = idx + 1
+                            break
+                    restantes = total - atual_idx
+                    bar_progresso.value = atual_idx / total
+                    lbl_progresso_status.value = (
+                        "Última unidade!" if restantes == 0
+                        else f"Progresso: {atual_idx}/{total} (Faltam {restantes} unidades)"
+                    )
+            except Exception as e:
+                logger.error(f"Erro ao atualizar barra de progresso: {e}")
+
+            page.update()
+
+        # SKILL Passo C: barreira de segurança do andar
+        def _avancar_proxima_unidade_com_seguranca():
+            nonlocal passo_leitura_atual
+            unidade_atual_nome = txt_unidade.value
+            andar_atual = _extrair_andar(unidade_atual_nome or "")
+
+            # Áreas comuns ou andar indeterminado: avança direto sem barreira
+            if (not andar_atual
+                    or "LAZER" in (unidade_atual_nome or "").upper()
+                    or "TERREO" in (unidade_atual_nome or "").upper()):
+                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                _carregar_proxima_unidade()
+                return
+
+            # Peek na próxima unidade pendente — barreira só dispara em troca de andar
+            proxima = buscar_proxima_pendente()
+            andar_proximo = _extrair_andar(proxima) if proxima else ""
+
+            if andar_proximo == andar_atual:
+                # Ainda no mesmo andar — avança sem verificar barreira
+                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                _carregar_proxima_unidade()
+                return
+
+            # Mudança de andar (ou fim de ciclo) — verifica se o andar atual foi varrido
+            unidades_do_andar = [
+                u for u in page.lista_unidades if _extrair_andar(u.nome) == andar_atual
+            ]
+            total_esperado_andar = len(unidades_do_andar)
+            concluidas_do_andar = [
+                u for u in unidades_do_andar if u.nome in unidades_concluidas_no_ciclo
+            ]
+
+            if len(concluidas_do_andar) < total_esperado_andar:
+                faltam = total_esperado_andar - len(concluidas_do_andar)
+                _barreira_texto.value = (
+                    f"Detectamos que {faltam} apartamento(s) do andar {andar_atual} "
+                    "ainda não foram medidos."
+                )
+                page.dialog = dialog_barreira
+                dialog_barreira.open = True
+                page.update()
+            else:
+                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                _carregar_proxima_unidade()
+
+        def _fechar_barreira(voltar: bool):
+            nonlocal passo_leitura_atual
+            dialog_barreira.open = False
+            page.update()
+
+            if voltar:
+                _mostrar_snack("Retorne e finalize as unidades restantes do andar corrente.")
+            else:
+                unidade_atual_nome = txt_unidade.value
+                andar_atual = _extrair_andar(unidade_atual_nome or "")
+                unidades_do_andar = [
+                    u for u in page.lista_unidades if _extrair_andar(u.nome) == andar_atual
+                ]
+                leiturista = user_data.get("nome") or user_data.get("email", "Zelador")
+
+                for u in unidades_do_andar:
+                    if u.nome not in unidades_concluidas_no_ciclo:
+                        try:
+                            Database.salvar_leitura(
+                                u.nome, None, None,
+                                modo_selecionado.upper(),
+                                datetime.now(fuso_sp).isoformat(),
+                                None, leiturista
+                            )
+                            unidades_concluidas_no_ciclo.add(u.nome)
+                        except Exception as e:
+                            logger.error(f"Erro ao salvar unidade pulada automaticamente: {e}")
+
+                _mostrar_snack("Unidades omitidas salvas como nulas. Avançando...")
+                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                _carregar_proxima_unidade()
+
+        # ── Componentes de conclusão ──────────────────────────────────────────
+
         async def finalizar_e_gerar_relatorio(e):
             btn_finalizar_sinc.disabled = True
             btn_finalizar_sinc.text = "SINCRONIZANDO..."
@@ -258,7 +475,6 @@ def montar_tela_medicao(page: ft.Page):
 
             from relatorio_engine import RelatorioEngine
             dados = await asyncio.to_thread(Database.get_leituras_mes_atual)
-
             leiturista = user_data.get("nome") or user_data.get("email", "Zelador")
 
             msg_relatorio = ""
@@ -277,7 +493,7 @@ def montar_tela_medicao(page: ft.Page):
 
         async def reiniciar_sistema(e):
             SyncService.limpar_leituras_locais()
-            page.user_data["last_read_unit_id"] = None
+            user_data["last_read_unit_id"] = None
             await page.push_route("/menu")
 
         btn_finalizar_sinc = ft.ElevatedButton(
@@ -300,25 +516,23 @@ def montar_tela_medicao(page: ft.Page):
             width=320, height=65
         )
 
-        # 2. Recuperação de dados do Scanner (após definição dos campos para evitar NameError)
+        # Recuperação de dados do Scanner
         unidade_ocr = user_data.get("unidade_scanner")
         valor_ocr = user_data.get("valor_scanner")
         ocr_status_scanner = user_data.pop("ocr_status_scanner", None)
 
         if unidade_ocr:
-            # Normaliza formato do barcode ex: "AGUAFLOW|166-AGUA" → "166"
             unidade_ocr = _normalizar_unidade_scanner(unidade_ocr, db_lista)
             if unidade_ocr in db_lista:
                 txt_unidade.value = unidade_ocr
             user_data.pop("unidade_scanner", None)
         if valor_ocr:
-            if state["modo"] == "AGUA":
+            if passo_leitura_atual == "agua":
                 txt_agua.value = valor_ocr
             else:
                 txt_gas.value = valor_ocr
             user_data.pop("valor_scanner", None)
 
-        # Aviso de offline: exibe SnackBar após a view ser montada
         if ocr_status_scanner in ("offline",) and not valor_ocr:
             async def _aviso_sem_conexao():
                 await asyncio.sleep(0.4)
@@ -340,227 +554,143 @@ def montar_tela_medicao(page: ft.Page):
                     pass
             asyncio.create_task(_aviso_sem_conexao())
 
-
-        # --- FUNÇÕES DE LÓGICA ---
-        def _persistir_estado():
-            """Grava modo e unidade atual no client_storage (SharedPreferences).
-            Sobrevive a kills do processo Android — restaurado no próximo mount."""
-            try:
-                page.client_storage.set("medicao_modo", state["modo"])
-                page.client_storage.set("medicao_unidade", txt_unidade.value or "")
-            except Exception:
-                pass
-
-        def _limpar_estado_persistido():
-            try:
-                page.client_storage.remove("medicao_modo")
-                page.client_storage.remove("medicao_unidade")
-                page.client_storage.remove("medicao_gas_pendente_andar")
-            except Exception:
-                pass
-
-        def exibir_concluido():
-            _limpar_estado_persistido()
-            lbl_modo.value = "TODAS AS UNIDADES LIDAS"
-            lbl_modo.color = st.SUCCESS_GREEN
-            img_icon.icon = ft.Icons.CHECK_CIRCLE
-            img_icon.color = st.SUCCESS_GREEN
-            txt_unidade.visible = txt_agua.visible = txt_gas.visible = btn_gravar.visible = False
-            btn_finalizar_sinc.visible = True
-            page.update()
-
-        def avancar():
-            proxima = buscar_proxima_pendente()
-            if proxima:
-                txt_unidade.value = proxima
-                txt_agua.value = ""
-                txt_gas.value = ""
-                _persistir_estado()
-                page.update()
-            else:
-                exibir_concluido()
-
-        def abrir_dialogo_gas():
-            # Marca o andar com GÁS pendente — se o Android matar o processo
-            # enquanto o diálogo está aberto, o mount seguinte recupera o estado.
-            try:
-                page.client_storage.set(
-                    "medicao_gas_pendente_andar", _extrair_andar(txt_unidade.value)
-                )
-            except Exception:
-                pass
-
-            def fechar(escolha_gas):
-                try:
-                    page.client_storage.remove("medicao_gas_pendente_andar")
-                except Exception:
-                    pass
-                page.pop_dialog()
-                if escolha_gas:
-                    state["modo"] = "GAS"
-                    txt_agua.value = ""
-                    txt_gas.value = ""
-                    unid_val = txt_unidade.value
-                    andar = _extrair_andar(unid_val)
-                    if andar:
-                        idx_volta = next((i for i, u in enumerate(
-                            db_lista) if _extrair_andar(u) == andar), None)
-                        if idx_volta is not None:
-                            txt_unidade.value = db_lista[idx_volta]
-                    _persistir_estado()
-                else:
-                    state["modo"] = "AGUA"
-
-                atualizar_estilos_modo()
-                if not escolha_gas:
-                    avancar()
-
-            page.show_dialog(ft.AlertDialog(
-                modal=True,
-                title=ft.Text("Hall Concluído"),
-                content=ft.Text(
-                    "Deseja realizar a leitura de GÁS deste andar?"),
-                actions=[
-                    ft.TextButton("Sim, ler Gás",
-                                  on_click=lambda _: fechar(True)),
-                    ft.TextButton("Não, próximo",
-                                  on_click=lambda _: fechar(False)),
-                ]
-            ))
-
+        # SKILL Passo D: lógica de salvamento com barreira integrada
         async def salvar_clique(e):
-            valor_agua = (txt_agua.value or "").replace(",", ".").strip()
-            valor_gas = (txt_gas.value or "").replace(",", ".").strip()
+            nonlocal passo_leitura_atual
 
-            # Validação: campo obrigatório depende do modo ativo
-            if state["modo"] == "AGUA" and not valor_agua:
-                page.show_dialog(ft.SnackBar(
-                    ft.Text("A leitura de Água é obrigatória!"), bgcolor=st.RED_ERROR))
-                page.update()
+            unidade_nome = txt_unidade.value
+            if not unidade_nome:
+                _mostrar_snack("Selecione uma unidade.", is_error=True)
                 return
-            if state["modo"] == "GAS" and not valor_gas:
-                page.show_dialog(ft.SnackBar(
-                    ft.Text("A leitura de Gás é obrigatória!"), bgcolor=st.RED_ERROR))
-                page.update()
+            nome_unidade_upper = unidade_nome.upper()
 
-                return
-
-            current_unit = txt_unidade.value
-            _all_leituras = await asyncio.to_thread(Database.get_leituras_mes_atual)
-            if state["modo"] == "AGUA":
-                lidos = {l.get('unidade_id') for l in _all_leituras if l.get('leitura_agua') is not None}
+            # Validação do campo obrigatório
+            if passo_leitura_atual == "agua":
+                raw_val = (txt_agua.value or "").strip()
+                if not raw_val:
+                    _mostrar_snack("A leitura de ÁGUA é obrigatória para este passo!", is_error=True)
+                    return
+            elif passo_leitura_atual == "gas":
+                raw_val = (txt_gas.value or "").strip()
+                if not raw_val:
+                    _mostrar_snack("A leitura de GÁS é obrigatória para este passo!", is_error=True)
+                    return
             else:
-                lidos = {l.get('unidade_id') for l in _all_leituras if l.get('leitura_gas') is not None}
-
-            # --- Validação da Unidade Anterior (Offline-First) ---
-            if current_unit not in db_lista:
-                page.show_dialog(ft.SnackBar(
-                    ft.Text(f"Unidade '{current_unit}' não encontrada na lista."),
-                    bgcolor=st.RED_ERROR, show_close_icon=True))
-                page.update()
                 return
-            current_unit_index = db_lista.index(current_unit)
+
+            # Validação de sequência
+            if unidade_nome not in db_lista:
+                _mostrar_snack(f"Unidade '{unidade_nome}' não encontrada na lista.", is_error=True)
+                return
+            current_unit_index = db_lista.index(unidade_nome)
             if current_unit_index > 0:
                 previous_unit = db_lista[current_unit_index - 1]
+                _all_leituras = await asyncio.to_thread(Database.get_leituras_mes_atual)
+                if passo_leitura_atual == "agua":
+                    lidos = {l.get('unidade_id') for l in _all_leituras
+                             if l.get('leitura_agua') is not None}
+                else:
+                    lidos = {l.get('unidade_id') for l in _all_leituras
+                             if l.get('leitura_gas') is not None}
                 if not _unidade_lida(previous_unit, lidos):
-                    page.show_dialog(ft.SnackBar(
+                    page.snack_bar = ft.SnackBar(
                         ft.Text(
-                            f"Atenção: A unidade anterior ({previous_unit}) não foi lida. Por favor, siga a sequência."),
-                        bgcolor=st.ACCENT_ORANGE,
-                        show_close_icon=True
-                    ))
+                            f"Atenção: A unidade anterior ({previous_unit}) não foi lida."
+                            " Por favor, siga a sequência."),
+                        bgcolor=st.ACCENT_ORANGE, show_close_icon=True)
+                    page.snack_bar.open = True
                     page.update()
                     return
 
+            # Conversão e arredondamento
             try:
-                v_agua = round(float(valor_agua), 2) if valor_agua else None
-                v_gas = round(float(valor_gas), 3) if valor_gas else None
-                data_coleta = datetime.now(fuso_sp).isoformat(
-                    sep=' ', timespec='seconds')
+                v_agua = None
+                v_gas = None
+                if passo_leitura_atual == "agua":
+                    v_agua = round(float(raw_val.replace(",", ".")), 2)
+                else:
+                    v_gas = round(float(raw_val.replace(",", ".")), 3)
             except ValueError:
-                page.show_dialog(ft.SnackBar(ft.Text("Valor inválido."), show_close_icon=True))
-                page.update()
+                _mostrar_snack("Valor inválido.", is_error=True)
                 return
 
             foto_url = user_data.pop("foto_url_scanner", None)
             leiturista = user_data.get("nome") or user_data.get("email", "Zelador")
+            data_coleta = datetime.now(fuso_sp).isoformat(sep=' ', timespec='seconds')
+
             res = await asyncio.to_thread(
                 Database.salvar_leitura,
-                current_unit, v_agua, v_gas, state["modo"], data_coleta, foto_url, leiturista
+                unidade_nome, v_agua, v_gas, _modo_legado, data_coleta, foto_url, leiturista
             )
-            # Update last read unit in page.user_data for resuming
-            # Also store the values for potential restoration/clearing
-            user_data["last_read_unit_id"] = current_unit
-            user_data["last_read_agua_value"] = valor_agua
-            user_data["last_read_gas_value"] = valor_gas
 
-            if res["sucesso"]:
-                # Persiste imediatamente — antes de qualquer await — para sobreviver
-                # a kills do Android durante a animação
-                _persistir_estado()
-
-                # Animação não-bloqueante: não suspende o handler (evita janela onde
-                # o back button do Android pode disparar on_view_pop → /menu)
-                async def _restaurar_icone():
-                    await asyncio.sleep(0.3)
-                    try:
-                        img_icon.visible, icon_save.visible = True, False
-                        page.update()
-                    except Exception:
-                        pass
-
-                img_icon.visible, icon_save.visible = False, True
-                page.update()
-                asyncio.create_task(_restaurar_icone())
-
-                # Lógica de transição de andar (Hall)
-                idx_atual = db_lista.index(current_unit)
-                proxima_unid = db_lista[idx_atual +
-                                        1] if idx_atual + 1 < len(db_lista) else None
-
-                # Detecta se o próximo item é de outro andar ou área comum
-                andar_atual = _extrair_andar(current_unit)
-                andar_prox = _extrair_andar(proxima_unid) if proxima_unid else ""
-
-                if andar_atual != andar_prox:
-                    if state["modo"] == "AGUA":
-                        abrir_dialogo_gas()  # Oferece Gás antes de mudar de andar
-                    else:  # GAS completo no hall → volta para AGUA no próximo hall
-                        state["modo"] = "AGUA"
-                        txt_agua.value = ""
-                        txt_gas.value = ""
-                        atualizar_estilos_modo()
-                        avancar()
+            if not res["sucesso"]:
+                err_str = str(res.get("erro", ""))
+                if "registro_unico_unidade_coleta" in err_str:
+                    _mostrar_snack("Esta medição já foi registrada nesta rodada!", is_error=True)
                 else:
-                    avancar()
-            # Ensure the clear button visibility is updated
+                    _mostrar_snack(f"Erro: {err_str}", is_error=True)
+                return
+
+            user_data["last_read_unit_id"] = unidade_nome
+            _persistir_estado()
+            _mostrar_snack(f"Gravado: {passo_leitura_atual.upper()} de {unidade_nome}")
+
+            # Animação de ícone salvo (não-bloqueante)
+            async def _restaurar_icone():
+                await asyncio.sleep(0.3)
+                try:
+                    img_icon.visible, icon_save.visible = True, False
+                    page.update()
+                except Exception:
+                    pass
+            img_icon.visible, icon_save.visible = False, True
+            page.update()
+            asyncio.create_task(_restaurar_icone())
+
+            # Rastreio de unidades concluídas no ciclo
+            if modo_selecionado in ["agua", "gas"] or (
+                    modo_selecionado == "misto" and passo_leitura_atual == "gas"):
+                unidades_concluidas_no_ciclo.add(unidade_nome)
+
+            # Lógica de avanço conforme modo selecionado (SKILL Passo D)
+            if modo_selecionado in ["agua", "gas"]:
+                _avancar_proxima_unidade_com_seguranca()
+            else:
+                # Modo Misto: agua → gas para a mesma unidade, então avança
+                if ("LAZER GÁS" in nome_unidade_upper or "LAZER GAS" in nome_unidade_upper
+                        or "TERREO GERAL" in nome_unidade_upper):
+                    unidades_concluidas_no_ciclo.add(unidade_nome)
+                    _avancar_proxima_unidade_com_seguranca()
+                else:
+                    if passo_leitura_atual == "agua":
+                        passo_leitura_atual = "gas"
+                        txt_agua.value = ""
+                        _atualizar_campos_unidade(unidade_nome)
+                    else:
+                        txt_gas.value = ""
+                        _avancar_proxima_unidade_com_seguranca()
+
             btn_limpar_ultima_leitura.visible = True
             page.update()
 
-        # Estado visual inicial já definido diretamente nos controles acima (modo AGUA)
-
         def _abrir_scanner():
-            page.user_data.update({
-                "modo_leitura": state["modo"],
+            user_data.update({
+                "modo_leitura": _modo_legado,
                 "unidade_atual_medicao": txt_unidade.value,
             })
-            # Persiste no client_storage para sobreviver a kills do Android
             _persistir_estado()
             page.go("/scanner")
 
         async def limpar_ultima_leitura(e):
-            """Remove as chaves de última leitura do page.user_data e reseta os campos."""
             user_data.pop("last_read_unit_id", None)
             user_data.pop("last_read_agua_value", None)
             user_data.pop("last_read_gas_value", None)
-
             txt_unidade.value = db_lista[0] if db_lista else None
             txt_agua.value = ""
             txt_gas.value = ""
-            btn_limpar_ultima_leitura.visible = False  # Hide button after clearing
+            btn_limpar_ultima_leitura.visible = False
             page.update()
 
-        # Botão para limpar a última leitura, visível apenas se houver uma última leitura salva
         btn_limpar_ultima_leitura = ft.TextButton(
             "Limpar Última Leitura",
             icon="highlight_off",
@@ -568,6 +698,7 @@ def montar_tela_medicao(page: ft.Page):
             visible=user_data.get("last_read_unit_id") is not None
         )
 
+        # SKILL Passo E: layout com barra de progresso acima de txt_unidade
         return ft.View(
             route="/medicao",
             bgcolor="#121417",
@@ -588,6 +719,8 @@ def montar_tela_medicao(page: ft.Page):
                         height=160
                     ),
                     lbl_modo,
+                    lbl_progresso_status,   # SKILL Passo E
+                    bar_progresso,          # SKILL Passo E
                     txt_unidade,
                     txt_agua,
                     txt_gas,

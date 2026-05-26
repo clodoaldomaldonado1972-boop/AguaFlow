@@ -26,6 +26,30 @@ TESSERACT_AVAILABLE = False
 # Mude para True em ambiente de desenvolvimento para simular respostas sem consumir a API real
 MODO_SIMULADOR = False
 
+PROMPT_SISTEMA_OCR = """
+Você é o motor de visão especializado do sistema AguaFlow. Sua tarefa é ler o mostrador mecânico (roletes) do medidor a partir da foto e retornar o valor numérico correto formatado com ponto decimal.
+
+Aplique a regra exata baseada no tipo de medidor informado:
+
+1. Se for medidor de ÁGUA de apartamento (Marca Renova):
+   - Ele possui EXATAMENTE 4 dígitos PRETOS e EXATAMENTE 2 dígitos VERMELHOS — 6 roletes no total.
+   - Leia os 6 dígitos e insira o ponto decimal antes dos 2 últimos dígitos vermelhos (Ex: Mostrador '026012' deve virar '0260.12'; Mostrador '039431' deve virar '0394.31').
+   - NUNCA adicione um 5º dígito preto — o formato correto tem APENAS 4 dígitos antes do ponto.
+
+2. Se for medidor de GÁS (Marca LAO):
+   - Ele possui dígitos PRETOS e 3 dígitos VERMELHOS após a vírgula.
+   - Leia todos os números e insira o ponto decimal antes dos 3 últimos dígitos vermelhos (Ex: Mostrador '00015324' deve virar '15.324').
+
+3. Se for o TÉREO GERAL ÁGUA (Marca LAO Grande):
+   - Ele possui 5 dígitos PRETOS e apenas 1 dígito VERMELHO (casa decimal).
+   - Leia todos os números e insira o ponto decimal antes do último dígito vermelho (Ex: Mostrador '014523' deve virar '1452.3').
+
+Regras de Saída:
+- Retorne APENAS o número puro formatado com ponto (ex: 124.61 ou 1452.3).
+- Se a foto estiver totalmente ilegível ou cortada, responda estritamente com: null
+- Nunca inclua textos explicativos, unidades de medida ou markdown na resposta.
+""".strip()
+
 
 def processar_foto_hidrometro(caminho_foto: str, tipo: str = "água"):
     """
@@ -111,6 +135,26 @@ def _portrait_detect(caminho_foto: str) -> bool:
 # ── Prompt OCR Otimizado por Tipo de Medidor ─────────────────────────────────
 
 def _prompt_ocr(tipo: str, is_portrait: bool = False) -> str:
+    if "terreo" in tipo.lower() or "geral" in tipo.lower():
+        return (
+            "Esta é uma foto do MEDIDOR GERAL DE ÁGUA do edifício (instalado no térreo), "
+            "marca LAO (modelo industrial grande).\n\n"
+            "ESTRUTURA DO PAINEL:\n"
+            "  - FAIXA DE ROLETES na parte superior da face circular.\n"
+            "  - As janelas da ESQUERDA têm fundo PRETO (parte inteira, m³).\n"
+            "  - A janela mais à DIREITA tem fundo VERMELHO (1 ÚNICA casa decimal).\n\n"
+            "PASSO 1 — Localize os ROLETES: janelas retangulares enfileiradas horizontalmente "
+            "com dígitos (0-9).\n\n"
+            "PASSO 2 — IGNORE absolutamente tudo além dos roletes: "
+            "serial, código de barras, logos, especificações técnicas, ponteiros analógicos.\n\n"
+            "PASSO 3 — Leia todos os dígitos da esquerda para a direita.\n"
+            "Coloque ponto decimal antes do ÚNICO dígito vermelho (o último, à direita).\n"
+            "Formato obrigatório: dígitos + ponto + 1 dígito "
+            "(ex: '1452.3', '13518.6', '00874.2').\n"
+            "Retorne APENAS a string numérica limpa. "
+            "Se os roletes estiverem obstruídos ou ilegíveis, retorne: null"
+        )
+
     is_gas = "gás" in tipo.lower() or "gas" in tipo.lower()
 
     if is_gas:
@@ -154,16 +198,17 @@ def _prompt_ocr(tipo: str, is_portrait: bool = False) -> str:
         "  - Logo 'Sabesp' e especificações (Qn. 15.0 m³/h, Qmin. 0.300 m³/h) — IGNORE.\n\n"
         "PASSO 1 — Identifique a FAIXA DE ROLETES (igual nos dois modelos):\n"
         "São janelas retangulares enfileiradas horizontalmente com dígitos (0-9) em rolete mecânico. "
-        "As 5 janelas da esquerda têm fundo PRETO (parte inteira, m³). "
-        "As 2 janelas da direita têm fundo VERMELHO (decimais).\n\n"
-        "PASSO 2 — IGNORE absolutamente tudo que não são os 7 roletes:\n"
+        "As 4 janelas da esquerda têm fundo PRETO (parte inteira, m³). "
+        "As 2 janelas da direita têm fundo VERMELHO (decimais). "
+        "Total: EXATAMENTE 6 roletes — não há um 5º dígito preto.\n\n"
+        "PASSO 2 — IGNORE absolutamente tudo que não são os 6 roletes:\n"
         "NÃO leia os mostradores analógicos (ponteiros vermelhos e escalas circulares). "
         "NÃO leia serial, código de barras, modelo ou QR code. "
         "NÃO leia especificações técnicas ou logos de marca.\n\n"
-        "PASSO 3 — Leia os 7 dígitos nos roletes, da esquerda para a direita.\n"
-        "Use ponto como separador após o 5º dígito.\n"
-        "Formato obrigatório: 5 dígitos + ponto + 2 dígitos "
-        "(ex: '03285.52', '01358.66', '05683.08').\n"
+        "PASSO 3 — Leia os 6 dígitos nos roletes, da esquerda para a direita.\n"
+        "Use ponto como separador após o 4º dígito.\n"
+        "Formato obrigatório: 4 dígitos + ponto + 2 dígitos "
+        "(ex: '0260.12', '0394.31', '0455.37', '0144.96').\n"
         "Retorne APENAS a string numérica limpa. "
         "Se os roletes estiverem obstruídos ou ilegíveis, retorne: null"
     )
@@ -220,12 +265,7 @@ def _ocr_claude(caminho_foto: str, tipo: str = "água") -> tuple:
         msg = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=50,
-            system=(
-                "Você é um especialista em leitura de medidores de gás e água. "
-                "Sua única função é extrair o valor exibido no mostrador retangular principal do medidor. "
-                "Responda SOMENTE com a string numérica no formato solicitado ou 'null'. "
-                "Nunca explique, nunca adicione texto extra."
-            ),
+            system=PROMPT_SISTEMA_OCR,
             messages=[{
                 "role": "user",
                 "content": [

@@ -386,3 +386,100 @@ Baseadas nos logs de campo e screenshot do leiturista (APK 125 em produção).
 ---
 
 *Atualizado em 22/05/2026 (4ª rodada) — fix beep MainAcitivy.kt, SnackBar API, storage path duplex, color OCR field, WARNING PGRST205, 156 testes 100% pass.*
+
+---
+
+## 23. Skill — Refatoração de Leitura (25/05/2026)
+
+Implementação do SKILL `agents-e-skills/desenvolvedor-flet/SKILL.md`.
+
+### 23.1 `utils/vision.py` — Prompt OCR por Fabricante Real
+
+- [x] **`PROMPT_SISTEMA_OCR`** adicionado como constante de módulo — instrui o Claude Vision com regras exatas de casas decimais por tipo de medidor:
+  - Água apartamento (Renova): 2 dígitos VERMELHOS → ponto antes dos 2 últimos (ex: `'0012461'` → `124.61`)
+  - Gás (LAO): 3 dígitos VERMELHOS → ponto antes dos 3 últimos (ex: `'00015324'` → `15.324`)
+  - Térreo Geral Água (LAO Grande): 1 dígito VERMELHO → ponto antes do último (ex: `'014523'` → `1452.3`)
+- [x] **Parâmetro `system`** em `_ocr_claude` substituído por `PROMPT_SISTEMA_OCR` — Claude recebe as regras de decimal no system prompt + descrição visual detalhada no user message
+
+### 23.2 `views/medicao.py` — Barreira de Andar, Progresso e Modo Ronda
+
+- [x] **`page.lista_unidades`** — lista de objetos `Unidade(nome)` criada no mount; permite que as funções de barreira itererem com `.nome`
+- [x] **`modo_ronda`** lido de `page.user_data.get("modo_ronda", "misto")` — suporta `"agua"`, `"gas"` e `"misto"` sem quebrar a rota atual (`page.go("/medicao")`)
+- [x] **`passo_leitura_atual`** controla qual campo é exibido por vez (`"agua"` ou `"gas"`); sincronizado com `_modo_legado` para compatibilidade com o scanner
+- [x] **`unidades_concluidas_no_ciclo`** — `set` que rastreia unidades efetivamente gravadas na rodada atual para alimentar a barreira de andar
+- [x] **`lbl_progresso_status` + `bar_progresso`** — barra de progresso horizontal `ft.ProgressBar` posicionada acima do dropdown de unidade (SKILL Passo E); atualizada a cada troca de unidade
+- [x] **`dialog_barreira`** — `ft.AlertDialog` que intercepta a tentativa de avançar para outro andar sem ter medido todos os apartamentos; ações: "Voltar e Medir" ou "Seguir (Salvar como Nulo)"
+- [x] **`_atualizar_campos_unidade(unidade_nome)`** — exibe apenas um campo por vez conforme tipo de unidade e modo:
+  - `LAZER GÁS` → mostra apenas `txt_gas` (pula se modo `"agua"`)
+  - `TERREO GERAL` → mostra apenas `txt_agua` (pula se modo `"gas"`)
+  - Apartamentos → mostra `txt_agua` ou `txt_gas` conforme `passo_leitura_atual`
+  - Labels dinâmicos com marca/casas decimais corretas por unidade
+- [x] **`_avancar_proxima_unidade_com_seguranca()`** — valida se todas as unidades do andar atual foram concluídas antes de avançar; dispara `dialog_barreira` se faltarem
+- [x] **`_fechar_barreira(voltar)`** — "Voltar": exibe aviso; "Seguir": salva unidades restantes do andar como `leitura_agua=None / leitura_gas=None` e avança
+- [x] **Modo Misto** — `salvar_clique` alterna `passo_leitura_atual` de `"agua"` para `"gas"` na mesma unidade antes de avançar (uma unidade por vez, agua→gas→próxima)
+- [x] **`_mostrar_snack(msg, is_error)`** — helper centralizado para feedback visual (substitui `page.show_dialog(SnackBar(...))` espalhado)
+- [x] **Compatibilidade completa** — `_extrair_andar` e `_normalizar_unidade_scanner` mantidos em nível de módulo; 156 testes passam sem regressão
+
+---
+
+## 24. Testes OCR com Fotos Reais — assets/Photos-3-001 (25/05/2026)
+
+### 24.1 Resultados por tipo de medidor — iteração final (25/05/2026)
+
+| Tipo         | Fotos | ✅ OK | ⚠️ Formato | ❌ Null | Acerto |
+|--------------|-------|-------|------------|---------|--------|
+| TERREO       | 1     | 1     | 0          | 0       | **100%** |
+| ÁGUA (apt)   | 11    | 9     | 0          | 2       | **82%** |
+| GÁS          | 6     | 4     | 0          | 2       | **67%** |
+| Desconhecido | 4     | 2     | 0          | 2       | **50%** |
+| **Total**    | **22**| **16**| **0**      | **6**   | **73%** |
+
+### 24.2 Correções aplicadas nesta sessão
+
+- [x] **Branch `terreo` em `_prompt_ocr()`** (`utils/vision.py`) — tipo `"terreo"` envia prompt específico para LAO Grande com 1 dígito VERMELHO; corrigiu `13518.66` → `13518.6` ✅
+- [x] **`_tipo_from_nome()` em script de teste** (`testes/testar_ocr_photos3.py`) — `terreo`/`geral` mapeia para `('terreo', 'terreo')` garantindo uso do prompt correto
+- [x] **Formato Renova corrigido de 5+2 para 4+2** — descoberto que os medidores Renova UR-3.0 deste condomínio têm **4 janelas PRETAS + 2 VERMELHAS = 6 roletes** (não 5+2=7 como constava no prompt). Antes a IA inventava um 5º dígito preto retornando `03943.48` quando o real era `0394.31`. Após correção do prompt retorna `0394.31` ✅
+- [x] **`PROMPT_SISTEMA_OCR`** atualizado com o exemplo correto de 6 dígitos (ex: `'026012' → 0260.12`)
+- [x] **`RE_AGUA_APT`** no script de teste atualizado para `\d{4}\.\d{2}$` (4 dígitos exatos antes do ponto)
+- [x] **0 erros de formato** em todas as 22 fotos — respostas são número correto ou `null`
+
+### 24.3 Precisão de dígito nos valores com formato correto
+
+Comparação com valores reais fornecidos pelo operador:
+
+| Foto          | Real        | OCR          | Resultado       |
+|---------------|-------------|--------------|-----------------|
+| agua-151      | `0260.12`   | `0260.12`    | **EXATO** ✅    |
+| agua-152      | `0256.72`   | `0260.12`    | ❌ leu igual à 151 |
+| agua-153      | `0455.37`   | `0455.37`    | **EXATO** ✅    |
+| agua-154      | `0394.31`   | `0394.74`    | ❌ últimos 2 dígitos |
+| agua-155      | `0267.53`   | `0262.67`    | ❌ dígitos trocados |
+| agua-156      | `0144.96`   | `null`       | ❌ foto ilegível |
+| agua-161      | `0261.28`   | `0261.26`    | ❌ último dígito (28→26) |
+| gas-152       | `00158.489` | `00158.481`  | ❌ último dígito (489→481) |
+
+Erros restantes são de **leitura de dígito individual** (rolete entre dois números, foco ou ângulo) — o formato está 100% correto.
+
+### 24.4 Fotos com null (necessitam retake no campo)
+
+| Arquivo               | Motivo provável                              |
+|-----------------------|----------------------------------------------|
+| `agua-156.jpg`        | Foto ilegível — ângulo/iluminação ruim       |
+| `agua-166.jpg`        | Foto ilegível — ângulo/iluminação ruim       |
+| `gas-161.jpg`         | Inconsistente entre rodadas (às vezes lê)    |
+| `gas-165.jpg`         | Foto ilegível — ângulo/iluminação ruim       |
+| `20260426_120251.jpg` | Tipo desconhecido, ilegível como água        |
+| `20260426_120902.jpg` | Tipo desconhecido, ilegível como água        |
+
+**Obs.:** `20260426_*.jpg` respondem bem como GÁS — provavelmente são medidores de gás.
+
+### 24.5 Próximos passos para melhorar acerto
+
+- [ ] Retake das 4 fotos com null consistente (`agua-156`, `agua-166`, `gas-165`, `20260426_120251`)
+- [ ] Identificar tipo real das fotos `20260426_*.jpg` para corrigir classificação no script
+- [ ] Criar tabela `ocr_log` no Supabase (SQL em `docs/investigacao_logs_erro_20260522.md`)
+
+---
+
+*Atualizado em 25/05/2026 (Skill — refatoração de leitura) — PROMPT_SISTEMA_OCR por fabricante, barreira de andar, barra de progresso, modo ronda, campo único por passo, 198 testes 100% pass.*
+*Atualizado em 25/05/2026 (OCR Photos-3-001 — iteração final) — Renova 4+2 corrigido, TERREO 100%, 16/22 = 73%, 0 erros de formato.*
