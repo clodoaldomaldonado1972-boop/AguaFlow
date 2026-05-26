@@ -206,8 +206,8 @@ def montar_tela_medicao(page: ft.Page):
             width=320,
             value=initial_unit_value,
             border_color=_cor_init,
-            on_change=lambda e: _atualizar_campos_unidade(e.control.value)
         )
+        txt_unidade.on_change = lambda e: _atualizar_campos_unidade(e.control.value)
 
         txt_agua = ft.TextField(
             label="Leitura Água (m³)",
