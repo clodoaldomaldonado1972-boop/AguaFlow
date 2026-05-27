@@ -646,3 +646,33 @@ Novo arquivo cobrindo os 3 modos e o cenário do bug:
 | `TestBarreiraNullNaoBloqueiaProximoAndar` | 4 | NULL via barreira não bloqueia gás real; andar 7 null → andar 6 gás ok; NULL não duplica row real |
 
 **Suite completa após adição:** 302/302 ✅ (273 anteriores + 29 novos)
+
+---
+
+## 28. Aviso de Água Pré-Registrada e Bateria Fim de Ciclo — 26/05/2026
+
+### 28.1 Aviso de unidades com água já registrada no modo misto
+
+**Contexto:** Em modo MISTO, se uma sessão anterior já havia inserido água para algumas unidades de um andar, a nova sessão avançava corretamente sobre essas unidades (lógica já estava correta), mas o leiturista não recebia nenhum feedback — parecia que o app estava "pulando" unidades arbitrariamente.
+
+**Correção:** Dois avisos via SnackBar adicionados em `views/medicao.py` (commit `e8bf44c`):
+
+- [x] **`_carregar_proxima_unidade()` — chegada ao andar** — ao carregar uma unidade que não é a primeira do andar (unidades antes dela já têm água registrada de sessão anterior), exibe: `"Apto(s) X, Y: água já registrada. Iniciando andar N a partir de Z."`
+- [x] **`_avancar_misto()` — fim da fase água** — ao encerrar a fase de água de um andar e detectar que unidades posteriores à atual já tinham água registrada, exibe: `"Apto(s) X, Y, Z: água já registrada. Avançando para gás do andar N."`
+- [x] **Sem falha silenciosa** — ambos os blocos estão envoltos em `try/except Exception: pass`; nunca interrompem o fluxo principal
+
+### 28.2 Bateria de testes — `tests/test_fim_ciclo_completo.py` (33 testes, 100% pass)
+
+| Classe | Testes | Cobertura |
+|---|---|---|
+| `TestMistoCicloCompleto` | 10 | 94 aptos agua+gas aceitos; áreas comuns; re-inserção bloqueada; duplex 163/164 e 23/24 |
+| `TestAguaPreRegistrada` | 6 | Unidades pré-registradas em `lidos_agua`; `proxima` retorna None quando resto pré-registrado; gás pendente detectado; gás completo com água parcialmente pré-registrada |
+| `TestFimCicloComReset` | 8 | `salvar_referencias_ciclo` salva 96 refs; valores corretos; reset zera leituras; referências sobrevivem ao reset; leitura_anterior_agua/gas populados no novo ciclo; banco aceita novas inserções após reset |
+| `TestRelatorioFimCiclo` | 6 | CSV água com 96 unidades; CSV gás com 95 unidades (TERREO só água); PDFs gerados em disco; 166 e LAZER GÁS presentes |
+| `TestEmailEnvio` | 3 | Sem credenciais → False; mock SMTP → True + login/send_message chamados; lista vazia com credenciais → True |
+
+**Suite completa:** 335/335 ✅ (302 anteriores + 33 novos)
+
+---
+
+*Atualizado em 26/05/2026 — aviso de água pré-registrada no modo misto, bateria fim de ciclo completo com reset + relatório + email, 335 testes 100% pass.*
