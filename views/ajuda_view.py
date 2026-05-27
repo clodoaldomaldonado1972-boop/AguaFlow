@@ -84,7 +84,11 @@ def _secao(titulo: str, icone, controles: list) -> ft.ExpansionTile:
 
 def montar_tela_ajuda(page: ft.Page, on_back):
     user_data = getattr(page, "user_data", {}) or {}
-    nome_leiturista = user_data.get("nome", "Não identificado")
+    nome_leiturista = (
+        user_data.get("nome")
+        or user_data.get("email", "").split("@")[0].capitalize()
+        or "Não identificado"
+    )
 
     corpo_mensagem = (
         "Olá! Suporte AguaFlow. Estou no Condomínio Vivere Prudente e preciso de auxílio técnico.\n"
@@ -295,7 +299,21 @@ def montar_tela_ajuda(page: ft.Page, on_back):
                 "Não conseguiu resolver pelo tutorial?\nFale diretamente com o suporte.",
                 size=13, color=st.GREY_TEXT, text_align=ft.TextAlign.CENTER,
             ),
-            ft.Container(height=16),
+            ft.Container(height=8),
+            ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.PERSON_OUTLINE, color=st.PRIMARY_BLUE, size=16),
+                        ft.Text(f"Leiturista: {nome_leiturista}", size=13, color="white"),
+                    ],
+                    spacing=6,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+                bgcolor="#1E2126",
+                border_radius=8,
+                padding=ft.Padding.symmetric(vertical=8, horizontal=16),
+            ),
+            ft.Container(height=8),
             ft.ElevatedButton(
                 "CHAMAR SUPORTE NO WHATSAPP",
                 icon="whatsapp",
