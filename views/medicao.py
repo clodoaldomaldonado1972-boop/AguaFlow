@@ -342,6 +342,27 @@ def montar_tela_medicao(page: ft.Page):
         def _carregar_proxima_unidade():
             proxima = buscar_proxima_pendente()
             if proxima:
+                if modo_selecionado == "misto" and passo_leitura_atual == "agua":
+                    andar_prox = _extrair_andar(proxima)
+                    if andar_prox:
+                        try:
+                            leituras_chk = Database.get_leituras_mes_atual()
+                            agua_chk = {l['unidade_id'] for l in leituras_chk
+                                        if l.get('leitura_agua') is not None}
+                            unidades_andar = [u for u in db_lista if _extrair_andar(u) == andar_prox]
+                            try:
+                                idx_p = unidades_andar.index(proxima)
+                            except ValueError:
+                                idx_p = 0
+                            ja_antes = [u for u in unidades_andar[:idx_p]
+                                        if _unidade_lida(u, agua_chk)]
+                            if ja_antes:
+                                nomes = ", ".join(ja_antes)
+                                _mostrar_snack(
+                                    f"Apto(s) {nomes}: água já registrada. "
+                                    f"Iniciando andar {andar_prox} a partir de {proxima}.")
+                        except Exception:
+                            pass
                 txt_unidade.value = proxima
                 txt_agua.value = ""
                 txt_gas.value = ""
@@ -524,6 +545,25 @@ def montar_tela_medicao(page: ft.Page):
                     _persistir_estado()
                     _atualizar_campos_unidade(prox)
                     return
+                # Água do andar concluída — avisa se havia unidades já registradas de sessão anterior
+                try:
+                    leituras_chk = Database.get_leituras_mes_atual()
+                    agua_chk = {l['unidade_id'] for l in leituras_chk
+                                if l.get('leitura_agua') is not None}
+                    unidades_andar_chk = [u for u in db_lista if _extrair_andar(u) == andar_atual]
+                    try:
+                        idx_chk = unidades_andar_chk.index(unidade_atual_nome)
+                    except ValueError:
+                        idx_chk = -1
+                    ja_reg = [u for u in unidades_andar_chk[idx_chk + 1:]
+                              if _unidade_lida(u, agua_chk)]
+                    if ja_reg:
+                        nomes = ", ".join(ja_reg)
+                        _mostrar_snack(
+                            f"Apto(s) {nomes}: água já registrada. "
+                            f"Avançando para gás do andar {andar_atual}.")
+                except Exception:
+                    pass
                 # Água do andar concluída → inicia fase gás a partir da 1ª unidade do andar
                 primeira_gas = _primeira_pendente_no_andar(andar_atual, "gas")
                 if primeira_gas:
