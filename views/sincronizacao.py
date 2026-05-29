@@ -16,8 +16,16 @@ def montar_tela_sincronizacao(page: ft.Page):
     sincronizador = SincronizadorUI(page)
 
     lbl_status_geral = ft.Text("Verificando conexão...", size=14, color="grey")
-    lbl_ultimasinc = ft.Text("Última sincronização: --", size=12, color="grey")
+    lbl_ultimasinc = ft.Text("Última sincronização: --", size=12, color="grey", text_align=ft.TextAlign.CENTER)
     lista_logs = ft.ListView(expand=True, spacing=10, padding=10, height=200)
+
+    btn_retentar = ft.ElevatedButton(
+        "RETENTAR IGNORADOS",
+        icon=ft.Icons.REPLAY,
+        width=200,
+        height=55,
+        visible=False,
+    )
 
     def _consultar_contagens():
         with Database.get_db() as conn:
@@ -26,28 +34,65 @@ def montar_tela_sincronizacao(page: ft.Page):
             pendentes = cur.fetchone()[0]
             cur.execute("SELECT COUNT(*) FROM leituras WHERE sincronizado = 1")
             sincronizadas = cur.fetchone()[0]
-        return pendentes, sincronizadas
+            cur.execute("SELECT COUNT(*) FROM leituras WHERE sincronizado = -1")
+            ignorados = cur.fetchone()[0]
+        return pendentes, sincronizadas, ignorados
+
+    def _resetar_ignorados():
+        with Database.get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE leituras SET sincronizado = 0 WHERE sincronizado = -1")
+            conn.commit()
+            return cur.rowcount
 
     async def verificar_status(e):
-        """Verifica o status da sincronização e exibe logs recentes."""
         lbl_status_geral.value = "Verificando..."
         page.update()
 
         try:
-            pendentes, sincronizadas = await asyncio.to_thread(_consultar_contagens)
+            pendentes, sincronizadas, ignorados = await asyncio.to_thread(_consultar_contagens)
             lbl_status_geral.value = f"Pendentes: {pendentes} | Sincronizadas: {sincronizadas}"
             lbl_status_geral.color = "green" if pendentes == 0 else "orange"
-            lbl_ultimasinc.value = "Status atualizado em tempo real"
+            lbl_ultimasinc.value = (
+                f"⚠️ {ignorados} registro(s) ignorado(s) — clique em Retentar"
+                if ignorados > 0 else "Status atualizado em tempo real"
+            )
+            lbl_ultimasinc.color = st.ACCENT_ORANGE if ignorados > 0 else "grey"
+            btn_retentar.visible = ignorados > 0
         except Exception as ex:
             lbl_status_geral.value = f"Erro: {str(ex)}"
             lbl_status_geral.color = "red"
 
         page.update()
 
+    async def retentar_ignorados(e):
+        btn_retentar.disabled = True
+        btn_retentar.text = "RESETANDO..."
+        page.update()
+        try:
+            resetados = await asyncio.to_thread(_resetar_ignorados)
+            page.show_dialog(ft.SnackBar(
+                content=ft.Text(f"✅ {resetados} registro(s) reativado(s). Sincronizando..."),
+                bgcolor=st.SUCCESS_GREEN,
+            ))
+            await sincronizador.executar_sincronismo(e)
+        except Exception as ex:
+            page.show_dialog(ft.SnackBar(
+                content=ft.Text(f"Erro: {ex}"),
+                bgcolor=st.RED_ERROR,
+            ))
+        finally:
+            btn_retentar.disabled = False
+            btn_retentar.text = "RETENTAR IGNORADOS"
+            await verificar_status(None)
+
+    btn_retentar.on_click = retentar_ignorados
+
     async def sincronizar_agora(e):
-        """Executa sincronização manual."""
         await sincronizador.executar_sincronismo(e)
         await verificar_status(None)
+
+    page.run_task(verificar_status, None)
 
     return ft.View(
         route="/sincronizar",
@@ -96,6 +141,8 @@ def montar_tela_sincronizacao(page: ft.Page):
                         height=55
                     ),
                 ], alignment=ft.MainAxisAlignment.CENTER),
+
+                ft.Row([btn_retentar], alignment=ft.MainAxisAlignment.CENTER),
 
                 ft.Container(height=20),
 
