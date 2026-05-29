@@ -25,7 +25,8 @@ def montar_tela_scanner(page: ft.Page):
         pasta_temp = get_temp_dir()
 
         # --- UI ---
-        mira_visual = st.criar_mira_scanner(page)
+        cor_modo = st.PRIMARY_BLUE if modo == "AGUA" else "#E64A19"
+        mira_visual = st.criar_mira_scanner(page, border_color=cor_modo)
 
         img_preview = ft.Image(
             src="", visible=False, width=300, height=200,
@@ -351,15 +352,22 @@ def montar_tela_scanner(page: ft.Page):
             width=300,
             height=55,
             style=ft.ButtonStyle(
-                bgcolor=st.PRIMARY_BLUE if modo == "AGUA" else "orange",
+                bgcolor=cor_modo,
                 color="white",
                 shape=ft.RoundedRectangleBorder(radius=10),
             ),
             on_click=lambda e: page.run_task(_iniciar_captura, "camera"),
         )
-        btn_galeria = ft.TextButton(
+        btn_galeria = ft.ElevatedButton(
             "Escolher da galeria",
             icon=ft.Icons.PHOTO_LIBRARY_OUTLINED,
+            width=300,
+            height=48,
+            style=ft.ButtonStyle(
+                bgcolor="#2E3440",
+                color="white",
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
             on_click=lambda e: page.run_task(_iniciar_captura, "galeria"),
         )
 
@@ -369,26 +377,34 @@ def montar_tela_scanner(page: ft.Page):
             width=300,
             height=48,
             style=ft.ButtonStyle(
-                bgcolor="#2E3440",
-                color="white",
+                bgcolor="white" if modo == "AGUA" else cor_modo,
+                color="black87" if modo == "AGUA" else "white",
                 shape=ft.RoundedRectangleBorder(radius=10),
             ),
             on_click=lambda e: page.run_task(_escanear_unidade),
             visible=barcode_service is not None,
         )
 
-        cor_appbar = st.PRIMARY_BLUE if modo == "AGUA" else "orange"
-
         return ft.View(
             route="/scanner",
             bgcolor="#121417",
             appbar=ft.AppBar(
-                title=ft.Text(f"Scanner — {'ÁGUA' if modo == 'AGUA' else 'GÁS'}"),
+                title=ft.Row([
+                    ft.Icon(
+                        ft.Icons.WATER_DROP if modo == "AGUA" else ft.Icons.LOCAL_FIRE_DEPARTMENT,
+                        color="white", size=22,
+                    ),
+                    ft.Text(
+                        f"Scanner – {'ÁGUA' if modo == 'AGUA' else 'GÁS'}",
+                        color="white", weight=ft.FontWeight.BOLD,
+                    ),
+                ], tight=True, spacing=8),
                 center_title=True,
-                bgcolor=cor_appbar,
+                bgcolor=cor_modo,
                 leading=ft.IconButton(
                     icon=ft.Icons.ARROW_BACK,
-                    on_click=lambda _: page.go("/medicao")
+                    icon_color="white",
+                    on_click=lambda _: page.go("/medicao"),
                 )
             ),
             controls=[

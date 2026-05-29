@@ -69,9 +69,9 @@ def montar_tela_medicao(page: ft.Page):
         user_data = getattr(page, "user_data", {}) or {}
 
         # ── SKILL Passo A: modo_ronda e estado inicial ────────────────────────
-        modo_ronda = user_data.get("modo_ronda", "misto")  # 'agua', 'gas', 'misto'
-        modo_selecionado = modo_ronda
-        passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+        modo_ronda = user_data.get("modo_ronda", "agua")  # 'agua' ou 'gas'; leiturista escolhe o modo
+        modo_selecionado = modo_ronda if modo_ronda in ("agua", "gas") else "agua"
+        passo_leitura_atual = modo_selecionado
         unidades_concluidas_no_ciclo = set()
 
         # _modo_legado fica em sync com passo_leitura_atual para compatibilidade
@@ -158,24 +158,11 @@ def montar_tela_medicao(page: ft.Page):
         _cs_unidade = None
         if modo_retorno not in ("AGUA", "GAS"):
             try:
-                _andar_gas_pendente = page.client_storage.get("medicao_gas_pendente_andar")
-                if _andar_gas_pendente:
-                    _modo_legado = "GAS"
-                    passo_leitura_atual = "gas"
-                    idx_gas = next(
-                        (i for i, u in enumerate(db_lista)
-                         if _extrair_andar(u) == _andar_gas_pendente),
-                        None
-                    )
-                    if idx_gas is not None:
-                        _cs_unidade = db_lista[idx_gas]
-                    page.client_storage.remove("medicao_gas_pendente_andar")
-                else:
-                    _cs_modo = page.client_storage.get("medicao_modo")
-                    _cs_unidade = page.client_storage.get("medicao_unidade")
-                    if _cs_modo in ("AGUA", "GAS"):
-                        _modo_legado = _cs_modo
-                        passo_leitura_atual = "agua" if _cs_modo == "AGUA" else "gas"
+                _cs_modo = page.client_storage.get("medicao_modo")
+                _cs_unidade = page.client_storage.get("medicao_unidade")
+                if _cs_modo in ("AGUA", "GAS"):
+                    _modo_legado = _cs_modo
+                    passo_leitura_atual = "agua" if _cs_modo == "AGUA" else "gas"
             except Exception:
                 pass
 
@@ -223,7 +210,9 @@ def montar_tela_medicao(page: ft.Page):
             size=14, weight=ft.FontWeight.W_500, color="bluegray"
         )
         bar_progresso = ft.ProgressBar(
-            value=0.0, width=300, color="green", bgcolor="lightgreen"
+            value=0.0, width=300,
+            color="#4CAF50",
+            bgcolor="white12",
         )
 
         # Progresso inicial
@@ -249,42 +238,152 @@ def montar_tela_medicao(page: ft.Page):
         txt_unidade.on_change = lambda e: _atualizar_campos_unidade(e.control.value)
 
         txt_agua = ft.TextField(
-            label="Leitura Água (m³)",
-            prefix_icon="water_drop",
+            label="CONFERIR LEITURA DE ÁGUA",
             width=320,
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.InputFilter(
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,2})?$"),
             text_align=ft.TextAlign.CENTER,
+            text_style=ft.TextStyle(size=40, weight=ft.FontWeight.BOLD),
             hint_text="00000,00",
-            color="white",
-            bgcolor="#25282D",
-            border_color="blue",
+            hint_style=ft.TextStyle(size=30, color="blue300", weight=ft.FontWeight.W_300),
+            content_padding=ft.Padding(12, 22, 12, 22),
+            color="blue900",
+            bgcolor="#E3F2FD",
+            border_color="#1565C0",
+            border_width=3,
+            focused_border_color="#0D47A1",
+            focused_border_width=6,
+            label_style=ft.TextStyle(size=12, weight=ft.FontWeight.BOLD, color="#0D47A1"),
             visible=_agua_init,
-            disabled=not _agua_init
         )
 
         txt_gas = ft.TextField(
-            label="Leitura Gás (m³)",
-            icon="local_fire_department",
+            label="CONFERIR LEITURA DE GÁS",
             width=320,
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.InputFilter(
                 allow=True, regex_string=r"^\d{0,5}([,\.]\d{0,3})?$"),
             text_align=ft.TextAlign.CENTER,
+            text_style=ft.TextStyle(size=40, weight=ft.FontWeight.BOLD),
             hint_text="00000,000",
-            color="white",
-            bgcolor="#25282D",
-            border_color="orange",
+            hint_style=ft.TextStyle(size=30, color="orange300", weight=ft.FontWeight.W_300),
+            content_padding=ft.Padding(12, 22, 12, 22),
+            color="#BF360C",
+            bgcolor="#FFF3E0",
+            border_color="#E64A19",
+            border_width=3,
+            focused_border_color="#BF360C",
+            focused_border_width=6,
+            label_style=ft.TextStyle(size=12, weight=ft.FontWeight.BOLD, color="#BF360C"),
             visible=not _agua_init,
-            disabled=_agua_init
         )
 
         btn_gravar = ft.ElevatedButton(
-            "GRAVAR LEITURA",
+            "SALVAR MEDIÇÃO",
+            icon=ft.Icons.CHECK,
             on_click=lambda e: page.run_task(salvar_clique, e),
             width=320,
-            height=65
+            height=65,
+            bgcolor="#388E3C" if _agua_init else "#B71C1C",
+            color="white",
+        )
+
+        btn_scanner = ft.ElevatedButton(
+            "ABRIR SCANNER",
+            icon=ft.Icons.CAMERA_ALT,
+            width=320,
+            bgcolor="#1565C0" if _agua_init else "#E64A19",
+            color="white",
+            on_click=lambda _: _abrir_scanner(),
+        )
+
+        # AppBar reativa ao modo — dois ícones com toggle de visibilidade
+        # (ft.Icon.name não atualiza dinamicamente em Flet 0.82.2)
+        _appbar_icon_agua = ft.Icon(ft.Icons.WATER_DROP, color="white", size=22, visible=_agua_init)
+        _appbar_icon_gas = ft.Icon(ft.Icons.LOCAL_FIRE_DEPARTMENT, color="white", size=22, visible=not _agua_init)
+        _appbar_title = ft.Text(
+            "MODO: ÁGUA" if _agua_init else "MODO: GÁS",
+            color="white", weight=ft.FontWeight.BOLD, size=16,
+        )
+        _appbar = ft.AppBar(
+            title=ft.Row([_appbar_icon_agua, _appbar_icon_gas, _appbar_title], tight=True, spacing=8),
+            center_title=True,
+            bgcolor="#1565C0" if _agua_init else "#E64A19",
+            leading=ft.IconButton(
+                icon=ft.Icons.ARROW_BACK,
+                icon_color="white",
+                on_click=lambda _: page.go("/menu"),
+            ),
+        )
+
+        # Tabs ÁGUA / GÁS
+        _tab_style_ativo_agua = ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=6),
+            bgcolor="#1565C0", color="white",
+        )
+        _tab_style_inativo = ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=6),
+            bgcolor="#212121", color="grey400",
+        )
+        _tab_style_ativo_gas = ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=6),
+            bgcolor="#E64A19", color="white",
+        )
+        btn_tab_agua = ft.ElevatedButton(
+            "ÁGUA",
+            icon=ft.Icons.WATER_DROP,
+            style=_tab_style_ativo_agua if _agua_init else _tab_style_inativo,
+            expand=True,
+            on_click=lambda _: _trocar_tab("agua"),
+        )
+        btn_tab_gas = ft.ElevatedButton(
+            "GÁS",
+            icon=ft.Icons.LOCAL_FIRE_DEPARTMENT,
+            style=_tab_style_ativo_gas if not _agua_init else _tab_style_inativo,
+            expand=True,
+            on_click=lambda _: _trocar_tab("gas"),
+        )
+
+        # Label "Unidade Atual" e validação inline
+        lbl_unidade_atual = ft.Text(
+            f"Unidade Atual: {initial_unit_value or '—'}",
+            size=18, weight=ft.FontWeight.BOLD,
+            color="white", text_align=ft.TextAlign.CENTER,
+        )
+        lbl_validacao = ft.Text(
+            "", size=12, color="orange",
+            text_align=ft.TextAlign.CENTER,
+            visible=False,
+        )
+
+        # Texto informativo acima do visor (ex: "Leitura da Água - 166 (Renova 2 Casas)")
+        lbl_campo_info = ft.Text(
+            "", size=12, color="grey70",
+            text_align=ft.TextAlign.CENTER,
+            italic=True,
+        )
+
+        # Containers com sombra neon em volta dos visores (intensidade reduzida)
+        cont_agua = ft.Container(
+            content=txt_agua,
+            border_radius=12,
+            visible=_agua_init,
+            shadow=ft.BoxShadow(
+                blur_radius=12, spread_radius=1,
+                color="#1565C0",
+                offset=ft.Offset(0, 0),
+            ),
+        )
+        cont_gas = ft.Container(
+            content=txt_gas,
+            border_radius=12,
+            visible=not _agua_init,
+            shadow=ft.BoxShadow(
+                blur_radius=16, spread_radius=2,
+                color="#E64A19",
+                offset=ft.Offset(0, 0),
+            ),
         )
 
         # SKILL Passo A: dialog_barreira
@@ -303,6 +402,15 @@ def montar_tela_medicao(page: ft.Page):
         )
 
         # ── Funções auxiliares ────────────────────────────────────────────────
+
+        def animar_foco(campo, cor_ativa):
+            campo.border_color = cor_ativa
+            campo.border_width = 4
+            page.update()
+
+        def restaurar_borda_padrao(campo, cor_padrao):
+            campo.border_color = cor_padrao
+            campo.border_width = 2
 
         def _mostrar_snack(msg, is_error=False):
             page.snack_bar = ft.SnackBar(
@@ -329,13 +437,16 @@ def montar_tela_medicao(page: ft.Page):
 
         def exibir_concluido():
             _limpar_estado_persistido()
-            lbl_modo.value = "TODAS AS UNIDADES LIDAS"
-            lbl_modo.color = st.SUCCESS_GREEN
-            img_icon.icon = ft.Icons.CHECK_CIRCLE
-            img_icon.color = st.SUCCESS_GREEN
+            lbl_unidade_atual.value = "TODAS AS UNIDADES LIDAS"
             lbl_progresso_status.value = "Ciclo completo!"
             bar_progresso.value = 1.0
-            txt_unidade.visible = txt_agua.visible = txt_gas.visible = btn_gravar.visible = False
+            _appbar.bgcolor = st.SUCCESS_GREEN
+            _appbar_icon_agua.visible = False
+            _appbar_icon_gas.visible = False
+            _appbar_title.value = "CICLO COMPLETO"
+            txt_unidade.visible = False
+            cont_agua.visible = cont_gas.visible = False
+            btn_gravar.visible = btn_scanner.visible = btn_limpar_ultima_leitura.visible = False
             btn_finalizar_sinc.visible = True
             page.update()
 
@@ -376,16 +487,19 @@ def montar_tela_medicao(page: ft.Page):
             nonlocal passo_leitura_atual, _modo_legado
             if not unidade_nome:
                 return
+            lbl_unidade_atual.value = f"Unidade Atual: {unidade_nome}"
+            lbl_validacao.value = ""
+            lbl_validacao.visible = False
             nome_unidade_upper = unidade_nome.upper()
-            txt_agua.visible = False
-            txt_gas.visible = False
+            cont_agua.visible = False
+            cont_gas.visible = False
 
             if "LAZER GÁS" in nome_unidade_upper or "LAZER GAS" in nome_unidade_upper:
                 if modo_selecionado in ["gas", "misto"]:
                     passo_leitura_atual = "gas"
-                    txt_gas.visible = True
-                    txt_gas.disabled = False
-                    txt_gas.label = "Leitura do Gás (Lazer - LAO 3 Casas)"
+                    cont_gas.visible = True
+                    txt_gas.label = "CONFERIR LEITURA DE GÁS"
+                    lbl_campo_info.value = f"{unidade_nome} — Lazer (LAO 3 Casas)"
                 else:
                     _avancar_proxima_unidade_com_seguranca()
                     return
@@ -393,38 +507,56 @@ def montar_tela_medicao(page: ft.Page):
             elif "TERREO GERAL" in nome_unidade_upper:
                 if modo_selecionado in ["agua", "misto"]:
                     passo_leitura_atual = "agua"
-                    txt_agua.visible = True
-                    txt_agua.disabled = False
-                    txt_agua.label = "Leitura da Água (Térreo Geral - LAO 1 Casa)"
+                    cont_agua.visible = True
+                    txt_agua.label = "CONFERIR LEITURA DE ÁGUA"
+                    lbl_campo_info.value = f"{unidade_nome} — Térreo Geral (LAO 1 Casa)"
                 else:
                     _avancar_proxima_unidade_com_seguranca()
                     return
 
             else:
                 if passo_leitura_atual == "agua":
-                    txt_agua.visible = True
-                    txt_agua.disabled = False
-                    txt_agua.label = f"Leitura da Água - {unidade_nome} (Renova 2 Casas)"
+                    cont_agua.visible = True
+                    txt_agua.label = "CONFERIR LEITURA DE ÁGUA"
+                    lbl_campo_info.value = f"Leitura da Água — {unidade_nome} (Renova 2 Casas)"
                 elif passo_leitura_atual == "gas":
-                    txt_gas.visible = True
-                    txt_gas.disabled = False
-                    txt_gas.label = f"Leitura do Gás - {unidade_nome} (LAO 3 Casas)"
+                    cont_gas.visible = True
+                    txt_gas.label = "CONFERIR LEITURA DE GÁS"
+                    lbl_campo_info.value = f"Leitura do Gás — {unidade_nome} (LAO 3 Casas)"
 
-            # Sync _modo_legado e visual com passo atual
+            # Sync _modo_legado, visual, AppBar, tabs e bgcolors com passo atual
             if passo_leitura_atual == "agua":
                 _modo_legado = "AGUA"
                 lbl_modo.value = "MODO: ÁGUA"
-                lbl_modo.color = "blue"
+                lbl_modo.color = "#1565C0"
                 img_icon.icon = ft.Icons.WATER_DROP
-                img_icon.color = "blue"
-                txt_unidade.border_color = "blue"
+                img_icon.color = "#1565C0"
+                txt_unidade.border_color = "#1565C0"
+                restaurar_borda_padrao(txt_gas, "#E64A19")
+                btn_gravar.bgcolor = "#388E3C"
+                btn_scanner.bgcolor = "#1565C0"
+                _appbar.bgcolor = "#1565C0"
+                _appbar_icon_agua.visible = True
+                _appbar_icon_gas.visible = False
+                _appbar_title.value = "MODO: ÁGUA"
+                btn_tab_agua.style = _tab_style_ativo_agua
+                btn_tab_gas.style = _tab_style_inativo
             else:
                 _modo_legado = "GAS"
                 lbl_modo.value = "MODO: GÁS"
-                lbl_modo.color = "orange"
+                lbl_modo.color = "#E64A19"
                 img_icon.icon = ft.Icons.LOCAL_FIRE_DEPARTMENT
-                img_icon.color = "orange"
-                txt_unidade.border_color = "orange"
+                img_icon.color = "#E64A19"
+                txt_unidade.border_color = "#E64A19"
+                restaurar_borda_padrao(txt_agua, "#1565C0")
+                btn_gravar.bgcolor = "#B71C1C"
+                btn_scanner.bgcolor = "#E64A19"
+                _appbar.bgcolor = "#E64A19"
+                _appbar_icon_agua.visible = False
+                _appbar_icon_gas.visible = True
+                _appbar_title.value = "MODO: GÁS"
+                btn_tab_agua.style = _tab_style_inativo
+                btn_tab_gas.style = _tab_style_ativo_gas
 
             # Barra de progresso horizontal
             try:
@@ -444,7 +576,12 @@ def montar_tela_medicao(page: ft.Page):
             except Exception as e:
                 logger.error(f"Erro ao atualizar barra de progresso: {e}")
 
+            # Ciclo vital: renderiza visibilidade e cores antes de animar borda
             page.update()
+            if passo_leitura_atual == "agua":
+                animar_foco(txt_agua, "blue900")
+            else:
+                animar_foco(txt_gas, "deeporange900")
 
         # SKILL Passo C: barreira de segurança do andar
         def _avancar_proxima_unidade_com_seguranca():
@@ -684,22 +821,31 @@ def montar_tela_medicao(page: ft.Page):
         async def salvar_clique(e):
             nonlocal passo_leitura_atual
 
+            lbl_validacao.value = ""
+            lbl_validacao.visible = False
+
             unidade_nome = txt_unidade.value
             if not unidade_nome:
                 _mostrar_snack("Selecione uma unidade.", is_error=True)
                 return
             nome_unidade_upper = unidade_nome.upper()
 
-            # Validação do campo obrigatório
+            # Validação do campo obrigatório — exibe inline no visor
             if passo_leitura_atual == "agua":
                 raw_val = (txt_agua.value or "").strip()
                 if not raw_val:
-                    _mostrar_snack("A leitura de ÁGUA é obrigatória para este passo!", is_error=True)
+                    lbl_validacao.value = "⚠️ Digite a leitura de ÁGUA antes de salvar!"
+                    lbl_validacao.color = "orange"
+                    lbl_validacao.visible = True
+                    page.update()
                     return
             elif passo_leitura_atual == "gas":
                 raw_val = (txt_gas.value or "").strip()
                 if not raw_val:
-                    _mostrar_snack("A leitura de GÁS é obrigatória para este passo!", is_error=True)
+                    lbl_validacao.value = "⚠️ Digite a leitura de GÁS antes de salvar!"
+                    lbl_validacao.color = "orange"
+                    lbl_validacao.visible = True
+                    page.update()
                     return
             else:
                 return
@@ -774,6 +920,9 @@ def montar_tela_medicao(page: ft.Page):
             user_data["last_read_unit_id"] = unidade_nome
             _persistir_estado()
             _mostrar_snack(f"Gravado: {passo_leitura_atual.upper()} de {unidade_nome}")
+            lbl_validacao.value = f"✅ {passo_leitura_atual.upper()} de {unidade_nome} salvo com sucesso!"
+            lbl_validacao.color = "green"
+            lbl_validacao.visible = True
 
             # Animação de ícone salvo (não-bloqueante)
             async def _restaurar_icone():
@@ -826,91 +975,58 @@ def montar_tela_medicao(page: ft.Page):
             btn_limpar_ultima_leitura.visible = False
             page.update()
 
-        btn_limpar_ultima_leitura = ft.TextButton(
-            "Limpar Última Leitura",
-            icon="highlight_off",
+        btn_limpar_ultima_leitura = ft.ElevatedButton(
+            "LIMPAR ÚLTIMA LEITURA",
+            icon=ft.Icons.DELETE_SWEEP,
             on_click=limpar_ultima_leitura,
-            visible=user_data.get("last_read_unit_id") is not None
+            width=320,
+            bgcolor="#37474F",
+            color="white",
+            visible=True,
         )
 
-        # ── Seletor de modo da ronda ──────────────────────────────────────────
-        def _trocar_modo(e):
+        # ── Seletor de modo — tabs ÁGUA / GÁS ────────────────────────────────
+        def _trocar_tab(novo_modo):
             nonlocal modo_selecionado, passo_leitura_atual, _modo_legado
-            novo_modo = e.control.value
-            if novo_modo not in ("agua", "gas", "misto"):
+            if novo_modo not in ("agua", "gas"):
                 return
             modo_selecionado = novo_modo
-            passo_leitura_atual = "agua" if novo_modo in ("agua", "misto") else "gas"
-            _modo_legado = "AGUA" if novo_modo in ("agua", "misto") else "GAS"
+            passo_leitura_atual = novo_modo
+            _modo_legado = "AGUA" if novo_modo == "agua" else "GAS"
             user_data["modo_ronda"] = novo_modo
             txt_agua.value = ""
             txt_gas.value = ""
-            # Colapsa o seletor após a escolha
-            seletor_modo.visible = False
-            btn_trocar_modo.visible = True
             if txt_unidade.value:
                 _atualizar_campos_unidade(txt_unidade.value)
             else:
                 page.update()
 
-        def _reabrir_seletor(e):
-            seletor_modo.visible = True
-            btn_trocar_modo.visible = False
-            page.update()
-
-        seletor_modo = ft.RadioGroup(
-            value=modo_selecionado,
-            content=ft.Row([
-                ft.Radio(value="agua",  label="ÁGUA",
-                         label_style=ft.TextStyle(color="lightblue", weight=ft.FontWeight.BOLD)),
-                ft.Radio(value="gas",   label="GÁS",
-                         label_style=ft.TextStyle(color="orange", weight=ft.FontWeight.BOLD)),
-                ft.Radio(value="misto", label="MISTO",
-                         label_style=ft.TextStyle(color="white", weight=ft.FontWeight.BOLD)),
-            ], alignment=ft.MainAxisAlignment.CENTER),
-        )
-        seletor_modo.on_change = _trocar_modo
-        btn_trocar_modo.on_click = _reabrir_seletor
-
-        # SKILL Passo E: layout com barra de progresso acima de txt_unidade
+        # Layout final conforme referência visual
         return ft.View(
             route="/medicao",
             bgcolor="#121417",
-            appbar=ft.AppBar(
-                title=ft.Text("Nova Medição"),
-                center_title=True,
-                leading=ft.IconButton(
-                    icon=ft.Icons.ARROW_BACK,
-                    on_click=lambda _: page.go("/menu")
-                )
-            ),
+            appbar=_appbar,
             controls=[
                 ft.Column([
-                    ft.Container(
-                        content=ft.Stack([img_icon, icon_save]),
-                        alignment=ft.alignment.Alignment(0, 0),
-                        width=320,
-                        height=160
+                    ft.Row(
+                        [btn_tab_agua, btn_tab_gas],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=2,
                     ),
-                    ft.Row([lbl_modo, btn_trocar_modo],
-                           alignment=ft.MainAxisAlignment.CENTER,
-                           tight=True),
-                    seletor_modo,
-                    lbl_progresso_status,   # SKILL Passo E
-                    bar_progresso,          # SKILL Passo E
-                    txt_unidade,
-                    txt_agua,
-                    txt_gas,
+                    lbl_unidade_atual,
+                    lbl_progresso_status,
+                    bar_progresso,
+                    ft.Container(content=txt_unidade, visible=False),
+                    lbl_campo_info,
+                    cont_agua,
+                    cont_gas,
+                    lbl_validacao,
                     ft.Container(height=5),
                     btn_limpar_ultima_leitura,
+                    btn_scanner,
                     btn_gravar,
                     btn_finalizar_sinc,
                     btn_reiniciar_ciclo,
-                    ft.TextButton(
-                        "ABRIR SCANNER",
-                        icon="qr_code_scanner",
-                        on_click=lambda _: _abrir_scanner()
-                    )
                 ], horizontal_alignment="center", spacing=10,
                    scroll=ft.ScrollMode.AUTO,
                    expand=True)

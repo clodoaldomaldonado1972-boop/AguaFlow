@@ -58,7 +58,7 @@ STYLE_PAGE_CONTAINER = {
 # --- 4. ELEMENTOS VISUAIS (ATUALIZADO COM ANIMAÇÃO) ---
 
 
-def criar_mira_scanner(page=None):
+def criar_mira_scanner(page=None, border_color=None):
     # Spacer animado empurra a linha de cima para baixo dentro do box de 220px.
     # height: 0 → linha no topo; height: 218 → linha na base (218+2=220).
     spacer_topo = ft.Container(
@@ -96,7 +96,7 @@ def criar_mira_scanner(page=None):
         height=240,
         content=ft.Container(
             width=300, height=220,
-            border=ft.border.all(2, PRIMARY_BLUE),
+            border=ft.border.all(3, border_color or PRIMARY_BLUE),
             border_radius=20,
             content=ft.Column([spacer_topo, linha_scanner], spacing=0),
         ),
