@@ -676,3 +676,58 @@ Novo arquivo cobrindo os 3 modos e o cenário do bug:
 ---
 
 *Atualizado em 26/05/2026 — aviso de água pré-registrada no modo misto, bateria fim de ciclo completo com reset + relatório + email, 335 testes 100% pass.*
+
+---
+
+## 29. Modos Separados ÁGUA / GÁS — 28/05/2026
+
+Remoção do modo MISTO como padrão. O leiturista escolhe explicitamente ÁGUA ou GÁS e o sistema mantém esse modo até ele trocar manualmente.
+
+### 29.1 Mudanças em `views/medicao.py`
+
+- [x] **Default `modo_ronda` alterado de `"misto"` para `"agua"`** — garante que ao entrar na tela de medição sem seleção prévia o app inicia no modo ÁGUA, sem auto-troca para GÁS ao final de cada andar
+- [x] **Guard de modo inválido** — `modo_selecionado = modo_ronda if modo_ronda in ("agua", "gas") else "agua"` rejeita valores legados (`"misto"`) ou `None`
+- [x] **Removido bloco `medicao_gas_pendente_andar`** do restore de client_storage — era exclusivo do modo misto e forçava switch para GÁS ao retomar sessão interrompida
+- [x] **Corrigido crash em `exibir_concluido()`** — referência a `_appbar_icon` (inexistente) substituída por `_appbar_icon_agua.visible = False` + `_appbar_icon_gas.visible = False`
+
+### 29.2 Mudanças em `views/scanner_view.py`
+
+- [x] **Cor do scanner GÁS alinhada ao menu de leituras** — `cor_modo` para GÁS: `"orange"` genérico → `"#E64A19"` (mesmo deepOrange600 do AppBar, tabs e visor de medição)
+
+### 29.3 Mudanças em `views/medicao.py` — neon e ajuda
+
+- [x] **Intensidade do neon reduzida** — `cont_agua`: `blur_radius` 28→12, `spread_radius` 3→1; `cont_gas`: `blur_radius` 38→16, `spread_radius` 5→2
+
+### 29.4 Mudanças em `views/ajuda_view.py`
+
+- [x] **Seção 2 — Medição** atualizada: removida toda menção ao modo MISTO; descreve as abas ÁGUA/GÁS e o fluxo sem auto-troca
+- [x] **Seção 3 — Scanner** expandida: explica cor do scanner por modo, fluxo escanear → fotografar → confirmar OCR, comportamento offline
+
+### 29.5 Comportamento esperado pós-mudança
+
+| Cenário | Antes | Depois |
+|---|---|---|
+| Entrar em Medição sem seleção | Modo MISTO (auto-troca ÁGUA→GÁS por andar) | Modo ÁGUA (permanece até troca manual) |
+| Terminar andar 16 em modo ÁGUA | Switcha para GÁS do andar 16 | Vai direto para andar 15 ÁGUA |
+| Retomar sessão interrompida | Podia restaurar GÁS pendente de sessão misto | Restaura exatamente o modo que estava ativo |
+| Ciclo ÁGUA completo | Terminava no GÁS do último andar | Termina em TERREO GERAL ÁGUA → fim de ciclo |
+| Trocar para GÁS | Só via `_reabrir_seletor` | Toque na aba GÁS — imediato |
+| Scanner GÁS | AppBar/border laranja genérico | `#E64A19` igual ao menu de leituras |
+
+### 29.6 Testes automatizados — `tests/test_modos_separados.py` (41 testes, 100% pass)
+
+| Classe | Testes | Cobertura |
+|---|---|---|
+| `TestDefaultModoRonda` | 5 | Default é "agua"; misto/None → "agua"; valores válidos aceitos |
+| `TestCicloAguaSemTrocaModo` | 8 | 95 unidades lidas; zero GÁS tocado; todos andares em ordem; LAZER GÁS pulado; TERREO GERAL é o último; fim de ciclo após TERREO; andar 16 vai para andar 15 (não GÁS 16); duplex unidade única |
+| `TestCicloGasSemTrocaModo` | 7 | 95 unidades lidas; zero ÁGUA tocado; TERREO GERAL nunca em lidos GÁS; LAZER GÁS lido; andar 16 vai para andar 15; duplex ok; fim de ciclo |
+| `TestTrocaManualDeModo` | 6 | Troca para GÁS/ÁGUA via tab; modo inválido não muda; leituras anteriores preservadas; independência entre modos |
+| `TestCiclosParalelos` | 3 | Ronda ÁGUA completa + ronda GÁS completa; 190 rows (95+95); áreas comuns isoladas |
+| `TestPayloadSupabase` | 9 | salvar_leitura → SQLite com sincronizado=0 (ÁGUA, GÁS, duplex, TERREO, LAZER); duplicata bloqueada; 2 rows separados por modo para mesma unidade |
+| `TestIntegracaoCicloCompleto` | 3 | 95 rows pendentes após ciclo ÁGUA; fila vazia após marcar sincronizado; 190 rows após ciclo duplo |
+
+**Suite completa:** 376/376 ✅ (335 anteriores + 41 novos)
+
+---
+
+*Atualizado em 28/05/2026 — modos separados ÁGUA/GÁS, sem auto-troca, neon reduzido, scanner laranja alinhado, ajuda atualizada, 376 testes 100% pass.*
