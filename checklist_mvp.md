@@ -1,6 +1,6 @@
 # Checklist MVP — AguaFlow v1.2.0
 
-Análise completa do sistema realizada em 16/05/2026. Atualizado em 20/05/2026 após sessão de correções (2ª rodada).
+Análise completa do sistema realizada em 16/05/2026. Atualizado em 28/05/2026 (sync Supabase + Retentar Ignorados).
 Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
@@ -99,6 +99,8 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Cores de estado em hex (azul, verde, cinza, vermelho)
 - [x] `SincronizadorUI` reutilizável em outras views
 - [x] `supabase.table().insert().execute()` em `asyncio.to_thread` (sem congelar UI)
+- [x] Botão **RETENTAR IGNORADOS** — detecta `sincronizado=-1`, reseta para `0` e dispara sync imediato
+- [x] Exibe contagem de ignorados em laranja com aviso na abertura da tela
 - [ ] Log detalhado de sincronizações com timestamps na UI
 
 ---
@@ -257,7 +259,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] `supabase_client.py` — abstrações de CRUD e deleção de usuário
 - [x] `AppUpdater` — versão centralizada em `version.py`
 - [x] Migrations versionadas — tabela `schema_version` criada em `inicializar_tabelas`; versão registrada no boot
-- [x] Testes automatizados — 114 testes pytest (100% pass) em `tests/test_database.py`, `tests/test_backup.py` e `tests/test_leituras_ciclo.py`
+- [x] Testes automatizados — **376 testes pytest (100% pass)** em 10 arquivos de teste
   - `TestSchemaVersion` (2): tabela criada + versão registrada
   - `TestEditarLeitura` (4): edição de valores, flag sincronizado, edição para None, id inexistente
   - `TestDeletarLeitura` (3): deleção, id inexistente, deleção seletiva
@@ -731,3 +733,67 @@ Remoção do modo MISTO como padrão. O leiturista escolhe explicitamente ÁGUA 
 ---
 
 *Atualizado em 28/05/2026 — modos separados ÁGUA/GÁS, sem auto-troca, neon reduzido, scanner laranja alinhado, ajuda atualizada, 376 testes 100% pass.*
+
+---
+
+## 30. Diagnóstico e Correção do Sync Supabase — 28/05/2026
+
+### 30.1 Causa raiz: FK violation `leituras_unidade_id_fkey`
+
+**Problema:** Leituras não apareciam no Supabase mesmo após sincronização.
+
+**Diagnóstico (desktop `aguaflow.log` + Android `assets/error.txt`):**
+```
+insert or update on table "leituras" violates foreign key constraint "leituras_unidade_id_fkey"
+Key (unidade_id)=(113) is not present in table "medidores"
+```
+
+A tabela `medidores` no Supabase não possuía as unidades dos andares 11–16 (total: 24 unidades ausentes). A FK `leituras.unidade_id → medidores.id_qrcode` rejeitava o INSERT. Após 5 tentativas consecutivas o SyncService marcava o registro como `sincronizado = -1` ("ignorado").
+
+**Estado do SQLite antes da correção:**
+| Status | Quantidade |
+|---|---|
+| `sincronizado = 1` (sucesso, mas Supabase vazio) | 34 |
+| `sincronizado = -1` (ignorado — FK violation) | 17 |
+| `sincronizado = 0` (pendente) | 1 |
+
+**Estado do Supabase antes da correção:** `leituras` com **0 registros** (tabela havia sido esvaziada; registros marcados como `=1` localmente nunca estavam lá).
+
+### 30.2 Correções aplicadas
+
+- [x] **Seed completo `medidores` + `unidades` no Supabase** — INSERT de 96 unidades em ambas as tabelas via MCP Supabase SQL Editor; `ON CONFLICT DO NOTHING` garante idempotência
+- [x] **Reset desktop** — `UPDATE leituras SET sincronizado = 0 WHERE sincronizado != 0` (52 registros reativados)
+- [x] **Ressincronização completa** — `SyncService.executar_sincronismo_manual()` executado; 52/52 registros enviados com sucesso (HTTP 201)
+
+**Verificação final no Supabase (`leituras` table):**
+| Dia | Tipo | Registros |
+|---|---|---|
+| 2026-05-28 | Água | 12 |
+| 2026-05-28 | Gás | 6 |
+| 2026-05-26 | Água | 23 |
+| 2026-05-26 | Gás | 11 |
+| **Total** | | **52** |
+
+52 registros · 35 unidades distintas · datas 2026-05-26 a 2026-05-28 · SQLite: todos `sincronizado = 1`
+
+### 30.3 Botão "Retentar Ignorados" — `views/sincronizacao.py`
+
+- [x] **Detecção automática** — ao abrir a tela de Sincronização, `verificar_status()` consulta `COUNT(*) WHERE sincronizado = -1`
+- [x] **Label em laranja** — `⚠️ N registro(s) ignorado(s) — clique em Retentar` exibido abaixo do card de status
+- [x] **Botão RETENTAR IGNORADOS** — visível apenas quando há registros ignorados; reseta `sincronizado = -1 → 0` e dispara sincronização imediata na sequência
+- [x] **Uso Android** — leiturista abre Sincronizar Dados → toca RETENTAR IGNORADOS → registros dos andares 11–15 são reenviados com sucesso (requer que o seed do Supabase já tenha sido aplicado)
+
+### 30.4 Teste completo — 376/376 ✅
+
+Suite completa executada em 28/05/2026 após todas as correções:
+
+```
+platform win32 — Python 3.14.4, pytest-9.0.3
+376 passed in 96.67s
+```
+
+Nenhuma regressão. Todos os 376 testes passam.
+
+---
+
+*Atualizado em 28/05/2026 — diagnóstico FK violation Supabase, seed medidores, reset e ressync 52 registros, botão Retentar Ignorados, 376/376 testes pass.*
