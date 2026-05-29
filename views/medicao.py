@@ -76,7 +76,7 @@ def montar_tela_medicao(page: ft.Page):
 
         # _modo_legado fica em sync com passo_leitura_atual para compatibilidade
         # com scanner (/scanner lê "AGUA"/"GAS" de page.user_data["modo_leitura"])
-        _modo_legado = "AGUA" if modo_selecionado in ("agua", "misto") else "GAS"
+        _modo_legado = "AGUA" if modo_selecionado == "agua" else "GAS"
 
         def _unidade_lida(unidade, lidos):
             """Verifica se unidade (ou partes duplex como '163/164') está em lidos."""
@@ -453,27 +453,6 @@ def montar_tela_medicao(page: ft.Page):
         def _carregar_proxima_unidade():
             proxima = buscar_proxima_pendente()
             if proxima:
-                if modo_selecionado == "misto" and passo_leitura_atual == "agua":
-                    andar_prox = _extrair_andar(proxima)
-                    if andar_prox:
-                        try:
-                            leituras_chk = Database.get_leituras_mes_atual()
-                            agua_chk = {l['unidade_id'] for l in leituras_chk
-                                        if l.get('leitura_agua') is not None}
-                            unidades_andar = [u for u in db_lista if _extrair_andar(u) == andar_prox]
-                            try:
-                                idx_p = unidades_andar.index(proxima)
-                            except ValueError:
-                                idx_p = 0
-                            ja_antes = [u for u in unidades_andar[:idx_p]
-                                        if _unidade_lida(u, agua_chk)]
-                            if ja_antes:
-                                nomes = ", ".join(ja_antes)
-                                _mostrar_snack(
-                                    f"Apto(s) {nomes}: água já registrada. "
-                                    f"Iniciando andar {andar_prox} a partir de {proxima}.")
-                        except Exception:
-                            pass
                 txt_unidade.value = proxima
                 txt_agua.value = ""
                 txt_gas.value = ""
@@ -495,7 +474,7 @@ def montar_tela_medicao(page: ft.Page):
             cont_gas.visible = False
 
             if "LAZER GÁS" in nome_unidade_upper or "LAZER GAS" in nome_unidade_upper:
-                if modo_selecionado in ["gas", "misto"]:
+                if modo_selecionado == "gas":
                     passo_leitura_atual = "gas"
                     cont_gas.visible = True
                     txt_gas.label = "CONFERIR LEITURA DE GÁS"
@@ -505,7 +484,7 @@ def montar_tela_medicao(page: ft.Page):
                     return
 
             elif "TERREO GERAL" in nome_unidade_upper:
-                if modo_selecionado in ["agua", "misto"]:
+                if modo_selecionado == "agua":
                     passo_leitura_atual = "agua"
                     cont_agua.visible = True
                     txt_agua.label = "CONFERIR LEITURA DE ÁGUA"
@@ -593,7 +572,7 @@ def montar_tela_medicao(page: ft.Page):
             if (not andar_atual
                     or "LAZER" in (unidade_atual_nome or "").upper()
                     or "TERREO" in (unidade_atual_nome or "").upper()):
-                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                passo_leitura_atual = modo_selecionado
                 _carregar_proxima_unidade()
                 return
 
@@ -603,7 +582,7 @@ def montar_tela_medicao(page: ft.Page):
 
             if andar_proximo == andar_atual:
                 # Ainda no mesmo andar — avança sem verificar barreira
-                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                passo_leitura_atual = modo_selecionado
                 _carregar_proxima_unidade()
                 return
 
@@ -626,7 +605,7 @@ def montar_tela_medicao(page: ft.Page):
                 dialog_barreira.open = True
                 page.update()
             else:
-                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                passo_leitura_atual = modo_selecionado
                 _carregar_proxima_unidade()
 
         def _fechar_barreira(voltar: bool):
@@ -658,74 +637,8 @@ def montar_tela_medicao(page: ft.Page):
                             logger.error(f"Erro ao salvar unidade pulada automaticamente: {e}")
 
                 _mostrar_snack("Unidades omitidas salvas como nulas. Avançando...")
-                passo_leitura_atual = "agua" if modo_selecionado == "misto" else modo_selecionado
+                passo_leitura_atual = modo_selecionado
                 _carregar_proxima_unidade()
-
-        # ── Avanço modo MISTO: todas as águas do andar → todos os gás do andar ──
-        def _avancar_misto():
-            nonlocal passo_leitura_atual
-            unidade_atual_nome = txt_unidade.value or ""
-            andar_atual = _extrair_andar(unidade_atual_nome)
-            txt_agua.value = ""
-            txt_gas.value = ""
-
-            # Áreas comuns sem andar (LAZER GÁS, TERREO GERAL): usa lógica padrão
-            if not andar_atual:
-                _avancar_proxima_unidade_com_seguranca()
-                return
-
-            if passo_leitura_atual == "agua":
-                # Ainda tem água pendente no mesmo andar?
-                prox = _proxima_pendente_no_andar(andar_atual, "agua")
-                if prox:
-                    txt_unidade.value = prox
-                    _persistir_estado()
-                    _atualizar_campos_unidade(prox)
-                    return
-                # Água do andar concluída — avisa se havia unidades já registradas de sessão anterior
-                try:
-                    leituras_chk = Database.get_leituras_mes_atual()
-                    agua_chk = {l['unidade_id'] for l in leituras_chk
-                                if l.get('leitura_agua') is not None}
-                    unidades_andar_chk = [u for u in db_lista if _extrair_andar(u) == andar_atual]
-                    try:
-                        idx_chk = unidades_andar_chk.index(unidade_atual_nome)
-                    except ValueError:
-                        idx_chk = -1
-                    ja_reg = [u for u in unidades_andar_chk[idx_chk + 1:]
-                              if _unidade_lida(u, agua_chk)]
-                    if ja_reg:
-                        nomes = ", ".join(ja_reg)
-                        _mostrar_snack(
-                            f"Apto(s) {nomes}: água já registrada. "
-                            f"Avançando para gás do andar {andar_atual}.")
-                except Exception:
-                    pass
-                # Água do andar concluída → inicia fase gás a partir da 1ª unidade do andar
-                primeira_gas = _primeira_pendente_no_andar(andar_atual, "gas")
-                if primeira_gas:
-                    passo_leitura_atual = "gas"
-                    txt_unidade.value = primeira_gas
-                    _persistir_estado()
-                    _atualizar_campos_unidade(primeira_gas)
-                else:
-                    # Andar sem gás (não ocorre no prédio, mas por segurança)
-                    passo_leitura_atual = "agua"
-                    _avancar_proxima_unidade_com_seguranca()
-            else:
-                # Ainda tem gás pendente no mesmo andar?
-                prox = _proxima_pendente_no_andar(andar_atual, "gas")
-                if prox:
-                    txt_unidade.value = prox
-                    _persistir_estado()
-                    _atualizar_campos_unidade(prox)
-                    return
-                # Gás do andar concluído → marca todas as unidades do andar e avança
-                for u in page.lista_unidades:
-                    if _extrair_andar(u.nome) == andar_atual:
-                        unidades_concluidas_no_ciclo.add(u.nome)
-                passo_leitura_atual = "agua"
-                _avancar_proxima_unidade_com_seguranca()
 
         # ── Componentes de conclusão ──────────────────────────────────────────
 
@@ -937,22 +850,9 @@ def montar_tela_medicao(page: ft.Page):
             asyncio.create_task(_restaurar_icone())
 
             # Rastreio de unidades concluídas no ciclo
-            if modo_selecionado in ["agua", "gas"] or (
-                    modo_selecionado == "misto" and passo_leitura_atual == "gas"):
-                unidades_concluidas_no_ciclo.add(unidade_nome)
+            unidades_concluidas_no_ciclo.add(unidade_nome)
 
-            # Lógica de avanço conforme modo selecionado (SKILL Passo D)
-            if modo_selecionado == "misto":
-                # Áreas comuns: LAZER GÁS e TERREO GERAL avançam direto
-                if ("LAZER GÁS" in nome_unidade_upper or "LAZER GAS" in nome_unidade_upper
-                        or "TERREO GERAL" in nome_unidade_upper):
-                    unidades_concluidas_no_ciclo.add(unidade_nome)
-                    _avancar_proxima_unidade_com_seguranca()
-                else:
-                    # Modo misto: todas as águas do andar → todos os gás do andar
-                    _avancar_misto()
-            else:
-                _avancar_proxima_unidade_com_seguranca()
+            _avancar_proxima_unidade_com_seguranca()
 
             btn_limpar_ultima_leitura.visible = True
             page.update()
