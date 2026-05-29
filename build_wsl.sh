@@ -15,7 +15,7 @@ SRC=/mnt/c/AguaFlow
 BUILD_DIR=$HOME/aguaflow_build
 FLUTTER_DIR=$BUILD_DIR/build/flutter
 
-echo "=== AguaFlow v1.2.0 — Build APK 126 ==="
+echo "=== AguaFlow v1.2.0 — Build APK 127 ==="
 echo "Java:   $(java -version 2>&1 | head -1)"
 echo "Python: $(python3 --version)"
 echo "Flet:   $(flet --version)"
@@ -90,7 +90,7 @@ flet build apk \
     --project AguaFlow \
     --product "AguaFlow" \
     --build-version 1.2.0 \
-    --build-number 126 \
+    --build-number 127 \
     --permissions camera photo_library \
     --yes
 
@@ -187,7 +187,7 @@ APK=$(find "$FLUTTER_DIR/build/app/outputs/flutter-apk" -name "app-release.apk" 
 [ -z "$APK" ] && APK="$BUILD_DIR/build/apk/AguaFlow.apk"
 
 if [ -f "$APK" ]; then
-    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0-b126.apk
+    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0-b127.apk
     cp /tmp/aguaflow_build.log /mnt/c/AguaFlow/build_output.log
     echo "===================================="
     echo "APK gerado com sucesso!"
