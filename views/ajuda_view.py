@@ -180,50 +180,72 @@ def montar_tela_ajuda(page: ft.Page, on_back):
                            "No menu, toque em Medição. O sistema já seleciona a primeira unidade pendente do mês.",
                            ft.Icons.TOUCH_APP),
                     _passo(2, "Escolha o modo da ronda",
-                           "Três opções aparecem ao entrar: ÁGUA (lê só hidrômetros), GÁS (lê só medidores de gás) ou MISTO (lê os dois). Após escolher, as outras opções somem — toque em 'trocar' para mudar.",
+                           "Na parte superior da tela há duas abas: ÁGUA (azul) e GÁS (laranja). "
+                           "Toque na aba do modo que você vai realizar. O sistema permanece nesse modo até você mudar — "
+                           "não há troca automática.",
                            ft.Icons.SWAP_HORIZ),
                     _passo(3, "Selecione a unidade",
-                           "O campo 'Unidade' mostra a sugestão automática. Você pode alterar tocando no campo.",
+                           "O campo 'Unidade' mostra a sugestão automática com a primeira pendente. "
+                           "Você pode alterar tocando no campo.",
                            ft.Icons.APARTMENT),
                     _passo(4, "Digite a leitura",
-                           "Informe o valor do hidrômetro (ex: 123,45). Apenas números são aceitos.",
+                           "Informe o valor do medidor no visor colorido (ex: 123,45 para água; 15,324 para gás). "
+                           "Apenas números são aceitos.",
                            ft.Icons.EDIT),
-                    _passo(5, "Toque em SALVAR",
+                    _passo(5, "Toque em SALVAR MEDIÇÃO",
                            "O sistema confirma e avança para a próxima unidade pendente automaticamente.",
                            ft.Icons.SAVE),
                     _passo(6, "Fim de andar — barreira de segurança",
-                           "Ao terminar o último apartamento de um andar, o sistema verifica se todos foram lidos. Se faltar algum, um aviso aparece: 'Voltar e medir' ou 'Seguir (salvar como nulo)'.",
+                           "Ao terminar o último apartamento de um andar, o sistema verifica se todos foram lidos. "
+                           "Se faltar algum, um aviso aparece: 'Voltar e medir' ou 'Seguir (salvar como nulo)'.",
                            ft.Icons.MEETING_ROOM),
                     _aviso(
-                        "Modo MISTO — ordem de leitura por andar:\n"
-                        "1) Lê TODOS os hidrômetros de água do andar (ex: 166→165→163/164→162→161)\n"
-                        "2) Retorna ao primeiro e lê TODOS os medidores de gás do mesmo andar\n"
-                        "3) Avança para o próximo andar e repete\n"
-                        "4) Finaliza no TERREO GERAL ÁGUA (somente água)",
+                        "Ronda de ÁGUA: o sistema percorre todas as unidades andar por andar, "
+                        "do primeiro ao último, e finaliza no TERREO GERAL ÁGUA — fim de ciclo.\n"
+                        "Depois você volta ao menu, seleciona a aba GÁS e realiza a ronda de gás.",
                         st.PRIMARY_BLUE,
                     ),
                     _aviso(
-                        "Dica: se errar um valor, vá ao Histórico, localize a leitura e corrija antes de sincronizar.",
+                        "Ronda de GÁS: igual à de água, mas lê apenas os medidores de gás de cada unidade. "
+                        "Unidades sem gás (ex: TERREO GERAL) são puladas automaticamente.",
+                        st.ACCENT_ORANGE,
+                    ),
+                    _aviso(
+                        "Dica: se errar um valor, use o botão LIMPAR ÚLTIMA LEITURA ou vá ao Histórico "
+                        "e corrija antes de sincronizar.",
                     ),
                 ],
             ),
 
             # ── SEÇÃO 3: USANDO O SCANNER ─────────────────────────────
             _secao(
-                "3. Usando o Scanner QR Code",
+                "3. Usando o Scanner",
                 ft.Icons.QR_CODE_SCANNER,
                 [
-                    _passo(1, "Acesse 'Scanner'",
-                           "No menu, toque em Scanner. Permita o acesso à câmera se solicitado.",
+                    _passo(1, "Abra o Scanner pela tela de Medição",
+                           "Toque em ABRIR SCANNER. A cor da tela do scanner segue o modo ativo: "
+                           "azul para ÁGUA, laranja para GÁS.",
                            ft.Icons.CAMERA_ALT),
-                    _passo(2, "Aponte para o QR Code",
-                           "Enquadre o código QR da unidade na moldura azul. A leitura é automática.",
+                    _passo(2, "Escaneie o código da unidade",
+                           "Toque em 'Escanear Código da Unidade' e aponte para o QR Code ou código de barras. "
+                           "A unidade é identificada automaticamente.",
                            ft.Icons.CENTER_FOCUS_STRONG),
-                    _passo(3, "Confirme a unidade",
-                           "O sistema lê o código e redireciona para a tela de Medição com a unidade já preenchida.",
+                    _passo(3, "Fotografe o medidor",
+                           "Toque em 'Fotografar Medidor'. O sistema envia a imagem para análise inteligente "
+                           "e preenche a leitura automaticamente quando possível.",
+                           ft.Icons.PHOTO_CAMERA),
+                    _passo(4, "Confirme ou corrija o valor",
+                           "De volta à tela de Medição, confira o valor no visor e salve. "
+                           "Se o OCR não detectou o valor, digite manualmente.",
                            ft.Icons.CHECK_CIRCLE_OUTLINE),
                     _aviso(
-                        "Ambiente escuro? Ative a lanterna do celular — o scanner funciona melhor com boa iluminação.",
+                        "Ambiente escuro? Ative a lanterna do celular — o scanner e a câmera "
+                        "funcionam melhor com boa iluminação.",
+                    ),
+                    _aviso(
+                        "Sem internet? A foto é tirada normalmente, mas o OCR não funciona offline. "
+                        "Digite o valor manualmente nesse caso.",
+                        st.ACCENT_ORANGE,
                     ),
                 ],
             ),
