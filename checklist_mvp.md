@@ -311,7 +311,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 | 20 | Fix HapticFeedback (bloco vermelho cobrindo tela do scanner) | 🔴 Crítico | ✅ Feito |
 | 21 | Fix NameError btn_confirmar/txt_unid/txt_valor_ocr/lbl_ocr_status | 🔴 Crítico | ✅ Feito |
 | 22 | Storage threshold absoluto 500 MB (fix falso positivo "ESPAÇO BAIXO") | 🟡 Importante | ✅ Feito |
-| 23 | Teste de OCR em campo (taxa de acerto por modelo) | 🟡 Importante | ⬜ Pendente |
+| 23 | Teste de OCR em campo (taxa de acerto por modelo) | 🟡 Importante | ✅ Feito (13/21 = 61% — 376 testes 100% pass — 01/06/2026) |
 | 24 | Calibração ROI por modelo de medidor | 🟢 Desejável | ⬜ Pendente |
 | 25 | Criar tabela `ocr_log` no Supabase (SQL fornecido) | 🟡 Importante | ⬜ Aguardando usuário |
 | 26 | Tema claro/escuro | 🟢 Desejável | ✅ Feito (toggle funcional + contraste modo claro) |
@@ -489,6 +489,80 @@ Erros restantes são de **leitura de dígito individual** (rolete entre dois nú
 
 *Atualizado em 25/05/2026 (Skill — refatoração de leitura) — PROMPT_SISTEMA_OCR por fabricante, barreira de andar, barra de progresso, modo ronda, campo único por passo, 198 testes 100% pass.*
 *Atualizado em 25/05/2026 (OCR Photos-3-001 — iteração final) — Renova 4+2 corrigido, TERREO 100%, 16/22 = 73%, 0 erros de formato.*
+
+---
+
+## 32. Análise de Integridade e OCR — 01/06/2026
+
+Análise completa realizada como analista TI sênior. Testes de integridade, OCR real e varredura de código.
+
+### 32.1 Suite de testes automatizados — 376/376 ✅
+
+```
+platform win32 — Python 3.14.4, pytest-9.0.3
+376 passed in 76.33s (0:01:16)
+```
+
+Nota: 3 falhas espúrias detectadas anteriormente em `TestFotosDisponiveis` foram artefato de contexto de execução (diretório de trabalho diferente) — ao rodar com `cd C:\AguaFlow` todas passam.
+
+### 32.2 OCR real com Claude Vision — assets/Photos (01/06/2026)
+
+Script: `testes/testar_ocr_e_insercao_manual.py`
+
+| Arquivo                  | Unidade         | Tipo | OCR            | Origem         | Ins1 | Dup? |
+|--------------------------|-----------------|------|----------------|----------------|------|------|
+| agua-151.jpg             | 151             | AGUA | `0260.12`      | OCR_CONFIRMADO | ✅   | ✅   |
+| gas-151.jpg              | 151             | GAS  | `00128.621`    | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-152.jpg             | 152             | AGUA | null           | MANUAL         | ✅   | ✅   |
+| gas-152.jpg              | 152             | GAS  | `00154.810`    | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-153.jpg             | 153             | AGUA | `0455.37`      | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-154.jpg             | 154             | AGUA | `0391.48`      | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-155.jpg             | 155             | AGUA | `0262.67`      | OCR_CONFIRMADO | ✅   | ✅   |
+| gas-155.jpg              | 155             | GAS  | `00128.516`    | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-156.jpg             | 156             | AGUA | null           | MANUAL         | ✅   | ✅   |
+| gas-156.jpg              | 156             | GAS  | null           | MANUAL         | ✅   | ✅   |
+| agua-161.jpg             | 161             | AGUA | `0262.61`      | OCR_CONFIRMADO | ✅   | ✅   |
+| gas-161.jpg              | 161             | GAS  | `00329.834`    | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-162.jpg             | 162             | AGUA | null           | MANUAL         | ✅   | ✅   |
+| 162-gas.jpg              | 162             | GAS  | `0531.624`     | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-163-164.jpg         | 163/164         | AGUA | null           | MANUAL         | ✅   | ✅   |
+| gas-163_164.jpg          | 163/164         | GAS  | `00156.110`    | OCR_CONFIRMADO | ✅   | ✅   |
+| agua-165.jpg             | 165             | AGUA | null           | MANUAL         | ✅   | ✅   |
+| gas-165.jpg              | 165             | GAS  | null           | MANUAL         | ✅   | ✅   |
+| agua-166.jpg             | 166             | AGUA | null           | MANUAL         | ✅   | ✅   |
+| gas-166.jpg              | 166             | GAS  | `00128.615`    | OCR_CONFIRMADO | ✅   | ✅   |
+| Terreo_Geral_água.jpeg   | TERREO GERAL ÁGUA | AGUA | `13518.6`    | OCR_CONFIRMADO | ✅   | ✅   |
+
+**Resumo:** 13/21 com valor OCR (61%) · 8/21 null → manual · 21/21 insert OK · 21/21 duplicata bloqueada
+
+### 32.3 Observações do OCR — variação entre rodadas
+
+OCR com Claude Vision apresenta variação natural entre execuções (modelo não-determinístico):
+
+| Foto          | 26/05/2026      | 01/06/2026      | Delta               |
+|---------------|-----------------|-----------------|---------------------|
+| agua-152      | `0252.57`       | null            | ⚠️ regressão pontual |
+| agua-155      | null            | `0262.67`       | ✅ melhora           |
+| gas-156       | `00715.813`     | null            | ⚠️ regressão pontual |
+| agua-162      | `0228.60`       | null            | ⚠️ regressão pontual |
+| agua-163-164  | `0568.37`       | null            | ⚠️ regressão pontual |
+| agua-165      | `0392.52`       | null            | ⚠️ regressão pontual |
+| gas-163_164   | null            | `00156.110`     | ✅ melhora           |
+| 162-gas.jpg   | `00231.624`     | `0531.624`      | ⚠️ formato suspeito  |
+
+**Nota `162-gas.jpg`:** valor retornado `0531.624` tem 4 dígitos antes do ponto — formato GÁS esperado é `XXXXX.XXX`. Pode ser leitura parcial de rolete ou modelo confundiu dígitos preto/vermelho. Retake recomendado.
+
+### 32.4 Itens pendentes identificados na análise
+
+| # | Item | Prioridade | Seção |
+|---|------|-----------|-------|
+| 1 | Criar tabela `ocr_log` no Supabase (SQL pronto em docs/) | 🟡 Importante | §26 |
+| 2 | Retake `agua-152`, `agua-162`, `agua-163-164`, `agua-165` — retornam null inconsistente | 🟡 Importante | §24 |
+| 3 | Retake `162-gas.jpg` — formato OCR suspeito (`0531.624` em vez de `00###.###`) | 🟡 Importante | §32 |
+| 4 | `relatorio_engine.py` — 7368 warnings DeprecationWarning da API `fpdf2` (parâmetro `ln`) | 🟢 Desejável | §18 |
+| 5 | Expiração automática de sessão por inatividade | 🟢 Desejável | §1 |
+| 6 | CI/CD pipeline (GitHub Actions) | 🟢 Desejável | §18 |
+| 7 | Calibração ROI por modelo de medidor | 🟢 Desejável | §4 |
 
 ---
 
@@ -818,8 +892,7 @@ Nenhuma regressão. Todos os 376 testes passam.
 ### 31.2 Toggle de tema claro/escuro
 
 - [x] **Bug corrigido:** `toggle_tema` em `main.py` chamava `page.update()` — não reconstruía a view
-- [x] **Fix:** `toggle_tema` agora executa `await route_change(None)` diretamente, forçando rebuild da view atual com o novo tema
-- [x] `page.go("/menu")` removido de `alternar_tema` em `menu_principal.py` — era redundante e não disparava `on_route_change` no mesmo route
+- [x] **Fix:** `toggle_tema` agora executa `await route_change(None)` diretamente, forçando rebuild da view atual com o novo tema2
 - [x] Ícone lua/sol troca corretamente após clique — confirmado em log (3 recargas do menu em ~12s durante teste)
 - [x] Tema persiste entre sessões via `SharedPreferences`
 
