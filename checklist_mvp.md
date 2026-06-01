@@ -1,6 +1,6 @@
 # Checklist MVP — AguaFlow v1.2.0
 
-Análise completa do sistema realizada em 16/05/2026. Atualizado em 28/05/2026 (sync Supabase + Retentar Ignorados).
+Análise completa do sistema realizada em 16/05/2026. Atualizado em 01/06/2026 (logo PNG, toggle de tema, contraste modo claro).
 Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
@@ -31,6 +31,9 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Logout com confirmação
 - [x] Rodapé com versão do app (`AppUpdater.get_footer()`)
 - [x] Ícones `ft.Icons.*` no IconButton da AppBar (sem banner vermelho)
+- [x] Toggle de tema claro/escuro — ícone lua/sol troca corretamente; view reconstruída via `route_change(None)` (fix: `page.go` no mesmo route não disparava rebuild)
+- [x] Nome do usuário com `expand=True + overflow=ELLIPSIS` — nomes longos não deslocam layout
+- [x] Contraste do subtexto modo claro melhorado: `#666666` → `#444444`
 
 ---
 
@@ -150,7 +153,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
 - [x] Configurações de SMTP (e-mail)
 - [x] Número WhatsApp para alertas (`WHATSAPP_CONTATO`)
 - [x] Limpeza de cache local
-- [ ] Tema claro/escuro
+- [x] Tema claro/escuro — toggle funcional no menu principal
 - [ ] Configuração de número de unidades do condomínio
 
 ---
@@ -279,7 +282,6 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
   - `TestFimDeCiclo` (9): salvar_referencias_ciclo, 96 referências, leitura_anterior no JOIN, reset zera leituras, referências preservadas
   - `TestRelatorioCSV` (8): gerar_todos retorna 4 chaves, CSV/PDF existem em disco, cabeçalho + dados, coluna unidade
 - [ ] CI/CD pipeline
-claude
 
 ---
 
@@ -312,8 +314,9 @@ claude
 | 23 | Teste de OCR em campo (taxa de acerto por modelo) | 🟡 Importante | ⬜ Pendente |
 | 24 | Calibração ROI por modelo de medidor | 🟢 Desejável | ⬜ Pendente |
 | 25 | Criar tabela `ocr_log` no Supabase (SQL fornecido) | 🟡 Importante | ⬜ Aguardando usuário |
-| 26 | Tema claro/escuro | 🟢 Desejável | ⬜ Pendente |
+| 26 | Tema claro/escuro | 🟢 Desejável | ✅ Feito (toggle funcional + contraste modo claro) |
 | 27 | CI/CD (GitHub Actions) | 🟢 Desejável | ⬜ Pendente |
+| 28 | Logo PNG transparente em todas as telas | 🟡 Importante | ✅ Feito (01/06/2026) |
 
 ---
 
@@ -798,3 +801,39 @@ Nenhuma regressão. Todos os 376 testes passam.
 ---
 
 *Atualizado em 28/05/2026 — diagnóstico FK violation Supabase, seed medidores, reset e ressync 52 registros, botão Retentar Ignorados, 376/376 testes pass.*
+
+---
+
+## 31. UI — Logo, Tema e Contraste — 01/06/2026
+
+### 31.1 Logo PNG com fundo transparente
+
+- [x] `assets/logo.jpeg` removido — era arquivo de texto (snippet de código), não imagem real
+- [x] `assets/logo.png` processado com Pillow — fundo branco, cinzas e watermark removidos (limiar adaptativo RGB equilibrado)
+- [x] `gerar_logo.py` e `render_logo.py` removidos — scripts de geração avulsos, não referenciados pelo app
+- [x] `logo_aguaflow()` em `styles.py` — `src="logo.png"`, ratio corrigido para paisagem `2.17:1` (`size` = altura)
+- [x] `logo_aguaflow_com_texto()` simplificada — delega para `logo_aguaflow()`, pois texto "AguaFlow" já está embutido na imagem
+- [x] Logo aplicado em todas as telas: login (`auth.py`), cadastro (`autenticacao.py`), recuperar senha, sobre, menu principal
+
+### 31.2 Toggle de tema claro/escuro
+
+- [x] **Bug corrigido:** `toggle_tema` em `main.py` chamava `page.update()` — não reconstruía a view
+- [x] **Fix:** `toggle_tema` agora executa `await route_change(None)` diretamente, forçando rebuild da view atual com o novo tema
+- [x] `page.go("/menu")` removido de `alternar_tema` em `menu_principal.py` — era redundante e não disparava `on_route_change` no mesmo route
+- [x] Ícone lua/sol troca corretamente após clique — confirmado em log (3 recargas do menu em ~12s durante teste)
+- [x] Tema persiste entre sessões via `SharedPreferences`
+
+### 31.3 Contraste e visibilidade no modo claro
+
+- [x] `sub_color` no menu: `#666666` → `#444444` — email e links do footer mais legíveis sobre fundo branco
+- [x] Nome do usuário: `expand=True + overflow=TextOverflow.ELLIPSIS` — nomes longos não deslocam o ícone de logout
+- [x] `relatorio_view.py` — títulos "FINALIZAR MÊS ATUAL", "RELATÓRIO POR UNIDADE", "IMPRESSÃO DE ETIQUETAS" com `color="white"` explícito (cards com `bgcolor="#1E2126"` fixo eram invisíveis no tema claro)
+- [x] `sincronizacao.py` — títulos "STATUS DA SINCRONIZAÇÃO" e "Informações" com `color="white"`
+- [x] `configuracoes.py` — títulos "Trocar Senha" e "Gestão de Backups" com `color="white"`
+- [x] **Causa raiz:** views com `bgcolor=BG_DARK` hardcoded herdam cor de texto preta do tema claro — textos sem `color` explícito ficavam invisíveis sobre cards escuros
+
+### 31.4 Resultado dos testes — 01/06/2026
+
+- [x] **376/376 testes pytest — 100% pass** — zero regressões após todas as alterações de UI
+- [x] Boot sem erros, SMTP autenticado, sync em dia
+- [x] Encerramento limpo (exit code 0)
