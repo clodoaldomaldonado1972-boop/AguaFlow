@@ -1,6 +1,6 @@
 # Checklist MVP — AguaFlow v1.2.0
 
-Análise completa do sistema realizada em 16/05/2026. Atualizado em 01/06/2026 (logo PNG, toggle de tema, contraste modo claro).
+Análise completa do sistema realizada em 16/05/2026. Atualizado em 01/06/2026 (logo PNG, toggle de tema, contraste modo claro). Atualizado em 01/06/2026 (análise de integridade, OCR real 13/21 = 61%, 376/376 testes pass).
 Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
