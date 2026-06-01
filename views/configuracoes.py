@@ -219,7 +219,7 @@ def montar_tela_configs(page: ft.Page):
         content=ft.Column([
             ft.Row([
                 ft.Icon(ft.Icons.BACKUP, color=st.ACCENT_ORANGE, size=28),
-                ft.Text("Gestão de Backups", size=18, weight="bold"),
+                ft.Text("Gestão de Backups", size=18, weight="bold", color="white"),
             ], spacing=8),
             lbl_backup_status,
             ft.ElevatedButton(
@@ -254,7 +254,7 @@ def montar_tela_configs(page: ft.Page):
             ft.Column([
                 ft.Container(height=20),
                 ft.Icon(ft.Icons.LOCK_PERSON, size=64, color=st.PRIMARY_BLUE),
-                ft.Text("Trocar Senha", size=20, weight="bold"),
+                ft.Text("Trocar Senha", size=20, weight="bold", color="white"),
                 ft.Text(f"Utilizador: {user_email}", size=14, color="grey"),
 
                 ft.Container(height=10),

@@ -279,6 +279,7 @@ Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Fl
   - `TestFimDeCiclo` (9): salvar_referencias_ciclo, 96 referências, leitura_anterior no JOIN, reset zera leituras, referências preservadas
   - `TestRelatorioCSV` (8): gerar_todos retorna 4 chaves, CSV/PDF existem em disco, cabeçalho + dados, coluna unidade
 - [ ] CI/CD pipeline
+claude
 
 ---
 

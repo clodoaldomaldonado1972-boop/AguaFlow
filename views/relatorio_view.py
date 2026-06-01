@@ -152,7 +152,7 @@ def montar_tela_relatorio(page: ft.Page):
         content=ft.Column([
             ft.Row([
                 ft.Icon(ft.Icons.DESCRIPTION, color=st.ACCENT_ORANGE, size=30),
-                ft.Text("RELATÓRIO POR UNIDADE", size=16, weight="bold"),
+                ft.Text("RELATÓRIO POR UNIDADE", size=16, weight="bold", color="white"),
             ], spacing=8),
             ft.Row([dd_unid, dd_mes_unid], spacing=8, wrap=True),
             lbl_unid_status,
@@ -184,7 +184,7 @@ def montar_tela_relatorio(page: ft.Page):
             ft.Container(
                 content=ft.Column([
                     ft.Icon(ft.Icons.RECYCLING, size=50, color=st.PRIMARY_BLUE),
-                    ft.Text("FINALIZAR MÊS ATUAL", size=18, weight="bold"),
+                    ft.Text("FINALIZAR MÊS ATUAL", size=18, weight="bold", color="white"),
                     pr, lbl_status,
                     ft.ElevatedButton(
                         "EXECUTAR VIRADA DE CICLO",
@@ -198,7 +198,7 @@ def montar_tela_relatorio(page: ft.Page):
             ft.Divider(height=25, color="white10"),
             secao_unidade,
             ft.Divider(height=25, color="white10"),
-            ft.Text("IMPRESSÃO DE ETIQUETAS (50/FOLHA)", size=14, weight="bold", color="grey"),
+            ft.Text("IMPRESSÃO DE ETIQUETAS (50/FOLHA)", size=14, weight="bold", color="white"),
             ft.Row([
                 ft.ElevatedButton(
                     "QR ÁGUA", icon="water",

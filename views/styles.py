@@ -1,16 +1,21 @@
 import flet as ft
 import asyncio
 
-# --- 1. CORES BASE ---
-BG_DARK = "#121417"
-PRIMARY_BLUE = "#2196F3"
-WHITE = "#FFFFFF"
-GREY_TEXT = "#BDBDBD"
-ACCENT_ORANGE = "#FF9800"
-RED_ERROR = "#FF5252"
-SUCCESS_GREEN = "#2E7D32"
+# --- 1. CORES BASE — Paleta AguaFlow Brand (guia ov9ngi) ---
+AGUA_BLUE   = "#2255FE"   # azul elétrico — cor primária
+FLOW_ORANGE = "#FFA360"   # laranja quente — cor secundária
+GOLDEN      = "#FFE060"   # dourado — acento no gradiente da chama
 
-BG_LIGHT = "#FAFAFA"
+BG_DARK  = "#0E1628"      # navy escuro — dark mode
+BG_LIGHT = "#FFFFFF"      # branco puro — light mode
+
+# Aliases de compatibilidade com o resto do projeto
+PRIMARY_BLUE  = AGUA_BLUE
+ACCENT_ORANGE = FLOW_ORANGE
+WHITE         = "#FFFFFF"
+GREY_TEXT     = "#BDBDBD"
+RED_ERROR     = "#FF5252"
+SUCCESS_GREEN = "#2E7D32"
 
 
 def get_bgcolor(page):
@@ -114,6 +119,21 @@ BTN_SPECIAL = ft.ButtonStyle(
     color=WHITE, bgcolor=ACCENT_ORANGE,
     shape=ft.RoundedRectangleBorder(radius=15)
 )
+
+
+def logo_aguaflow(size: int = 90) -> ft.Image:
+    """Logo AguaFlow — imagem paisagem 3054×1408, size = altura."""
+    return ft.Image(
+        src="logo.png",
+        width=int(size * 2.17),
+        height=size,
+        fit="contain",
+    )
+
+
+def logo_aguaflow_com_texto(size: int = 90, text_size: int = 30) -> ft.Image:
+    """Logo AguaFlow com texto já embutido na imagem."""
+    return logo_aguaflow(size)
 
 
 def criar_card_metrica(titulo, valor, icone, cor, col=3):

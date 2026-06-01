@@ -18,7 +18,7 @@ def montar_tela_esqueci_senha(page: ft.Page):
             vertical_alignment="center",
             horizontal_alignment="center",
             controls=[
-                ft.Icon(ft.Icons.LOCK_RESET, size=80, color="orange"),
+                st.logo_aguaflow(size=80),
                 ft.Text("Recuperar Senha", size=24, weight="bold", color="white"),
                 ft.Container(height=10),
                 txt_email,
@@ -131,15 +131,7 @@ def criar_tela_login(page: ft.Page):
             controls=[
                 ft.Container(
                     content=ft.Column([
-                        ft.Container(
-                            content=ft.Icon(ft.Icons.WATER_DROP, color="white", size=48),
-                            width=90, height=90,
-                            bgcolor="#1565C0",
-                            border_radius=ft.BorderRadius.all(45),
-                            alignment=ft.alignment.Alignment(0, 0),
-                            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-                        ),
-                        ft.Text("AguaFlow", size=32, weight="bold", color="white"),
+                        st.logo_aguaflow_com_texto(size=90, text_size=32),
                         ft.Text("Condomínio Vivere Prudente",
                                 weight="bold", color="#2196F3"),
                         ft.Divider(height=20, color="transparent"),

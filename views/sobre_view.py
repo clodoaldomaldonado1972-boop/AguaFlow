@@ -23,10 +23,7 @@ def montar_tela_sobre(page: ft.Page):
             ft.Column(
                 [
                     ft.Container(height=20),
-                    ft.Icon(ft.Icons.INFO_OUTLINE, size=64,
-                            color=st.PRIMARY_BLUE),
-                    ft.Text("AguaFlow", size=24,
-                            weight="bold", color=st.WHITE),
+                    st.logo_aguaflow_com_texto(size=80, text_size=24),
                     ft.Text(AppUpdater.get_footer(),
                             size=14, color=st.GREY_TEXT),
                     ft.Container(height=20),

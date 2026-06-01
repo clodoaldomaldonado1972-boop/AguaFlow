@@ -111,7 +111,7 @@ def montar_tela_sincronizacao(page: ft.Page):
                     content=ft.Column([
                         ft.Icon(ft.Icons.CLOUD_SYNC, size=50, color=st.PRIMARY_BLUE),
                         ft.Text("STATUS DA SINCRONIZAÇÃO",
-                                size=16, weight="bold"),
+                                size=16, weight="bold", color="white"),
                         lbl_status_geral,
                         lbl_ultimasinc,
                     ], horizontal_alignment="center"),
@@ -147,7 +147,7 @@ def montar_tela_sincronizacao(page: ft.Page):
                 ft.Container(height=20),
 
                 # Informações
-                ft.Text("Informações", size=14, weight="bold"),
+                ft.Text("Informações", size=14, weight="bold", color="white"),
                 ft.Container(
                     content=ft.Column([
                         ft.Text(

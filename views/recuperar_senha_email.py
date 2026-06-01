@@ -46,7 +46,7 @@ def criar_tela_recuperacao(page: ft.Page):
         controls=[
             ft.Container(
                 content=ft.Column([
-                    ft.Icon(ft.Icons.MARK_EMAIL_READ, size=80, color="blue"),
+                    st.logo_aguaflow(size=80),
                     ft.Text("Recuperar Senha", style=st.TEXT_TITLE),
                     ft.Text("Enviaremos um link para o seu e-mail", style=st.TEXT_SUB),
                     ft.Divider(height=20, color="transparent"),

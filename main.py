@@ -58,7 +58,7 @@ async def main(page: ft.Page):
             page.theme_mode = ft.ThemeMode.DARK
             page.bgcolor = BG_DARK
             await _prefs.set("tema", "dark")
-        page.update()
+        await route_change(None)
 
     page.toggle_tema = toggle_tema
 
