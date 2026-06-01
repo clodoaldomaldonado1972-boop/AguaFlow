@@ -1,3 +1,4 @@
+
 #!/bin/bash
 # Script de build isolado — roda em WSL2 com PATH limpo do Linux
 # Redireciona TUDO para log no filesystem Linux (evita broken pipe do Windows)
@@ -15,7 +16,7 @@ SRC=/mnt/c/AguaFlow
 BUILD_DIR=$HOME/aguaflow_build
 FLUTTER_DIR=$BUILD_DIR/build/flutter
 
-echo "=== AguaFlow v1.2.0 — Build APK 129 ==="
+echo "=== AguaFlow v1.2.0 — Build APK 131 ==="
 echo "Java:   $(java -version 2>&1 | head -1)"
 echo "Python: $(python3 --version)"
 echo "Flet:   $(flet --version)"
@@ -54,6 +55,7 @@ rsync -a --delete \
     --exclude='*.pyc' \
     --exclude='.venv/' \
     --exclude='C:*' \
+    --exclude='assets/Photos/' \
     "$SRC/" "$BUILD_DIR/"
 
 echo "Sincronizacao OK"
@@ -90,7 +92,7 @@ flet build apk \
     --project AguaFlow \
     --product "AguaFlow" \
     --build-version 1.2.0 \
-    --build-number 129 \
+    --build-number 131 \
     --permissions camera photo_library \
     --yes
 
@@ -179,7 +181,7 @@ cd "$FLUTTER_DIR"
 flutter pub get
 
 echo "⏳ flutter build apk com camera..."
-flutter build apk --release
+flutter build apk --release --build-number 131 --build-name 1.2.0
 
 # ── PASSO 6: Copia o APK final ──
 APK=$(find "$FLUTTER_DIR/build/app/outputs/flutter-apk" -name "app-release.apk" 2>/dev/null | head -1)
@@ -187,7 +189,7 @@ APK=$(find "$FLUTTER_DIR/build/app/outputs/flutter-apk" -name "app-release.apk" 
 [ -z "$APK" ] && APK="$BUILD_DIR/build/apk/AguaFlow.apk"
 
 if [ -f "$APK" ]; then
-    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0-b129.apk
+    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0-b131.apk
     cp /tmp/aguaflow_build.log /mnt/c/AguaFlow/build_output.log
     echo "===================================="
     echo "APK gerado com sucesso!"
