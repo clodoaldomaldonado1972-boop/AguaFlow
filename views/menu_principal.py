@@ -212,6 +212,7 @@ def montar_menu(page: ft.Page):
                     ft.Container(height=8),
                     ft.Divider(height=1, color=divider_color),
                     footer,
+                    ft.Container(height=64),  # safe area — cobre nav bar do Android
                 ],
                 spacing=0,
                 scroll=ft.ScrollMode.AUTO,
