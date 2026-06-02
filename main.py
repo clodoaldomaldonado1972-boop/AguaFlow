@@ -51,17 +51,6 @@ async def main(page: ft.Page):
 async def _main(page: ft.Page):
     global db_ready
 
-    # ── DIAGNÓSTICO: testa se Python/Flet chegam até aqui no Android ──
-    page.views.clear()
-    page.views.append(ft.View(
-        route="/",
-        bgcolor="#0E1628",
-        controls=[ft.Text("AguaFlow iniciou", size=24, color="white")],
-    ))
-    page.update()
-    await asyncio.sleep(2)
-    # ── FIM DIAGNÓSTICO ──
-
     # Imports do app dentro de _main para capturar crashes de import no try/except de main()
     from database.sync_service import SyncService
     from database.database import Database
@@ -79,9 +68,7 @@ async def _main(page: ft.Page):
     _file_picker = ft.FilePicker()
     _camera = CameraService()
     _barcode = BarcodeScannerService()
-    # Registra serviços apenas no desktop — no Android o assignment trava o runtime Flutter
-    if not is_mobile:
-        page.services = [_prefs, _file_picker, _camera, _barcode]
+    page.services = [_prefs, _file_picker, _camera, _barcode]
     page.file_picker = _file_picker
     page.camera = _camera
     page.barcode = _barcode
