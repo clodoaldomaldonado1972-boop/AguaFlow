@@ -2,19 +2,19 @@ import flet as ft
 import asyncio
 
 # --- 1. CORES BASE — Paleta AguaFlow Brand (guia ov9ngi) ---
-AGUA_BLUE   = "#2255FE"   # azul elétrico — cor primária
+AGUA_BLUE = "#2255FE"   # azul elétrico — cor primária
 FLOW_ORANGE = "#FFA360"   # laranja quente — cor secundária
-GOLDEN      = "#FFE060"   # dourado — acento no gradiente da chama
+GOLDEN = "#FFE060"   # dourado — acento no gradiente da chama
 
-BG_DARK  = "#0E1628"      # navy escuro — dark mode
+BG_DARK = "#0E1628"      # navy escuro — dark mode
 BG_LIGHT = "#FFFFFF"      # branco puro — light mode
 
 # Aliases de compatibilidade com o resto do projeto
-PRIMARY_BLUE  = AGUA_BLUE
+PRIMARY_BLUE = AGUA_BLUE
 ACCENT_ORANGE = FLOW_ORANGE
-WHITE         = "#FFFFFF"
-GREY_TEXT     = "#BDBDBD"
-RED_ERROR     = "#FF5252"
+WHITE = "#FFFFFF"
+GREY_TEXT = "#BDBDBD"
+RED_ERROR = "#FF5252"
 SUCCESS_GREEN = "#2E7D32"
 
 
@@ -127,7 +127,7 @@ def logo_aguaflow(size: int = 90) -> ft.Image:
         src="logo.png",
         width=int(size * 2.17),
         height=size,
-        fit="contain",
+        fit=ft.BoxFit.CONTAIN,
     )
 
 
@@ -148,4 +148,3 @@ def criar_card_metrica(titulo, valor, icone, cor, col=3):
         border_radius=12,
         padding=16,
     )
-

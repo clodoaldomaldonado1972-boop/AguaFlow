@@ -1,17 +1,10 @@
-# 0. CONFIGURAÇÃO DE LOG
+# 0. CONFIGURAÇÃO MÍNIMA — apenas stdlib antes de qualquer import do app
 import logging
-from database.sync_service import SyncService
-from database.database import Database
-import flet as ft
 import asyncio
 import os
 import sys
-from utils.updater import AppUpdater
-from utils.logger_config import setup_logging
-from views.styles import BG_DARK, BG_LIGHT
-
-setup_logging()  # Inicializa o sistema de logs profissional
-logger = logging.getLogger(__name__)
+import traceback
+import flet as ft
 
 db_ready = False
 
@@ -19,8 +12,66 @@ db_ready = False
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _gravar_crash(msg: str):
+    """Grava crash em arquivo acessível no Android e no desktop."""
+    try:
+        base = os.environ.get("FLET_APP_STORAGE_DATA", os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(base, "crash_boot.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(msg)
+    except Exception:
+        pass
+
+
 async def main(page: ft.Page):
     global db_ready
+    try:
+        await _main(page)
+    except Exception as _boot_ex:
+        import traceback
+        _tb = traceback.format_exc()
+        _gravar_crash(_tb)
+        try:
+            page.views.clear()
+            page.views.append(ft.View(
+                route="/",
+                bgcolor="#121417",
+                scroll=ft.ScrollMode.AUTO,
+                controls=[
+                    ft.Text("CRASH NO BOOT", size=18, color="red", weight=ft.FontWeight.BOLD),
+                    ft.Text(str(_boot_ex), size=12, color="white"),
+                    ft.Text(_tb, size=10, color="grey", selectable=True),
+                ],
+            ))
+            page.update()
+        except Exception:
+            pass
+
+
+async def _main(page: ft.Page):
+    global db_ready
+
+    # ── DIAGNÓSTICO: testa se Python/Flet chegam até aqui no Android ──
+    page.views.clear()
+    page.views.append(ft.View(
+        route="/",
+        bgcolor="#0E1628",
+        controls=[ft.Text("AguaFlow iniciou", size=24, color="white")],
+    ))
+    page.update()
+    await asyncio.sleep(2)
+    # ── FIM DIAGNÓSTICO ──
+
+    # Imports do app dentro de _main para capturar crashes de import no try/except de main()
+    from database.sync_service import SyncService
+    from database.database import Database
+    from utils.updater import AppUpdater
+    from utils.logger_config import setup_logging
+    from views.styles import BG_DARK, BG_LIGHT
+
+    setup_logging()
+    logger = logging.getLogger(__name__)
+
     is_mobile = page.platform in [ft.PagePlatform.ANDROID, ft.PagePlatform.IOS]
     from utils.camera_service import CameraService
     from utils.barcode_service import BarcodeScannerService
@@ -28,26 +79,15 @@ async def main(page: ft.Page):
     _file_picker = ft.FilePicker()
     _camera = CameraService()
     _barcode = BarcodeScannerService()
-    page.services = [_prefs, _file_picker, _camera, _barcode]
+    # Registra serviços apenas no desktop — no Android o assignment trava o runtime Flutter
+    if not is_mobile:
+        page.services = [_prefs, _file_picker, _camera, _barcode]
     page.file_picker = _file_picker
     page.camera = _camera
     page.barcode = _barcode
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG_DARK
     page.title = AppUpdater.get_footer()
-    page.bottom_appbar = ft.BottomAppBar(
-        content=ft.Container(
-            content=ft.Text(
-                f"AguaFlow v{AppUpdater.VERSION}",
-                size=10,
-                color="grey",
-                text_align=ft.TextAlign.CENTER,
-                italic=True,
-            ),
-            alignment=ft.alignment.Alignment(0, 0),
-        ),
-        height=26,
-    )
 
     async def toggle_tema():
         if page.theme_mode == ft.ThemeMode.DARK:
