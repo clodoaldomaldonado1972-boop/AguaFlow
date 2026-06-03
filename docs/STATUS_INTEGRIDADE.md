@@ -178,6 +178,6 @@ TOTAL                     ████████████  99%
 
 ```
 Última atualização : 2026-06-02
-Responsável        : Clodoaldo Maldonado + Claude Sonnet 4.6
+Responsável        : Clodoaldo Maldonado 
 Próximo marco      : Inserir versao_sistema 1.3.0 no Supabase
 ```
