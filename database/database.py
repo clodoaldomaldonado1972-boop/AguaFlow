@@ -577,7 +577,7 @@ class Database:
                 cursor = conn.cursor()
                 query = """
                     SELECT id, unidade_id, leitura_agua, leitura_gas, tipo,
-                           data_hora_coleta, leiturista, sincronizado
+                           data_hora_coleta, leiturista, sincronizado, foto_url
                     FROM leituras WHERE 1=1
                 """
                 params = []

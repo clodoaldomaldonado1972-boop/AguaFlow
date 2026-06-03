@@ -45,12 +45,35 @@ async def montar_tela_historico(page: ft.Page):
         gas = f"{d['leitura_gas']:.3f} m³" if d.get("leitura_gas") is not None else "—"
         data_txt = (d.get("data_hora_coleta") or "")[:16]
         leiturista = d.get("leiturista") or ""
+        foto_url = d.get("foto_url") or ""
 
         sinc_icon = (
             ft.Icon(ft.Icons.CLOUD_DONE, color=st.SUCCESS_GREEN, size=14)
             if d.get("sincronizado")
             else ft.Icon(ft.Icons.CLOUD_OFF, color=st.ACCENT_ORANGE, size=14)
         )
+
+        def on_ver_foto(ev, url=foto_url, unid=d["unidade_id"]):
+            page.show_dialog(ft.AlertDialog(
+                modal=True,
+                title=ft.Text(f"Foto — Unidade {unid}", size=14),
+                content=ft.Container(
+                    content=ft.Image(
+                        src=url,
+                        fit=ft.BoxFit.CONTAIN,
+                        error_content=ft.Column([
+                            ft.Icon(ft.Icons.BROKEN_IMAGE, color=st.GREY_TEXT, size=40),
+                            ft.Text("Foto indisponível", color=st.GREY_TEXT, size=12),
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4),
+                    ),
+                    width=300,
+                    height=300,
+                ),
+                actions=[
+                    ft.TextButton("Fechar", on_click=lambda _: page.pop_dialog()),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            ))
 
         def on_excluir(ev, lid=d["id"], unid=d["unidade_id"]):
             def fazer(ev2):
@@ -131,6 +154,7 @@ async def montar_tela_historico(page: ft.Page):
         info_row = ft.Row([
             ft.Text(d.get("unidade_id", "?"), weight="bold", size=14),
             sinc_icon,
+            ft.Icon(ft.Icons.PHOTO_CAMERA, color=st.ACCENT_ORANGE, size=14) if foto_url else ft.Container(),
         ], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
         detalhe_row = ft.Text(
@@ -143,25 +167,35 @@ async def montar_tela_historico(page: ft.Page):
             color="#616161",
         )
 
+        acoes = ft.Row([
+            ft.IconButton(
+                icon=ft.Icons.PHOTO_CAMERA,
+                icon_color=st.ACCENT_ORANGE,
+                icon_size=20,
+                tooltip="Ver foto",
+                on_click=on_ver_foto,
+                visible=bool(foto_url),
+            ),
+            ft.IconButton(
+                icon=ft.Icons.EDIT_NOTE,
+                icon_color=st.PRIMARY_BLUE,
+                icon_size=20,
+                tooltip="Editar",
+                on_click=on_editar,
+            ),
+            ft.IconButton(
+                icon=ft.Icons.DELETE_OUTLINE,
+                icon_color=st.RED_ERROR,
+                icon_size=20,
+                tooltip="Excluir",
+                on_click=on_excluir,
+            ),
+        ], spacing=0)
+
         return ft.Container(
             content=ft.Row([
                 ft.Column([info_row, detalhe_row, meta_row], spacing=2, expand=True),
-                ft.Row([
-                    ft.IconButton(
-                        icon=ft.Icons.EDIT_NOTE,
-                        icon_color=st.PRIMARY_BLUE,
-                        icon_size=20,
-                        tooltip="Editar",
-                        on_click=on_editar,
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.DELETE_OUTLINE,
-                        icon_color=st.RED_ERROR,
-                        icon_size=20,
-                        tooltip="Excluir",
-                        on_click=on_excluir,
-                    ),
-                ], spacing=0),
+                acoes,
             ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
             bgcolor="#1E2126",
             border_radius=8,
