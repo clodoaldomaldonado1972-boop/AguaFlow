@@ -1,6 +1,6 @@
 # Checklist MVP — AguaFlow v1.2.0
 
-Análise completa do sistema realizada em 16/05/2026. Atualizado em 01/06/2026 (logo PNG, toggle de tema, contraste modo claro). Atualizado em 01/06/2026 (análise de integridade, OCR real 13/21 = 61%, 376/376 testes pass).
+Análise completa do sistema realizada em 16/05/2026. Atualizado em 01/06/2026 (logo PNG, toggle de tema, contraste modo claro). Atualizado em 01/06/2026 (análise de integridade, OCR real 13/21 = 61%, 376/376 testes pass). Atualizado em 02/06/2026 (tela branca Android corrigida b141, footer safe area b142 — app estável em produção Android).
 Status: **Produção** | Plataforma: Desktop (Windows) + Android | Framework: Flet 0.82.2
 
 ---
@@ -910,3 +910,46 @@ Nenhuma regressão. Todos os 376 testes passam.
 - [x] **376/376 testes pytest — 100% pass** — zero regressões após todas as alterações de UI
 - [x] Boot sem erros, SMTP autenticado, sync em dia
 - [x] Encerramento limpo (exit code 0)
+
+---
+
+## 32. Correções Android — Tela Branca e Footer Safe Area — 02/06/2026
+
+### 32.1 Tela branca no boot Android (b140 → b141)
+
+**Problema:** APK b140 abria mas não exibia nada — tela completamente preta, nem o crash handler renderizava.
+
+**Causa raiz:** O commit anterior (`22ae5e2`) removeu `page.services` do Android com a hipótese de que ele "travava o runtime Flutter". A causa real do travamento era `page.bottom_appbar` (removido corretamente). Sem `page.services`, `ft.SharedPreferences` existia como objeto Python mas não tinha handler registrado no Flutter. Na primeira chamada `await _prefs.get("tema")` (background task `carregar_tema`), a mensagem enviada ao Flutter não tinha destino → **conexão Flet IPC encerrada** → tela preta irreversível.
+
+**Correção (`main.py`):**
+- [x] `page.services = [_prefs, _file_picker, _camera, _barcode]` restaurado para todas as plataformas (como em b128)
+- [x] Tela diagnóstica com `await asyncio.sleep(2)` removida — adicionava delay desnecessário e `page.on_route_change` ainda não estava definido durante os 2 s
+- [x] Estrutura try/except wrapper (`main` → `_main`) e imports dentro de `_main` mantidos (boa prática para captura de crash)
+- [x] `page.bottom_appbar` permanece removido (correto — não existe em Flet 0.82.2)
+
+**Resultado:** APK b141 abre normalmente, login exibido, app funcional.
+
+### 32.2 Botões Histórico / Ajuda / Sobre inacessíveis (b141 → b142)
+
+**Problema:** Os três botões do footer do menu (`/historico`, `/ajuda`, `/sobre`) ficavam sobrepostos pela barra de navegação do Android (botões sistema `|||  O  <` ou área de gestos).
+
+**Causa raiz:** O footer é o último item de uma `Column` com `scroll=ScrollMode.AUTO` em `views/menu_principal.py`. Não havia padding inferior para compensar a nav bar do Android (~48-56 dp), de modo que o scroll terminava exatamente atrás da barra do sistema.
+
+**Correção (`views/menu_principal.py`):**
+- [x] `ft.Container(height=64)` adicionado como último item da Column, após o footer — funciona como safe-area spacer em dispositivos com botões físicos (48 dp) e com navegação por gestos (34 dp)
+
+**Resultado:** APK b142 — botões Histórico, Ajuda e Sobre acessíveis e clicáveis em todos os modos de navegação Android.
+
+### 32.3 Estado do app após b142
+
+| Item | Status |
+|---|---|
+| Boot Android | ✅ Abre e exibe login |
+| Footer (Histórico / Ajuda / Sobre) | ✅ Acessíveis acima da nav bar |
+| `page.services` (SharedPreferences, Camera, Barcode) | ✅ Registrados em todas as plataformas |
+| `page.bottom_appbar` | ✅ Removido (não existe em Flet 0.82.2) |
+| Testes pytest | ✅ 376/376 pass (sem alteração de lógica) |
+
+---
+
+*Atualizado em 02/06/2026 — tela branca Android corrigida (b141), footer safe area (b142), app estável em produção Android.*
