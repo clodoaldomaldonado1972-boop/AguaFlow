@@ -16,7 +16,7 @@ SRC=/mnt/c/AguaFlow
 BUILD_DIR=$HOME/aguaflow_build
 FLUTTER_DIR=$BUILD_DIR/build/flutter
 
-echo "=== AguaFlow v1.2.0 — Build APK 142 ==="
+echo "=== AguaFlow v1.3.0 — Build APK 143 ==="
 echo "Java:   $(java -version 2>&1 | head -1)"
 echo "Python: $(python3 --version)"
 echo "Flet:   $(flet --version)"
@@ -91,8 +91,8 @@ flet build apk \
     --org br.com.vivereprudente \
     --project AguaFlow \
     --product "AguaFlow" \
-    --build-version 1.2.0 \
-    --build-number 142 \
+    --build-version 1.3.0 \
+    --build-number 143 \
     --permissions camera photo_library \
     --yes
 
@@ -181,7 +181,7 @@ cd "$FLUTTER_DIR"
 flutter pub get
 
 echo "⏳ flutter build apk com camera..."
-flutter build apk --release --build-number 142 --build-name 1.2.0
+flutter build apk --release --build-number 143 --build-name 1.3.0
 
 # ── PASSO 6: Copia o APK final ──
 APK=$(find "$FLUTTER_DIR/build/app/outputs/flutter-apk" -name "app-release.apk" 2>/dev/null | head -1)
@@ -189,11 +189,11 @@ APK=$(find "$FLUTTER_DIR/build/app/outputs/flutter-apk" -name "app-release.apk" 
 [ -z "$APK" ] && APK="$BUILD_DIR/build/apk/AguaFlow.apk"
 
 if [ -f "$APK" ]; then
-    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.2.0-b142.apk
+    cp "$APK" /mnt/c/AguaFlow/AguaFlow-1.3.0-b143.apk
     cp /tmp/aguaflow_build.log /mnt/c/AguaFlow/build_output.log
     echo "===================================="
     echo "APK gerado com sucesso!"
-    echo "Destino: C:/AguaFlow/AguaFlow-1.2.0.apk"
+    echo "Destino: C:/AguaFlow/AguaFlow-1.3.0.apk"
     echo "Tamanho: $(du -h "$APK" | cut -f1)"
     echo "===================================="
 else

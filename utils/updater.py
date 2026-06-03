@@ -3,7 +3,7 @@ import os
 from database.database import get_supabase_client
 
 # --- ALTERE SOMENTE AQUI ---
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 CONDOMINIO = "Vivere Prudente"
 
 class AppUpdater:
